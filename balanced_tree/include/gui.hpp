@@ -6,4 +6,6 @@
 
 /****************************** Definition ********************************/
 
-template <typename Key, typename Value> void draw_tree(const TreeObject<Key, Value>& tree);
+template <typename Key, typename Value> void drawTree(const TreeObject<Key, Value>& tree);
+
+/****************************** Implementation ********************************/

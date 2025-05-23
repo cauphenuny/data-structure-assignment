@@ -1,3 +1,5 @@
+/// @file algorithm.h
+
 #pragma once
 
 #include "board.h"

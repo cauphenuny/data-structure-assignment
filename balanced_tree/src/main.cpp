@@ -1,3 +1,6 @@
+/// @file main.cpp
+/// @brief main function for testing the tree implementations (temporarily)
+
 #include "avl.hpp"
 #include "tree.hpp"
 
@@ -8,18 +11,15 @@ int main() {
     node.lchild.reset(new Node<int, string>(2, "def", &node));
     debug(node);
 
-    auto tree = Tree<int, int>::create();
-    tree->insert(2, 114);
-    tree->insert(1, 514);
-    tree->insert(3, 1919);
-    tree->insert(4, 810);
+    auto tree = Tree<int, string>::create();
+    tree->insert(114, "test");
+    tree->insert(514, "tree");
+    tree->insert(1919, "insert");
+    tree->insert(810, "function");
     debug(*tree);
 
-    tree = AVLTree<int, int>::create();
-    /*
-    NOTE: not implemented yet
-    avl->insert(2, 114);
-    */
+    tree = AVLTree<int, string>::create();
+    tree->insert(2, "not implemented yet");
     debug(*tree);
 
     return 0;

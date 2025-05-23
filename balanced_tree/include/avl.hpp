@@ -42,11 +42,11 @@ template <typename Key, typename Value> auto AVLTree<Key, Value>::create() -> Tr
 }
 
 template <typename Key, typename Value>
-auto AVLTree<Key, Value>::insert(const Key& key, const Value& value) -> void {
+void AVLTree<Key, Value>::insert(const Key& key, const Value& value) {
     // TODO:
 }
 
-template <typename Key, typename Value> auto AVLTree<Key, Value>::remove(const Key& key) -> void {
+template <typename Key, typename Value> void AVLTree<Key, Value>::remove(const Key& key) {
     // TODO:
 }
 

@@ -135,33 +135,33 @@ template <typename Key, typename Value> void Tree<Key, Value>::remove(const Key&
         }
     };
 
-    std::unique_ptr<Node>* curPtr = nullptr;
+    std::unique_ptr<Node>* cur_ptr = nullptr;
     if (!cur->parent)
-        curPtr = &root;
+        cur_ptr = &root;
     else if (cur->parent->lchild.get() == cur)
-        curPtr = &(cur->parent->lchild);
+        cur_ptr = &(cur->parent->lchild);
     else
-        curPtr = &(cur->parent->rchild);
+        cur_ptr = &(cur->parent->rchild);
 
     if (!cur->lchild) {
-        transplant(*curPtr, cur->rchild);
+        transplant(*cur_ptr, cur->rchild);
     } else if (!cur->rchild) {
-        transplant(*curPtr, cur->lchild);
+        transplant(*cur_ptr, cur->lchild);
     } else {
         // 找到右子树最小节点
         Node* succ = cur->rchild.get();
-        std::unique_ptr<Node>* succPtr = &(cur->rchild);
+        std::unique_ptr<Node>* succ_ptr = &(cur->rchild);
         while (succ->lchild) {
-            succPtr = &(succ->lchild);
+            succ_ptr = &(succ->lchild);
             succ = succ->lchild.get();
         }
         if (succ->parent != cur) {
-            transplant(*succPtr, succ->rchild);
+            transplant(*succ_ptr, succ->rchild);
             succ->rchild = std::move(cur->rchild);
             if (succ->rchild) succ->rchild->parent = succ;
         }
         auto wrapper = std::unique_ptr<Node>(succ);
-        transplant(*curPtr, wrapper);
+        transplant(*cur_ptr, wrapper);
         succ->lchild = std::move(cur->lchild);
         if (succ->lchild) succ->lchild->parent = succ;
         succ->parent = cur->parent;
@@ -191,11 +191,11 @@ template <typename Key, typename Value> void Tree<Key, Value>::merge(const TreeO
 
 template <typename Key, typename Value> auto Tree<Key, Value>::split(const Key& key) -> TreeObject {
     // 简单实现：将所有key > 给定key的节点移到新树
-    auto newTree = Tree<Key, Value>::create();
+    auto new_tree = Tree<Key, Value>::create();
     auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
         if (!node) return;
         if (node->key > key) {
-            newTree->insert(node->key, node->value);
+            new_tree->insert(node->key, node->value);
             if (node->lchild) self(self, node->lchild);
             if (node->rchild) self(self, node->rchild);
             remove(node->key);
@@ -204,5 +204,5 @@ template <typename Key, typename Value> auto Tree<Key, Value>::split(const Key& 
         }
     };
     dfs(dfs, root);
-    return newTree;
+    return new_tree;
 }

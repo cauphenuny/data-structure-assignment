@@ -10,4 +10,4 @@ enum class LogLevel {
     DEBUG,
 };
 
-void echo_message(std::string_view message, LogLevel level = LogLevel::INFO);
+void echo(std::string_view message, LogLevel level = LogLevel::INFO);

@@ -1,4 +1,8 @@
+/// @file board.h
+/// @brief define the board structure
+
 #pragma once
+#include <vector>
 
 #define BOARD_SIZE 8
 
@@ -19,3 +23,12 @@ struct Board {
  * board(1, 2) = 1; // same as board.data[1][2] = 1;
  * board(3, 2) = 1;
  */
+
+struct Arrow {
+    Point start, end;
+};
+
+struct DisplayBoard {
+    Board board;
+    std::vector<Arrow> arrows;
+};

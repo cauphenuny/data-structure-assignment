@@ -1,3 +1,5 @@
+/// @file gui.h
+
 #pragma once
 
 #include "board.h"
@@ -11,9 +13,7 @@ enum class LogLevel {
     DEBUG,
 };
 
-void echo_message(std::string_view message, LogLevel level = LogLevel::INFO);
+void echo(std::string_view message, LogLevel level = LogLevel::INFO);
 
-void draw_board(const Board& board);
-void draw_arrow(Point start, Point end);
-void clear_canvas();
-void clear_arrow();
+void drawBoard(const DisplayBoard& board);
+void clearCanvas();
