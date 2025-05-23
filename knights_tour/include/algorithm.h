@@ -9,4 +9,4 @@ enum class Algorithm {
     HEURISTIC,    // 启发式搜索
 };
 
-void solve(Algorithm algo, Point start);
+Board solve(Algorithm algo, Point start);
