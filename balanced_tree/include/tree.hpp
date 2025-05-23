@@ -11,26 +11,30 @@
 
 /****************************** Definition ********************************/
 
+struct TreeBase {
+    virtual ~TreeBase() = default;
+    virtual void print() const = 0;
+    virtual auto stringify() const -> std::string = 0;
+};
+
 template <typename Key, typename Value> struct Node;
 template <typename Key, typename Value> struct Tree;
 
 template <typename Key, typename Value> using TreeObject = std::unique_ptr<Tree<Key, Value>>;
 
-template <typename Key, typename Value> struct Tree {
+template <typename Key, typename Value> struct Tree : TreeBase {
     using Node = Node<Key, Value>;
-    using TreeObject = TreeObject<Key, Value>;
-
-    static auto create() -> TreeObject;
 
     void clear();
     auto size() const -> size_t;
     auto find(const Key& key) const -> Node*;
 
-    virtual auto stringify() const -> std::string;
+    void print() const override;
+    virtual auto stringify() const -> std::string override;
     virtual void insert(const Key& key, const Value& value);
     virtual void remove(const Key& key);
-    virtual auto split(const Key& key) -> TreeObject;
-    virtual void merge(const TreeObject& other);
+    virtual auto split(const Key& key) -> Tree*;
+    virtual void merge(Tree* other);
 
     Tree() = default;
     Tree(const Tree&) = delete;
@@ -57,12 +61,9 @@ template <typename Key, typename Value> struct Node {
         return serializeClass("Node", key, value, size, this, parent, lchild, rchild);
     }
 };
+
 template <typename Key, typename Value> auto Tree<Key, Value>::stringify() const -> std::string {
     return serializeClass("Tree", root);
-}
-
-template <typename Key, typename Value> auto Tree<Key, Value>::create() -> TreeObject {
-    return std::make_unique<Tree<Key, Value>>();
 }
 
 template <typename Key, typename Value> auto Tree<Key, Value>::size() const -> size_t {
@@ -70,6 +71,11 @@ template <typename Key, typename Value> auto Tree<Key, Value>::size() const -> s
 }
 
 template <typename Key, typename Value> void Tree<Key, Value>::clear() { root.reset(); }
+
+template <typename Key, typename Value> void Tree<Key, Value>::print() const {
+    // TODO: change to GUI display
+    std::cout << this->stringify() << std::endl;
+}
 
 template <typename Key, typename Value>
 void Tree<Key, Value>::insert(const Key& key, const Value& value) {
@@ -177,7 +183,7 @@ template <typename Key, typename Value> void Tree<Key, Value>::remove(const Key&
     }
 }
 
-template <typename Key, typename Value> void Tree<Key, Value>::merge(const TreeObject& other) {
+template <typename Key, typename Value> void Tree<Key, Value>::merge(Tree* other) {
     // 简单实现：将other的所有节点插入到当前树
     if (!other) return;
     auto dfs = [&](auto self, const std::unique_ptr<Node>& node) {
@@ -189,9 +195,9 @@ template <typename Key, typename Value> void Tree<Key, Value>::merge(const TreeO
     dfs(dfs, other->root);
 }
 
-template <typename Key, typename Value> auto Tree<Key, Value>::split(const Key& key) -> TreeObject {
+template <typename Key, typename Value> auto Tree<Key, Value>::split(const Key& key) -> Tree* {
     // 简单实现：将所有key > 给定key的节点移到新树
-    auto new_tree = Tree<Key, Value>::create();
+    auto new_tree = new Tree();
     auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
         if (!node) return;
         if (node->key > key) {

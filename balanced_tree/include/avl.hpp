@@ -9,15 +9,13 @@ template <typename Key, typename Value> struct AVLNode;
 
 template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     using Node = AVLNode<Key, Value>;
-    using TreeObject = TreeObject<Key, Value>;
-
-    static auto create() -> TreeObject;
+    using Tree = Tree<Key, Value>;
 
     auto stringify() const -> std::string override;
     void insert(const Key& key, const Value& value) override;
     void remove(const Key& key) override;
-    auto split(const Key& key) -> TreeObject override;
-    void merge(const TreeObject& other) override;
+    auto split(const Key& key) -> Tree* override;
+    void merge(Tree* other) override;
 };
 
 /****************************** Implementation ********************************/
@@ -34,11 +32,7 @@ template <typename Key, typename Value> auto AVLNode<Key, Value>::stringify() co
 }
 
 template <typename Key, typename Value> auto AVLTree<Key, Value>::stringify() const -> std::string {
-    return this->Tree<Key, Value>::stringify();
-}
-
-template <typename Key, typename Value> auto AVLTree<Key, Value>::create() -> TreeObject {
-    return std::make_unique<AVLTree<Key, Value>>();
+    return this->Tree::stringify();
 }
 
 template <typename Key, typename Value>
@@ -50,12 +44,11 @@ template <typename Key, typename Value> void AVLTree<Key, Value>::remove(const K
     // TODO:
 }
 
-template <typename Key, typename Value>
-auto AVLTree<Key, Value>::split(const Key& key) -> TreeObject {
+template <typename Key, typename Value> auto AVLTree<Key, Value>::split(const Key& key) -> Tree* {
     // TODO:
     return nullptr;
 }
 
-template <typename Key, typename Value> void AVLTree<Key, Value>::merge(const TreeObject& other) {
+template <typename Key, typename Value> void AVLTree<Key, Value>::merge(Tree* other) {
     // TODO:
 }

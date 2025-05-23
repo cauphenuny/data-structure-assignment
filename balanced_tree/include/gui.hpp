@@ -1,11 +1,23 @@
-/// @file gui.hpp
-/// @brief GUI template functions (require implementation in header file)
+/// @file gui.h
+/// @brief GUI functions
 
-#pragma once
 #include "tree.hpp"
+
+#include <string_view>
 
 /****************************** Definition ********************************/
 
-template <typename Key, typename Value> void drawTree(const TreeObject<Key, Value>& tree);
+enum class LogLevel {
+    INFO,
+    WARNING,
+    ERROR,
+    DEBUG,
+};
 
-/****************************** Implementation ********************************/
+void echo(std::string_view message, LogLevel level = LogLevel::INFO);
+
+void gui();
+
+void drawTree(TreeBase* tree);
+
+// NOTE: don't forget to implement Tree<Key, Value>::print()

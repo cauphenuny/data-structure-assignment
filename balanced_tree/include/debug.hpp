@@ -3,6 +3,8 @@
 
 #pragma once
 #include <iostream>
+#include <list>
+#include <map>
 #include <sstream>
 #include <string>
 
@@ -41,6 +43,35 @@ inline std::string tryCompressString(const std::string& str) {
         return compressString(str);
     else
         return std::string(str);
+}
+
+template <std::input_iterator T> std::string stringify(const T& begin, const T& end) {
+    std::string str;
+    size_t index = 0;
+    for (T it = begin; it != end; it++) {
+        str += std::format("[{}]: {},\n", index++, serialize(*it));
+    }
+    if (!str.empty()) {
+        str.pop_back(), str.pop_back();
+    }
+    return tryCompressString(str);
+}
+
+template <typename T1, typename T2> std::string stringify(const std::pair<T1, T2>& p) {
+    return std::format("{}: {}", serialize(p.first), serialize(p.second));
+}
+
+template <typename T> std::string stringify(const std::vector<T>& vec) {
+    return tryCompressString(
+        "std::vector {\n" + addIndent(stringify(vec.begin(), vec.end())) + "}");
+}
+
+template <typename K, typename V> std::string stringify(const std::map<K, V>& m) {
+    return tryCompressString("std::map {\n" + addIndent(stringify(m.begin(), m.end())) + "}");
+}
+
+template <typename T> std::string stringify(const std::list<T>& l) {
+    return tryCompressString("std::list {\n" + addIndent(stringify(l.begin(), l.end())) + "}");
 }
 
 template <typename T> std::string serialize(const std::unique_ptr<T>& ptr) {
