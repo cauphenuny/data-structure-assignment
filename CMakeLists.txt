@@ -34,3 +34,6 @@ target_include_directories(knights_tour PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/lib"
 )
 target_link_libraries(knights_tour PRIVATE SFML::Graphics)
+
+enable_testing()
+add_test(NAME BalancedTree COMMAND balanced_tree test)
