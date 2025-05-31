@@ -95,13 +95,13 @@ template <typename K, typename V> void Tree<K, V>::printCLI() const {
         std::cout << "<empty>" << std::endl;
         return;
     }
-    std::function<void(const Node*, int)> printNode = [&](const Node* node, int depth) {
+    auto print_node = [&](auto self, const Node* node, int depth) {
         if (!node) return;
-        printNode(node->lchild.get(), depth + 1);
+        self(self, node->lchild.get(), depth + 1);
         std::cout << std::string(depth * 2, ' ') << node->key << ": " << node->value << "\n";
-        printNode(node->rchild.get(), depth + 1);
+        self(self, node->rchild.get(), depth + 1);
     };
-    printNode(root.get(), 0);
+    print_node(print_node, root.get(), 0);
 }
 
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> Node* {
@@ -152,14 +152,7 @@ template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const 
             return Status::FAILED;
         }
     }
-    // 更新size
-    cur = parent;
-    while (cur) {
-        cur->size = 1;
-        if (cur->lchild) cur->size += cur->lchild->size;
-        if (cur->rchild) cur->size += cur->rchild->size;
-        cur = cur->parent;
-    }
+    refresh(parent);
     return Status::SUCCESS;
 }
 
@@ -272,7 +265,7 @@ template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
 }
 
 template <typename K, typename V> void Tree<K, V>::merge(Tree* other) {
-    // 简单实现：将other的所有节点插入到当前树
+    // TODO: change to more efficient merge
     if (!other) return;
     auto dfs = [&](auto self, const std::unique_ptr<Node>& node) {
         if (!node) return;
@@ -284,7 +277,7 @@ template <typename K, typename V> void Tree<K, V>::merge(Tree* other) {
 }
 
 template <typename K, typename V> auto Tree<K, V>::split(const K& key) -> Tree* {
-    // 简单实现：将所有key > 给定key的节点移到新树
+    // TODO: change to more efficient split
     auto new_tree = new Tree();
     auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
         if (!node) return;

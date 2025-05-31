@@ -32,16 +32,19 @@ void polymorphism_demo() {
 void algorithm_demo() {
     auto tree = make_unique<Tree<int, string>>();
 
-    const int N = 8;
+    const int N = 16;
+    vector<int> values(N);
+    for (int i = 0; i < N; i++) values[i] = rand() % 50;
+    sort(values.begin(), values.end());
     for (int i = 1; i <= N; i++) {
-        tree->insert(i, "inserted on #" + to_string(i));
+        tree->insert(values[i - 1], "inserted on #" + to_string(i));
     }
     cout << "Basic Tree Insertion:" << endl;
     tree->printCLI();
 
     tree = make_unique<AVLTree<int, string>>();
     for (int i = 1; i <= N; i++) {
-        tree->insert(i, "inserted on #" + to_string(i));
+        tree->insert(values[i - 1], "inserted on #" + to_string(i));
     }
     cout << "AVL Tree Insertion:" << endl;
     tree->printCLI();
