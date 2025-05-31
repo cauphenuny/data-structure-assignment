@@ -20,11 +20,17 @@ add_executable(balanced_tree ${BALANCED_TREE_SOURCES})
 target_include_directories(balanced_tree PRIVATE 
     "${CMAKE_CURRENT_SOURCE_DIR}/balanced_tree/include"
 )
+target_include_directories(balanced_tree PRIVATE 
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib"
+)
 target_link_libraries(balanced_tree PRIVATE SFML::Graphics)
 
 file(GLOB KNIGHTS_TOUR_SOURCES "knights_tour/src/*.cpp")
 add_executable(knights_tour ${KNIGHTS_TOUR_SOURCES})
 target_include_directories(knights_tour PRIVATE 
     "${CMAKE_CURRENT_SOURCE_DIR}/knights_tour/include"
+)
+target_include_directories(knights_tour PRIVATE 
+    "${CMAKE_CURRENT_SOURCE_DIR}/lib"
 )
 target_link_libraries(knights_tour PRIVATE SFML::Graphics)
