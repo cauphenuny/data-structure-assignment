@@ -2,13 +2,19 @@
 /// @brief utility functions for debug serialization
 
 #pragma once
+#include <cstring>
 #include <filesystem>
+#include <format>
 #include <iostream>
+#include <iterator>
 #include <list>
 #include <map>
+#include <memory>
 #include <source_location>
 #include <sstream>
 #include <string>
+#include <string_view>
+#include <vector>
 
 inline std::string addIndent(std::string_view str, int indent = 1) {
     std::string indent_str;

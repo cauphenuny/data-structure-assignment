@@ -4,6 +4,8 @@
 #include "tree.hpp"
 #include "util.hpp"
 
+#include <algorithm>
+
 /****************************** Definition ********************************/
 
 template <typename Key, typename Value> struct AVLNode;
