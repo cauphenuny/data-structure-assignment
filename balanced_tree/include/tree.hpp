@@ -65,6 +65,7 @@ template <typename Key, typename Value> struct Node {
         this->size =
             1 + (this->lchild ? this->lchild->size : 0) + (this->rchild ? this->rchild->size : 0);
     }
+    virtual ~Node() = default;
 };
 
 template <typename Node> struct NodeTraits;
@@ -203,8 +204,6 @@ template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
         // If successor is not direct right child, update path
         if (succ_parent != cur) {
             update_node = succ_parent;  // For refreshing sizes
-
-            std::unique_ptr<Node>* succ_ptr = &(succ_parent->lchild);
 
             // Move successor's right child to successor's position
             auto succ_right = std::move(succ->rchild);

@@ -121,7 +121,7 @@ template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, con
     node = std::make_unique<AVLNode>(key, value, parent.get());
     Tree::refresh(node.get());
 
-    auto balance = [&key, this](auto self, std::unique_ptr<Node>& node) {
+    auto balance = [&key](auto self, std::unique_ptr<Node>& node) {
         if (key == node->key) return;
         auto avl_node = static_cast<AVLNode*>(node.get());
         auto avl_lchild = avl_node->avlLeft(), avl_rchild = avl_node->avlRight();
@@ -149,16 +149,16 @@ template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, con
     return Status::SUCCESS;
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
+template <typename K, typename V> Status AVLTree<K, V>::remove(const K&) {
     // TODO:
     return Status::FAILED;
 }
 
-template <typename K, typename V> auto AVLTree<K, V>::split(const K& key) -> Tree* {
+template <typename K, typename V> auto AVLTree<K, V>::split(const K&) -> Tree* {
     // TODO:
     return nullptr;
 }
 
-template <typename K, typename V> void AVLTree<K, V>::merge(Tree* other) {
+template <typename K, typename V> void AVLTree<K, V>::merge(Tree*) {
     // TODO:
 }
