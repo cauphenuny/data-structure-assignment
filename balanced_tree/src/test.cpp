@@ -131,26 +131,27 @@ TEST_CASE("`Tree` removal, split, merge") {
         CHECK(traverse(other->root, check_parent));
 
         // Verify split worked correctly
-        CHECK(tree->find(50) != nullptr);
         CHECK(tree->find(30) != nullptr);
         CHECK(tree->find(20) != nullptr);
         CHECK(tree->find(40) != nullptr);
+        CHECK(tree->find(50) == nullptr);
         CHECK(tree->find(70) == nullptr);
 
+        CHECK(other->find(50) != nullptr);
         CHECK(other->find(70) != nullptr);
         CHECK(other->find(60) != nullptr);
         CHECK(other->find(80) != nullptr);
 
         // Merge back
-        tree->merge(other);
+        tree->concat(std::move(other));
         CHECK(tree->size() == 7);
+        CHECK(tree->find(50) != nullptr);
         CHECK(tree->find(70) != nullptr);
         CHECK(tree->find(60) != nullptr);
         CHECK(tree->find(80) != nullptr);
 
         CHECK(traverse(tree->root, check_size));
         CHECK(traverse(tree->root, check_parent));
-        delete other;
     }
 }
 
@@ -275,11 +276,9 @@ TEST_CASE("`AVLTree` insertion") {
         int N = 15;
         for (int i = 1; i <= N; i++) {
             CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
+            // debug(tree);
             CHECK(traverse(tree->root, check_height));
-            if (traverse(tree->root, check_balance) == false) {
-                CHECK(false);
-                break;
-            }
+            CHECK(traverse(tree->root, check_balance));
         }
     }
 
@@ -288,8 +287,9 @@ TEST_CASE("`AVLTree` insertion") {
         // Insert multiple values that trigger various rotations
         int N = 2000;
         for (int i = 1; i <= N; i++) {
-            CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
+            tree->insert(i, std::to_string(i));
         }
+        CHECK(tree->size() == N);
         CHECK(traverse(tree->root, check_balance));
         CHECK(traverse(tree->root, check_height));
         auto root = static_cast<AVLNode<int, std::string>*>(tree->root.get());
