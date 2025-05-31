@@ -113,38 +113,44 @@ template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, con
             return {false, parent, parent->rchild};
         }
     };
-    auto results = search(search, this->root);
-    auto& [exist, parent, node] = results;
+    auto [exist, parent, node] = search(search, this->root);
     if (exist) {
         return Status::FAILED;
     }
     node = std::make_unique<AVLNode>(key, value, parent.get());
     Tree::refresh(node.get());
 
-    auto balance = [&key](auto self, std::unique_ptr<Node>& node) {
-        if (key == node->key) return;
+    auto find_imbalance =
+        [&key](auto self, std::unique_ptr<Node>& node) -> std::tuple<bool, std::unique_ptr<Node>&> {
+        if (key == node->key) return {false, node};
         auto avl_node = static_cast<AVLNode*>(node.get());
+        auto [found, rotate_node] = self(self, key < node->key ? node->lchild : node->rchild);
+        if (found) return {true, rotate_node};
+        if (avl_node->factor() > 1 || avl_node->factor() < -1) {
+            return {true, node};
+        }
+        return {false, node};
+    };
+
+    auto [need_rotate, rotate_node] = find_imbalance(find_imbalance, this->root);
+
+    if (need_rotate) {
+        auto avl_node = static_cast<AVLNode*>(rotate_node.get());
         auto avl_lchild = avl_node->avlLeft(), avl_rchild = avl_node->avlRight();
         if (avl_node->factor() > 1) {
             if (avl_lchild->factor() >= 0) {
-                return rotateR(node);
+                rotateR(rotate_node);
             } else {
-                return rotateLR(node);
+                rotateLR(rotate_node);
             }
         } else if (avl_node->factor() < -1) {
             if (avl_rchild->factor() <= 0) {
-                return rotateL(node);
+                rotateL(rotate_node);
             } else {
-                return rotateRL(node);
+                rotateRL(rotate_node);
             }
-        } else {
-            if (key < node->key)
-                return self(self, node->lchild);
-            else
-                return self(self, node->rchild);
         }
-    };
-    balance(balance, this->root);
+    }
 
     return Status::SUCCESS;
 }

@@ -98,18 +98,25 @@ TEST_CASE("`Tree` removal, split, merge") {
                 CHECK(tree->size() == 5);
                 CHECK(tree->find(40) != nullptr);
             }
+            CHECK(traverse(tree->root, check_size));
+            CHECK(traverse(tree->root, check_parent));
         }
 
         SUBCASE("two children") {
-            // Remove node with two children (root)
             CHECK(tree->remove(50) == Status::SUCCESS);
             CHECK(tree->find(50) == nullptr);
             CHECK(tree->size() == 6);
+            CHECK(traverse(tree->root, check_size));
+            CHECK(traverse(tree->root, check_parent));
         }
 
-        // Structure validation
-        CHECK(traverse(tree->root, check_size));
-        CHECK(traverse(tree->root, check_parent));
+        SUBCASE("remove all") {
+            int size = tree->size();
+            for (int i = size - 1; i >= 0; i--) {
+                CHECK(tree->remove(tree->root->key) == Status::SUCCESS);
+                CHECK(tree->size() == i);
+            }
+        }
     }
 
     SUBCASE("Split and merge") {
@@ -265,13 +272,27 @@ TEST_CASE("`AVLTree` insertion") {
 
     SUBCASE("Complex insertions and tree balance") {
         // Insert multiple values that trigger various rotations
-        for (int i = 1; i <= 10; i++) {
+        int N = 15;
+        for (int i = 1; i <= N; i++) {
+            CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
+            CHECK(traverse(tree->root, check_height));
+            if (traverse(tree->root, check_balance) == false) {
+                CHECK(false);
+                break;
+            }
+        }
+    }
+
+    SUBCASE("More complex insertions and tree balance") {
+        tree->clear();
+        // Insert multiple values that trigger various rotations
+        int N = 2000;
+        for (int i = 1; i <= N; i++) {
             CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
         }
         CHECK(traverse(tree->root, check_balance));
         CHECK(traverse(tree->root, check_height));
-        // Verify tree height is logarithmic to the number of nodes
         auto root = static_cast<AVLNode<int, std::string>*>(tree->root.get());
-        CHECK(root->height <= 4);  // For 10 nodes, height should be around log2(10) ≈ 3.32
+        CHECK(root->height <= std::ceil(std::sqrt(2) * std::log2(N)));
     }
 }

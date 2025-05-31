@@ -10,28 +10,41 @@
 #include <vector>
 using namespace std;
 
-void demo() {
+void polymorphism_demo() {
     auto forest = vector<unique_ptr<TreeBase>>();
 
-    using TreeType0 = Tree<int, string>;
-    using TreeType1 = Tree<int, double>;
+    auto tree0 = make_unique<Tree<int, string>>();
+    tree0->insert(11, "tree");
+    tree0->insert(45, "insert");
+    tree0->insert(14, "demo");
+    forest.push_back(std::move(tree0));
 
-    forest.push_back(make_unique<TreeType0>());
+    auto tree1 = make_unique<Tree<int, double>>();
+    tree1->insert(1, 2.34);
+    tree1->insert(2, 3.45);
+    tree1->insert(3, 4.56);
+    tree1->insert(4, 5.67);
+    forest.push_back(std::move(tree1));
 
-    auto tree0 = dynamic_cast<TreeType0*>(forest[0].get());
-    tree0->insert(114, "test");
-    tree0->insert(514, "tree");
     debug(forest);
+}
 
-    forest.push_back(make_unique<AVLTree<int, string>>());
-    tree0 = dynamic_cast<TreeType0*>(forest[1].get());
-    tree0->insert(0, "not implemented yet");
-    debug(forest);
+void algorithm_demo() {
+    auto tree = make_unique<Tree<int, string>>();
 
-    forest.push_back(make_unique<TreeType1>());
-    auto tree1 = dynamic_cast<TreeType1*>(forest[2].get());
-    tree1->insert(123, 4.56);
-    debug(forest);
+    const int N = 8;
+    for (int i = 1; i <= N; i++) {
+        tree->insert(i, "inserted on #" + to_string(i));
+    }
+    cout << "Basic Tree Insertion:" << endl;
+    tree->printCLI();
+
+    tree = make_unique<AVLTree<int, string>>();
+    for (int i = 1; i <= N; i++) {
+        tree->insert(i, "inserted on #" + to_string(i));
+    }
+    cout << "AVL Tree Insertion:" << endl;
+    tree->printCLI();
 }
 
 int run_test(int argc, char* argv[]) {
@@ -44,8 +57,10 @@ int run_test(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    int res = run_test(argc, argv);
-    if (argc > 1 && strcmp(argv[1], "test") == 0) return res;
-    demo();
+    if (argc > 1 && strcmp(argv[1], "test") == 0) return run_test(argc, argv);
+    cout << "====================" << endl;
+    polymorphism_demo();
+    cout << "====================" << endl;
+    algorithm_demo();
     return 0;
 }

@@ -18,6 +18,7 @@ struct TreeBase {
     virtual auto size() const -> size_t = 0;
     virtual void clear() = 0;
     virtual void print() const = 0;
+    virtual void printCLI() const = 0;
     virtual auto stringify() const -> std::string = 0;
 };
 
@@ -32,6 +33,7 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     auto size() const -> size_t override;
     void clear() override;
     void print() const override;
+    void printCLI() const override;
     auto find(const Key& key) const -> Node*;
 
     virtual auto stringify() const -> std::string override;
@@ -85,8 +87,21 @@ template <typename K, typename V> auto Tree<K, V>::size() const -> size_t {
 template <typename K, typename V> void Tree<K, V>::clear() { root.reset(); }
 
 template <typename K, typename V> void Tree<K, V>::print() const {
-    // TODO: change to GUI display
-    std::cout << this->stringify() << std::endl;
+    // TODO:
+}
+
+template <typename K, typename V> void Tree<K, V>::printCLI() const {
+    if (!root) {
+        std::cout << "<empty>" << std::endl;
+        return;
+    }
+    std::function<void(const Node*, int)> printNode = [&](const Node* node, int depth) {
+        if (!node) return;
+        printNode(node->lchild.get(), depth + 1);
+        std::cout << std::string(depth * 2, ' ') << node->key << ": " << node->value << "\n";
+        printNode(node->rchild.get(), depth + 1);
+    };
+    printNode(root.get(), 0);
 }
 
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> Node* {
