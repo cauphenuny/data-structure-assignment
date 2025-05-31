@@ -2,15 +2,17 @@
 /// @brief utility functions for debug serialization
 
 #pragma once
+#include <filesystem>
 #include <iostream>
 #include <list>
 #include <map>
+#include <source_location>
 #include <sstream>
 #include <string>
 
 inline std::string addIndent(std::string_view str, int indent = 1) {
     std::string indent_str;
-    for (int i = 0; i < indent; i++) indent_str += "  ";
+    for (int i = 0; i < indent; i++) indent_str += "    ";
     bool indent_flag = 1;
     std::string result_str;
     for (auto i : str) {
@@ -141,4 +143,10 @@ std::ostream& operator<<(std::ostream& os, const T& t) {
     return os;
 }
 
-#define debug(...) std::cerr << serializeVar(#__VA_ARGS__, __VA_ARGS__)
+inline std::string getLocation(std::source_location location = std::source_location::current()) {
+    return std::format(
+        "[[ {}:{} in `{}` ]]", std::filesystem::path(location.file_name()).filename().string(),
+        location.line(), location.function_name());
+}
+
+#define debug(...) std::cerr << getLocation() << "\n" << serializeVar(#__VA_ARGS__, __VA_ARGS__)

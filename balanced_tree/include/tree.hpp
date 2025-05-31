@@ -3,7 +3,9 @@
 
 #pragma once
 #include "debug.hpp"
+#include "util.hpp"
 
+#include <SFML/Window/Joystick.hpp>
 #include <cctype>
 #include <cstdlib>
 #include <memory>
@@ -13,6 +15,8 @@
 
 struct TreeBase {
     virtual ~TreeBase() = default;
+    virtual auto size() const -> size_t = 0;
+    virtual void clear() = 0;
     virtual void print() const = 0;
     virtual auto stringify() const -> std::string = 0;
 };
@@ -25,26 +29,23 @@ template <typename Key, typename Value> using TreeObject = std::unique_ptr<Tree<
 template <typename Key, typename Value> struct Tree : TreeBase {
     using Node = Node<Key, Value>;
 
-    void clear();
-    auto size() const -> size_t;
+    auto size() const -> size_t override;
+    void clear() override;
+    void print() const override;
     auto find(const Key& key) const -> Node*;
 
-    void print() const override;
     virtual auto stringify() const -> std::string override;
-    virtual void insert(const Key& key, const Value& value);
-    virtual void remove(const Key& key);
+    virtual auto insert(const Key& key, const Value& value) -> Status;
+    virtual auto remove(const Key& key) -> Status;
     virtual auto split(const Key& key) -> Tree*;
     virtual void merge(Tree* other);
 
-    Tree() = default;
-    Tree(const Tree&) = delete;
-    Tree(Tree&&) = default;
-    Tree& operator=(const Tree&) = delete;
-    Tree& operator=(Tree&&) = default;
     virtual ~Tree() = default;
 
-protected:
     std::unique_ptr<Node> root;
+
+protected:
+    static void refresh(Node* start);  // refresh info in node range [start, root]
 };
 
 /****************************** Implementation ********************************/
@@ -60,28 +61,58 @@ template <typename Key, typename Value> struct Node {
     virtual auto stringify() const -> std::string {
         return serializeClass("Node", key, value, size, this, parent, lchild, rchild);
     }
+    virtual void refresh() {
+        this->size =
+            1 + (this->lchild ? this->lchild->size : 0) + (this->rchild ? this->rchild->size : 0);
+    }
 };
 
-template <typename Key, typename Value> auto Tree<Key, Value>::stringify() const -> std::string {
+template <typename Node> struct NodeTraits;
+template <typename K, typename V> struct NodeTraits<Node<K, V>> {
+    using Key = K;
+    using Value = V;
+};
+
+template <typename K, typename V> auto Tree<K, V>::stringify() const -> std::string {
     return serializeClass("Tree", root);
 }
 
-template <typename Key, typename Value> auto Tree<Key, Value>::size() const -> size_t {
+template <typename K, typename V> auto Tree<K, V>::size() const -> size_t {
     return root ? root->size : 0;
 }
 
-template <typename Key, typename Value> void Tree<Key, Value>::clear() { root.reset(); }
+template <typename K, typename V> void Tree<K, V>::clear() { root.reset(); }
 
-template <typename Key, typename Value> void Tree<Key, Value>::print() const {
+template <typename K, typename V> void Tree<K, V>::print() const {
     // TODO: change to GUI display
     std::cout << this->stringify() << std::endl;
 }
 
-template <typename Key, typename Value>
-void Tree<Key, Value>::insert(const Key& key, const Value& value) {
+template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> Node* {
+    Node* cur = root.get();
+    while (cur) {
+        if (key < cur->key) {
+            cur = cur->lchild.get();
+        } else if (key > cur->key) {
+            cur = cur->rchild.get();
+        } else {
+            return cur;
+        }
+    }
+    return nullptr;
+}
+
+template <typename K, typename V> void Tree<K, V>::refresh(Node* start) {
+    while (start) {
+        start->refresh();
+        start = start->parent;
+    }
+}
+
+template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const V& value) {
     if (!root) {
         root = std::make_unique<Node>(key, value, nullptr);
-        return;
+        return Status::SUCCESS;
     }
     Node* cur = root.get();
     Node* parent = nullptr;
@@ -102,8 +133,7 @@ void Tree<Key, Value>::insert(const Key& key, const Value& value) {
                 break;
             }
         } else {
-            cur->value = value;  // 更新已存在节点
-            return;
+            return Status::FAILED;
         }
     }
     // 更新size
@@ -114,9 +144,10 @@ void Tree<Key, Value>::insert(const Key& key, const Value& value) {
         if (cur->rchild) cur->size += cur->rchild->size;
         cur = cur->parent;
     }
+    return Status::SUCCESS;
 }
 
-template <typename Key, typename Value> void Tree<Key, Value>::remove(const Key& key) {
+template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
     Node* cur = root.get();
     Node* parent = nullptr;
     while (cur && cur->key != key) {
@@ -126,64 +157,107 @@ template <typename Key, typename Value> void Tree<Key, Value>::remove(const Key&
         else
             cur = cur->rchild.get();
     }
-    if (!cur) return;  // 未找到
+    if (!cur) return Status::FAILED;  // Node not found
 
     auto transplant = [&](std::unique_ptr<Node>& u, std::unique_ptr<Node>& v) {
+        if (v) v->parent = u->parent;  // Set parent before moving
+
         if (!u->parent) {
+            // Root node case
             root = std::move(v);
-            if (root) root->parent = nullptr;
         } else if (u->parent->lchild.get() == u.get()) {
             u->parent->lchild = std::move(v);
-            if (u->parent->lchild) u->parent->lchild->parent = u->parent;
         } else {
             u->parent->rchild = std::move(v);
-            if (u->parent->rchild) u->parent->rchild->parent = u->parent;
         }
     };
 
     std::unique_ptr<Node>* cur_ptr = nullptr;
-    if (!cur->parent)
+    if (!parent)
         cur_ptr = &root;
-    else if (cur->parent->lchild.get() == cur)
-        cur_ptr = &(cur->parent->lchild);
+    else if (parent->lchild.get() == cur)
+        cur_ptr = &(parent->lchild);
     else
-        cur_ptr = &(cur->parent->rchild);
+        cur_ptr = &(parent->rchild);
+
+    // Track the node that needs size updates after removal
+    Node* update_node = parent;
 
     if (!cur->lchild) {
+        // Case 1: Node has no left child
         transplant(*cur_ptr, cur->rchild);
     } else if (!cur->rchild) {
+        // Case 2: Node has no right child
         transplant(*cur_ptr, cur->lchild);
     } else {
-        // 找到右子树最小节点
+        // Case 3: Node has two children - find successor
         Node* succ = cur->rchild.get();
-        std::unique_ptr<Node>* succ_ptr = &(cur->rchild);
+        Node* succ_parent = cur;
+
+        // Find leftmost node in right subtree
         while (succ->lchild) {
-            succ_ptr = &(succ->lchild);
+            succ_parent = succ;
             succ = succ->lchild.get();
         }
-        if (succ->parent != cur) {
-            transplant(*succ_ptr, succ->rchild);
-            succ->rchild = std::move(cur->rchild);
-            if (succ->rchild) succ->rchild->parent = succ;
+
+        // If successor is not direct right child, update path
+        if (succ_parent != cur) {
+            update_node = succ_parent;  // For refreshing sizes
+
+            std::unique_ptr<Node>* succ_ptr = &(succ_parent->lchild);
+
+            // Move successor's right child to successor's position
+            auto succ_right = std::move(succ->rchild);
+            succ_parent->lchild = std::move(succ_right);
+            if (succ_parent->lchild) {
+                succ_parent->lchild->parent = succ_parent;
+            }
+
+            // Set up successor with removed node's children
+            auto successor = std::make_unique<Node>(succ->key, succ->value);
+            successor->parent = cur->parent;
+
+            // Move removed node's children to successor
+            successor->rchild = std::move(cur->rchild);
+            if (successor->rchild) {
+                successor->rchild->parent = successor.get();
+            }
+
+            successor->lchild = std::move(cur->lchild);
+            if (successor->lchild) {
+                successor->lchild->parent = successor.get();
+            }
+
+            // Replace removed node with successor
+            *cur_ptr = std::move(successor);
+        } else {
+            // Successor is direct right child
+            auto successor = std::move(cur->rchild);
+            successor->parent = cur->parent;
+
+            // Move left child to successor
+            successor->lchild = std::move(cur->lchild);
+            if (successor->lchild) {
+                successor->lchild->parent = successor.get();
+            }
+
+            // Replace removed node with successor
+            *cur_ptr = std::move(successor);
         }
-        auto wrapper = std::unique_ptr<Node>(succ);
-        transplant(*cur_ptr, wrapper);
-        succ->lchild = std::move(cur->lchild);
-        if (succ->lchild) succ->lchild->parent = succ;
-        succ->parent = cur->parent;
-        // 注意：succ的unique_ptr已被转移，cur已无效
     }
-    // 更新size
-    Node* p = parent;
-    while (p) {
-        p->size = 1;
-        if (p->lchild) p->size += p->lchild->size;
-        if (p->rchild) p->size += p->rchild->size;
-        p = p->parent;
+
+    // Update sizes/heights after removal
+    if (update_node) {
+        refresh(update_node);
+    } else if (root) {
+        // If we removed the root, refresh from the new root
+        refresh(root.get());
     }
+
+    return Status::SUCCESS;
 }
 
-template <typename Key, typename Value> void Tree<Key, Value>::merge(Tree* other) {
+template <typename K, typename V> void Tree<K, V>::merge(Tree* other) {
     // 简单实现：将other的所有节点插入到当前树
     if (!other) return;
     auto dfs = [&](auto self, const std::unique_ptr<Node>& node) {
@@ -195,7 +269,7 @@ template <typename Key, typename Value> void Tree<Key, Value>::merge(Tree* other
     dfs(dfs, other->root);
 }
 
-template <typename Key, typename Value> auto Tree<Key, Value>::split(const Key& key) -> Tree* {
+template <typename K, typename V> auto Tree<K, V>::split(const K& key) -> Tree* {
     // 简单实现：将所有key > 给定key的节点移到新树
     auto new_tree = new Tree();
     auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
