@@ -34,19 +34,21 @@ void algorithm_demo() {
 
     const int N = 16;
     vector<int> values(N);
-    for (int i = 0; i < N; i++) values[i] = rand() % 50;
+    for (int i = 1; i < N; i++) values[i] = values[i - 1] + rand() % 20 + 1;
     sort(values.begin(), values.end());
     for (int i = 1; i <= N; i++) {
         tree->insert(values[i - 1], "inserted on #" + to_string(i));
     }
-    cout << "Basic Tree Insertion:" << endl;
+    debug(tree->size());
+    cout << "(basic)" << endl;
     tree->printCLI();
 
     tree = make_unique<AVLTree<int, string>>();
     for (int i = 1; i <= N; i++) {
         tree->insert(values[i - 1], "inserted on #" + to_string(i));
     }
-    cout << "AVL Tree Insertion:" << endl;
+    debug(tree->size());
+    cout << "(AVL)" << endl;
     tree->printCLI();
 }
 

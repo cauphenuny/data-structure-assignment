@@ -45,6 +45,13 @@ struct Test {
         int factor = avl_node->factor();
         return factor >= -1 && factor <= 1;
     };
+
+    constexpr static auto concat = [](auto& tree1, auto tree2) {
+        return tree1->concat(std::move(tree2));
+    };
+    constexpr static auto mixin = [](auto& tree1, auto tree2) {
+        return tree1->mixin(std::move(tree2));
+    };
 };
 
 TEST_CASE("`Tree` insertion, find") {
@@ -192,7 +199,7 @@ TEST_CASE("`Tree` conflict, concat, mix, merge") {
         tree2->insert(35, "thirty-five");
 
         // Perform concat operation
-        auto result = tree1->concat(std::move(tree2));
+        auto result = Test::concat(tree1, std::move(tree2));
 
         CHECK(result == Status::SUCCESS);
         CHECK(tree1->size() == 6);
@@ -216,7 +223,7 @@ TEST_CASE("`Tree` conflict, concat, mix, merge") {
         tree2->insert(20, "twenty");
 
         // Perform mix operation
-        auto result = tree1->mixin(std::move(tree2));
+        auto result = Test::mixin(tree1, std::move(tree2));
 
         CHECK(result == Status::SUCCESS);
         CHECK(tree1->size() == 6);
@@ -377,6 +384,7 @@ TEST_CASE("`AVLTree` insertion") {
             // debug(tree);
             CHECK(Test::traverse(tree->root, Test::check_height));
             CHECK(Test::traverse(tree->root, Test::check_balance));
+            CHECK(tree->size() == i);
         }
     }
 

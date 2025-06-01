@@ -13,6 +13,10 @@ template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     using Tree = Tree<Key, Value>;
     using Node = Tree::Node;
 
+    AVLTree() = default;
+    explicit AVLTree(Node* root) : Tree(std::unique_ptr<Node>(root)) {}
+    explicit AVLTree(std::unique_ptr<Node> root) : Tree(std::move(root)) {}
+
     auto stringify() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
     auto remove(const Key& key) -> Status override;
@@ -24,6 +28,8 @@ private:
     static void rotateL(std::unique_ptr<Node>& root);
     static void rotateLR(std::unique_ptr<Node>& root);
     static void rotateRL(std::unique_ptr<Node>& root);
+    void balance(const Key& key);
+    auto concat(std::unique_ptr<AVLTree> other) -> Status;
 };
 
 /****************************** Implementation ********************************/
@@ -96,33 +102,10 @@ template <typename K, typename V> void AVLTree<K, V>::rotateRL(std::unique_ptr<N
     rotateL(root);
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, const V& value) {
-    if (!this->root) {
-        this->root = std::make_unique<AVLNode>(key, value);
-        return Status::SUCCESS;
-    }
-
-    auto search = [&key](auto self, std::unique_ptr<Node>& parent)
-        -> std::tuple<bool, std::unique_ptr<Node>&, std::unique_ptr<Node>&> {
-        if (key == parent->key) return {true, parent, parent};
-        if (key < parent->key) {
-            if (parent->lchild) return self(self, parent->lchild);
-            return {false, parent, parent->lchild};
-        } else {
-            if (parent->rchild) return self(self, parent->rchild);
-            return {false, parent, parent->rchild};
-        }
-    };
-    auto [exist, parent, node] = search(search, this->root);
-    if (exist) {
-        return Status::FAILED;
-    }
-    node = std::make_unique<AVLNode>(key, value, parent.get());
-    Tree::refresh(node.get());
-
+template <typename K, typename V> void AVLTree<K, V>::balance(const K& key) {
     auto find_imbalance =
         [&key](auto self, std::unique_ptr<Node>& node) -> std::tuple<bool, std::unique_ptr<Node>&> {
-        if (key == node->key) return {false, node};
+        if (!node || key == node->key) return {false, node};
         auto avl_node = static_cast<AVLNode*>(node.get());
         auto [found, rotate_node] = self(self, key < node->key ? node->lchild : node->rchild);
         if (found) return {true, rotate_node};
@@ -131,32 +114,46 @@ template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, con
         }
         return {false, node};
     };
-
-    auto [need_rotate, rotate_node] = find_imbalance(find_imbalance, this->root);
+    auto [need_rotate, node] = find_imbalance(find_imbalance, this->root);
 
     if (need_rotate) {
-        auto avl_node = static_cast<AVLNode*>(rotate_node.get());
+        auto avl_node = static_cast<AVLNode*>(node.get());
         auto avl_lchild = avl_node->avlLeft(), avl_rchild = avl_node->avlRight();
         if (avl_node->factor() > 1) {
             if (avl_lchild->factor() >= 0) {
-                rotateR(rotate_node);
+                rotateR(node);
             } else {
-                rotateLR(rotate_node);
+                rotateLR(node);
             }
         } else if (avl_node->factor() < -1) {
             if (avl_rchild->factor() <= 0) {
-                rotateL(rotate_node);
+                rotateL(node);
             } else {
-                rotateRL(rotate_node);
+                rotateRL(node);
             }
         }
     }
+}
 
+template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, const V& value) {
+    auto [parent, node] = this->container(key);
+    if (node) return Status::FAILED;  // key already exists
+    node = std::make_unique<AVLNode>(key, value, parent);
+    Tree::refresh(parent);
+    balance(key);
     return Status::SUCCESS;
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::remove(const K&) {
-    // TODO:
+template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
+    auto [parent, node] = this->container(key);
+    if (!node) return Status::FAILED;
+    auto left_tree = std::make_unique<AVLTree>(node->lchild.release());
+    auto right_tree = std::make_unique<AVLTree>(node->rchild.release());
+    left_tree->concat(std::move(right_tree));
+    if (left_tree->root) left_tree->root->parent = node->parent;
+    node.reset(left_tree->root.release());
+    Tree::refresh(parent);
+    balance(key);
     return Status::FAILED;
 }
 
@@ -165,7 +162,18 @@ template <typename K, typename V> auto AVLTree<K, V>::split(const K&) -> std::un
     return nullptr;
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tree>) {
-    // TODO:
+template <typename K, typename V> Status AVLTree<K, V>::concat(std::unique_ptr<AVLTree>) {
     return Status::FAILED;
+}
+
+template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tree> other) {
+    if (!other) return Status::FAILED;         // tree does not exist
+    if (!other->root) return Status::SUCCESS;  // nothing to merge
+    auto avl_other = dynamic_cast<AVLTree<K, V>*>(other.get());
+    if (!avl_other || (this->minimum()->key <= other->maximum()->key &&
+                       other->minimum()->key <= this->maximum()->key)) {
+        return this->mixin(std::move(other));
+    }
+    other.release();
+    return this->concat(std::unique_ptr<AVLTree>(avl_other));
 }

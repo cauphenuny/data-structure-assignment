@@ -23,6 +23,13 @@ struct TreeBase {
 
 template <typename Key, typename Value> struct Tree : TreeBase {
     struct Node;
+    friend struct Test;
+
+    std::unique_ptr<Node> root;
+
+    Tree() = default;
+    explicit Tree(Node* root);
+    explicit Tree(std::unique_ptr<Node> root);
 
     auto size() const -> size_t override;
     void clear() override;
@@ -33,20 +40,57 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     auto minimum() const -> const Node*;
     auto conflict(Tree* other) -> bool;  // time complexity: O(n)
 
+    Value& operator[](const Key& key);
+    const Value& operator[](const Key& key) const;
+
+    virtual ~Tree() = default;
     virtual auto stringify() const -> std::string override;
     virtual auto insert(const Key& key, const Value& value) -> Status;
     virtual auto remove(const Key& key) -> Status;
     virtual auto split(const Key& key) -> std::unique_ptr<Tree>;  // split out nodes that >= key
-    virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes concat/mix
-    virtual auto mixin(std::unique_ptr<Tree> other) -> Status;    // O(n log n) merge, allow overlap
-    virtual auto concat(std::unique_ptr<Tree> other) -> Status;   // O(log n) merge, no overlap
+    virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes concat/mixin
 
-    virtual ~Tree() = default;
+    // NOTE:
+    // conflict:
+    //   check if other tree have nodes that conflict with this tree
+    // merge:
+    //   merge other tree to this tree, auto invokes concat/mixin
+    // mixin:
+    //   requires:
+    //     none
+    //   notes:
+    //     - time complexity: O(m log(n)), m = other->size(), n = this->size()
+    //     - If key conflicts, the conflicted node would not be inserted, the rest of the nodes
+    //     would be inserted normally
+    // concat:
+    //   requires:
+    //     - key-range not overlapping
+    //     - tree type compatible
+    //   notes:
+    //     - time complexity: O(log (n + m))
+    //     - You can't merge a basic tree to AVL tree
+    //     - Merging an AVL tree to basic tree is acceptable, however losts the balance feature
 
-    std::unique_ptr<Node> root;
+    // NOTE:
+    // When calling merge/mixin/concat, the ownership is passed to function, so whether the merge is
+    // successful or not, the original tree is destroyed.
+    // Thus, you should check conflict before calling merge/mixin/concat, by code logic or calling
+    // conflict().
+
+    // TODO:
+    // Is it better to change interface to use reference instead of take ownership?
 
 protected:
-    static void refresh(Node* start);  // refresh info in node range [start, root]
+    static void refresh(Node* start);  // refresh nodes info upwards from start to root
+    auto container(const Key& key) -> std::tuple<Node*, std::unique_ptr<Node>&>;
+    auto container(const Key& key) const -> std::tuple<const Node*, const std::unique_ptr<Node>&>;
+    auto mixin(std::unique_ptr<Tree> other) -> Status;
+    // NOTE: mixin calls insert() in implement, so have polymorphic behavior to auto maintain
+    // variant tree node data, can be called by derived class object
+
+private:
+    auto concat(std::unique_ptr<Tree> other) -> Status;
+    // NOTE: derived classes should not call this, implement their own cancat() instead.
 };
 
 template <typename K, typename V> struct AVLTree;
@@ -83,6 +127,14 @@ protected:
     std::unique_ptr<Node> lchild, rchild;
     Node* parent;
 };
+
+template <typename K, typename V>
+Tree<K, V>::Tree(std::unique_ptr<Node> root) : root(std::move(root)) {
+    root->parent = nullptr;
+}
+
+template <typename K, typename V>
+Tree<K, V>::Tree(Node* root) : root(std::unique_ptr<Node>(root)) {}
 
 template <typename K, typename V> auto Tree<K, V>::stringify() const -> std::string {
     return serializeClass("Tree", root);
@@ -128,18 +180,48 @@ template <typename K, typename V> auto Tree<K, V>::minimum() const -> const Node
     return cur;
 }
 
+template <typename K, typename V>
+auto Tree<K, V>::container(const K& key) -> std::tuple<Node*, std::unique_ptr<Node>&> {
+    using T = std::unique_ptr<Node>;
+    auto search = [&key](auto self, Node* parent, T& current) -> std::tuple<Node*, T&> {
+        if (!current || key == current->key) return {parent, current};
+        if (key < current->key)
+            return self(self, current.get(), current->lchild);
+        else
+            return self(self, current.get(), current->rchild);
+    };
+    return search(search, nullptr, this->root);
+}
+
+template <typename K, typename V>
+auto Tree<K, V>::container(const K& key) const
+    -> std::tuple<const Node*, const std::unique_ptr<Node>&> {
+    auto search = [&key](auto self, const Node* parent, const std::unique_ptr<Node>& current)
+        -> std::tuple<const Node*, const std::unique_ptr<Node>&> {
+        if (!current || key == current->key) return {parent, current};
+        if (key < current->key)
+            return self(self, current.get(), current->lchild);
+        else
+            return self(self, current.get(), current->rchild);
+    };
+    return search(search, nullptr, this->root);
+}
+
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> const Node* {
-    Node* cur = root.get();
-    while (cur) {
-        if (key < cur->key) {
-            cur = cur->lchild.get();
-        } else if (key > cur->key) {
-            cur = cur->rchild.get();
-        } else {
-            return cur;
-        }
-    }
-    return nullptr;
+    auto [_, node] = this->container(key);
+    return node.get();
+}
+
+template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) -> V& {
+    auto [_, node] = this->container(key);
+    if (!node) this->insert(key, V{});
+    return node->value;
+}
+
+template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) const -> const V& {
+    auto [_, node] = this->container(key);
+    if (!node) throw std::out_of_range(std::format("key {} not found", key));
+    return node->value;
 }
 
 template <typename K, typename V> void Tree<K, V>::refresh(Node* start) {
@@ -150,141 +232,22 @@ template <typename K, typename V> void Tree<K, V>::refresh(Node* start) {
 }
 
 template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const V& value) {
-    if (!root) {
-        root = std::make_unique<Node>(key, value, nullptr);
-        return Status::SUCCESS;
-    }
-    Node* cur = root.get();
-    Node* parent = nullptr;
-    while (cur) {
-        parent = cur;
-        if (key < cur->key) {
-            if (cur->lchild) {
-                cur = cur->lchild.get();
-            } else {
-                cur->lchild = std::make_unique<Node>(key, value, parent);
-                break;
-            }
-        } else if (key > cur->key) {
-            if (cur->rchild) {
-                cur = cur->rchild.get();
-            } else {
-                cur->rchild = std::make_unique<Node>(key, value, parent);
-                break;
-            }
-        } else {
-            return Status::FAILED;
-        }
-    }
+    auto [parent, node] = this->container(key);
+    if (node) return Status::FAILED;
+    node = std::make_unique<Node>(key, value, parent);
     refresh(parent);
     return Status::SUCCESS;
 }
 
 template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
-    Node* cur = root.get();
-    Node* parent = nullptr;
-    while (cur && cur->key != key) {
-        parent = cur;
-        if (key < cur->key)
-            cur = cur->lchild.get();
-        else
-            cur = cur->rchild.get();
-    }
-    if (!cur) return Status::FAILED;  // Node not found
-
-    auto transplant = [&](std::unique_ptr<Node>& u, std::unique_ptr<Node>& v) {
-        if (v) v->parent = u->parent;  // Set parent before moving
-
-        if (!u->parent) {
-            // Root node case
-            root = std::move(v);
-        } else if (u->parent->lchild.get() == u.get()) {
-            u->parent->lchild = std::move(v);
-        } else {
-            u->parent->rchild = std::move(v);
-        }
-    };
-
-    std::unique_ptr<Node>* cur_ptr = nullptr;
-    if (!parent)
-        cur_ptr = &root;
-    else if (parent->lchild.get() == cur)
-        cur_ptr = &(parent->lchild);
-    else
-        cur_ptr = &(parent->rchild);
-
-    // Track the node that needs size updates after removal
-    Node* update_node = parent;
-
-    if (!cur->lchild) {
-        // Case 1: Node has no left child
-        transplant(*cur_ptr, cur->rchild);
-    } else if (!cur->rchild) {
-        // Case 2: Node has no right child
-        transplant(*cur_ptr, cur->lchild);
-    } else {
-        // Case 3: Node has two children - find successor
-        Node* succ = cur->rchild.get();
-        Node* succ_parent = cur;
-
-        // Find leftmost node in right subtree
-        while (succ->lchild) {
-            succ_parent = succ;
-            succ = succ->lchild.get();
-        }
-
-        // If successor is not direct right child, update path
-        if (succ_parent != cur) {
-            update_node = succ_parent;  // For refreshing sizes
-
-            // Move successor's right child to successor's position
-            auto succ_right = std::move(succ->rchild);
-            succ_parent->lchild = std::move(succ_right);
-            if (succ_parent->lchild) {
-                succ_parent->lchild->parent = succ_parent;
-            }
-
-            // Set up successor with removed node's children
-            auto successor = std::make_unique<Node>(succ->key, succ->value);
-            successor->parent = cur->parent;
-
-            // Move removed node's children to successor
-            successor->rchild = std::move(cur->rchild);
-            if (successor->rchild) {
-                successor->rchild->parent = successor.get();
-            }
-
-            successor->lchild = std::move(cur->lchild);
-            if (successor->lchild) {
-                successor->lchild->parent = successor.get();
-            }
-
-            // Replace removed node with successor
-            *cur_ptr = std::move(successor);
-        } else {
-            // Successor is direct right child
-            auto successor = std::move(cur->rchild);
-            successor->parent = cur->parent;
-
-            // Move left child to successor
-            successor->lchild = std::move(cur->lchild);
-            if (successor->lchild) {
-                successor->lchild->parent = successor.get();
-            }
-
-            // Replace removed node with successor
-            *cur_ptr = std::move(successor);
-        }
-    }
-
-    // Update sizes/heights after removal
-    if (update_node) {
-        refresh(update_node);
-    } else if (root) {
-        // If we removed the root, refresh from the new root
-        refresh(root.get());
-    }
-
+    auto [parent, node] = this->container(key);
+    if (!node) return Status::FAILED;
+    auto left_tree = std::make_unique<Tree>(node->lchild.release());
+    auto right_tree = std::make_unique<Tree>(node->rchild.release());
+    left_tree->concat(std::move(right_tree));
+    if (left_tree->root) left_tree->root->parent = parent;
+    node.reset(left_tree->root.release());
+    this->refresh(parent);
     return Status::SUCCESS;
 }
 
