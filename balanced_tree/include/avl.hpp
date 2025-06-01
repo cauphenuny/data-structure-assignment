@@ -8,12 +8,10 @@
 
 /****************************** Definition ********************************/
 
-template <typename Key, typename Value> struct AVLNode;
-
 template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
-    using Node = Node<Key, Value>;
-    using AVLNode = AVLNode<Key, Value>;
+    struct AVLNode;
     using Tree = Tree<Key, Value>;
+    using Node = Tree::Node;
 
     auto stringify() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
@@ -30,8 +28,9 @@ private:
 
 /****************************** Implementation ********************************/
 
-template <typename Key, typename Value> struct AVLNode : Node<Key, Value> {
-    using Node = Node<Key, Value>;
+template <typename Key, typename Value> struct AVLTree<Key, Value>::AVLNode : Tree::Node {
+    using Node = Tree::Node;
+    friend struct AVLTree<Key, Value>;
     int height;
 
     AVLNode(const Key& key, const Value& value, Node* parent = nullptr)
@@ -40,6 +39,7 @@ template <typename Key, typename Value> struct AVLNode : Node<Key, Value> {
     auto stringify() const -> std::string override {
         return serializeClass("AVLNode", height) + " : " + this->Node::stringify();
     }
+
     void refresh() override {
         this->Node::refresh();
         this->height = 1 + std::max(
@@ -47,10 +47,10 @@ template <typename Key, typename Value> struct AVLNode : Node<Key, Value> {
                                this->rchild ? this->avlRight()->height : 0);
     }
 
-    AVLNode* avlLeft() { return static_cast<AVLNode*>(this->lchild.get()); }
-    AVLNode* avlRight() { return static_cast<AVLNode*>(this->rchild.get()); }
-    AVLNode* avlParent() { return static_cast<AVLNode*>(this->parent); }
-    int factor() {
+    AVLNode* avlLeft() const { return static_cast<AVLNode*>(this->lchild.get()); }
+    AVLNode* avlRight() const { return static_cast<AVLNode*>(this->rchild.get()); }
+    AVLNode* avlParent() const { return static_cast<AVLNode*>(this->parent); }
+    int factor() const {
         auto left = this->avlLeft(), right = this->avlRight();
         return (left ? left->height : 0) - (right ? right->height : 0);
     }

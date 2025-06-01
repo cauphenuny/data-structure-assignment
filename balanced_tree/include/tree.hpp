@@ -5,7 +5,6 @@
 #include "debug.hpp"
 #include "util.hpp"
 
-#include <SFML/Window/Joystick.hpp>
 #include <cctype>
 #include <cstdlib>
 #include <memory>
@@ -22,28 +21,25 @@ struct TreeBase {
     virtual auto stringify() const -> std::string = 0;
 };
 
-template <typename Key, typename Value> struct Node;
-template <typename Key, typename Value> struct Tree;
-
-template <typename Key, typename Value> using TreeObject = std::unique_ptr<Tree<Key, Value>>;
-
 template <typename Key, typename Value> struct Tree : TreeBase {
-    using Node = Node<Key, Value>;
+    struct Node;
 
     auto size() const -> size_t override;
     void clear() override;
     void print() const override;
     void printCLI() const override;
-    auto find(const Key& key) const -> Node*;
-    auto maximum() const -> Node*;
-    auto minimum() const -> Node*;
+    auto find(const Key& key) const -> const Node*;
+    auto maximum() const -> const Node*;
+    auto minimum() const -> const Node*;
+    auto conflict(Tree* other) -> bool;  // time complexity: O(n)
 
     virtual auto stringify() const -> std::string override;
     virtual auto insert(const Key& key, const Value& value) -> Status;
     virtual auto remove(const Key& key) -> Status;
     virtual auto split(const Key& key) -> std::unique_ptr<Tree>;  // split out nodes that >= key
-    virtual auto concat(std::unique_ptr<Tree> other) -> Status;  // requires value-range not overlap
-    virtual auto merge(std::unique_ptr<Tree> other) -> Status;
+    virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes concat/mix
+    virtual auto mixin(std::unique_ptr<Tree> other) -> Status;    // O(n log n) merge, allow overlap
+    virtual auto concat(std::unique_ptr<Tree> other) -> Status;   // O(log n) merge, no overlap
 
     virtual ~Tree() = default;
 
@@ -53,16 +49,25 @@ protected:
     static void refresh(Node* start);  // refresh info in node range [start, root]
 };
 
+template <typename K, typename V> struct AVLTree;
+
 /****************************** Implementation ********************************/
 
-template <typename Key, typename Value> struct Node {
-    std::unique_ptr<Node> lchild, rchild;
-    Node* parent;
-    size_t size;
+template <typename K, typename V> struct Tree<K, V>::Node {
+    using Key = K;
+    using Value = V;
+    friend struct Test;  // let `Test` class have access to non-public members
+    friend struct Tree<K, V>;
+    friend struct AVLTree<K, V>;
+
     Key key;
     Value value;
+    size_t size;
+
     Node(const Key& key, const Value& value, Node* parent = nullptr)
-        : lchild(nullptr), rchild(nullptr), parent(parent), size(1), key(key), value(value) {}
+        : size(1), key(key), value(value), lchild(nullptr), rchild(nullptr), parent(parent) {}
+    virtual ~Node() = default;
+
     virtual auto stringify() const -> std::string {
         return serializeClass("Node", key, value, size, this, parent, lchild, rchild);
     }
@@ -70,13 +75,13 @@ template <typename Key, typename Value> struct Node {
         this->size =
             1 + (this->lchild ? this->lchild->size : 0) + (this->rchild ? this->rchild->size : 0);
     }
-    virtual ~Node() = default;
-};
 
-template <typename Node> struct NodeTraits;
-template <typename K, typename V> struct NodeTraits<Node<K, V>> {
-    using Key = K;
-    using Value = V;
+    const Node* leftChild() const { return lchild.get(); }
+    const Node* rightChild() const { return rchild.get(); }
+
+protected:
+    std::unique_ptr<Node> lchild, rchild;
+    Node* parent;
 };
 
 template <typename K, typename V> auto Tree<K, V>::stringify() const -> std::string {
@@ -107,7 +112,7 @@ template <typename K, typename V> void Tree<K, V>::printCLI() const {
     print_node(print_node, root.get(), 0);
 }
 
-template <typename K, typename V> auto Tree<K, V>::maximum() const -> Node* {
+template <typename K, typename V> auto Tree<K, V>::maximum() const -> const Node* {
     Node* cur = root.get();
     while (cur && cur->rchild) {
         cur = cur->rchild.get();
@@ -115,7 +120,7 @@ template <typename K, typename V> auto Tree<K, V>::maximum() const -> Node* {
     return cur;
 }
 
-template <typename K, typename V> auto Tree<K, V>::minimum() const -> Node* {
+template <typename K, typename V> auto Tree<K, V>::minimum() const -> const Node* {
     Node* cur = root.get();
     while (cur && cur->lchild) {
         cur = cur->lchild.get();
@@ -123,7 +128,7 @@ template <typename K, typename V> auto Tree<K, V>::minimum() const -> Node* {
     return cur;
 }
 
-template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> Node* {
+template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> const Node* {
     Node* cur = root.get();
     while (cur) {
         if (key < cur->key) {
@@ -283,12 +288,85 @@ template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
     return Status::SUCCESS;
 }
 
-template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree> other) {
-    if (!other) return Status::FAILED;  // Tree does not exist
+template <typename K, typename V> auto Tree<K, V>::split(const K& key) -> std::unique_ptr<Tree> {
+    auto new_tree = std::make_unique<Tree>();
+    auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
+        if (!node) return;
+        if (node->rchild) self(self, node->rchild);
+        if (node->lchild) self(self, node->lchild);
+        if (node->key >= key) {
+            new_tree->insert(node->key, node->value);
+            remove(node->key);
+        }
+    };
+    dfs(dfs, root);
+    return new_tree;
+}
+
+template <typename K, typename V> auto Tree<K, V>::conflict(Tree* other) -> bool {
+    std::vector<Node*> vec1, vec2;
+    vec1.reserve(this->size()), vec2.reserve(other->size());
+    auto dfs = [&](auto self, Node* node, std::vector<Node*>& vec) {
+        if (!node) return;
+        self(self, node->lchild.get(), vec);
+        vec.push_back(node);
+        self(self, node->rchild.get(), vec);
+    };
+    dfs(dfs, this->root.get(), vec1);
+    dfs(dfs, other->root.get(), vec2);
+    for (auto it1 = vec1.begin(), it2 = vec2.begin(); it1 != vec1.end() && it2 != vec2.end();) {
+        if ((*it1)->key < (*it2)->key) {
+            ++it1;
+        } else if ((*it1)->key > (*it2)->key) {
+            ++it2;
+        } else {
+            return true;
+        }
+    }
+    return false;
+}
+
+// NOTE: when key conflicts, conflicted nodes will not be inserted, others will be inserted normally
+template <typename K, typename V> auto Tree<K, V>::merge(std::unique_ptr<Tree> other) -> Status {
+    if (!other) return Status::FAILED;         // tree does not exist
+    if (!other->root) return Status::SUCCESS;  // nothing to merge
+    if (!this->root) {
+        this->root.reset(other->root.release());
+        return Status::SUCCESS;  // merging into empty tree
+    }
+    if (this->minimum()->key > other->maximum()->key ||
+        other->minimum()->key > this->maximum()->key) {
+        return this->concat(std::move(other));
+    }
+    return this->mixin(std::move(other));
+}
+
+template <typename K, typename V> auto Tree<K, V>::mixin(std::unique_ptr<Tree> other) -> Status {
+    if (!other) return Status::FAILED;
     if (!other->root) return Status::SUCCESS;
     if (!this->root) {
         this->root.reset(other->root.release());
-        return Status::SUCCESS;  // Merging into empty tree
+        return Status::SUCCESS;
+    }
+    auto copy = [&](auto self, Tree* dest, std::unique_ptr<Node>& node) -> Status {
+        Status result = Status::SUCCESS;
+        if (node->rchild)
+            if (self(self, dest, node->rchild) != Status::SUCCESS) result = Status::FAILED;
+        if (node->lchild)
+            if (self(self, dest, node->lchild) != Status::SUCCESS) result = Status::FAILED;
+        if (dest->insert(node->key, node->value) != Status::SUCCESS) result = Status::FAILED;
+        return result;
+    };
+    return copy(copy, this, other->root);
+}
+
+// NOTE: when key-range overlapping, the merge will fail, lost all nodes in `other`
+template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree> other) {
+    if (!other) return Status::FAILED;
+    if (!other->root) return Status::SUCCESS;
+    if (!this->root) {
+        this->root.reset(other->root.release());
+        return Status::SUCCESS;
     }
     if (this->size() && other->size()) {
         if ((this->minimum()->key <= other->maximum()->key) &&
@@ -307,37 +385,4 @@ template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree
     rightmost->rchild->parent = rightmost;
     refresh(rightmost);
     return Status::SUCCESS;
-}
-
-template <typename K, typename V> auto Tree<K, V>::split(const K& key) -> std::unique_ptr<Tree> {
-    auto new_tree = std::make_unique<Tree>();
-    auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
-        if (!node) return;
-        if (node->rchild) self(self, node->rchild);
-        if (node->lchild) self(self, node->lchild);
-        if (node->key >= key) {
-            new_tree->insert(node->key, node->value);
-            remove(node->key);
-        }
-    };
-    dfs(dfs, root);
-    return new_tree;
-}
-
-template <typename K, typename V> auto Tree<K, V>::merge(std::unique_ptr<Tree> other) -> Status {
-    if (!other) return Status::FAILED;         // Tree does not exist
-    if (!other->root) return Status::SUCCESS;  // Nothing to merge
-    if (this->minimum()->key > other->maximum()->key ||
-        other->minimum()->key > this->maximum()->key) {
-        return this->concat(std::move(other));  // No overlap, can concat
-    }
-    auto copy = [&](auto self, Tree* dest, std::unique_ptr<Node>& node) -> Status {
-        if (dest->insert(node->key, node->value) != Status::SUCCESS) return Status::FAILED;
-        if (node->rchild)
-            if (self(self, dest, node->rchild) != Status::SUCCESS) return Status::FAILED;
-        if (node->lchild)
-            if (self(self, dest, node->lchild) != Status::SUCCESS) return Status::FAILED;
-        return Status::SUCCESS;
-    };
-    return copy(copy, this, other->root);
 }
