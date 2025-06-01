@@ -65,7 +65,7 @@ template <typename K, typename V> struct Tree<K, V>::Node {
     size_t size;
 
     Node(const Key& key, const Value& value, Node* parent = nullptr)
-        : size(1), key(key), value(value), lchild(nullptr), rchild(nullptr), parent(parent) {}
+        : key(key), value(value), size(1), lchild(nullptr), rchild(nullptr), parent(parent) {}
     virtual ~Node() = default;
 
     virtual auto stringify() const -> std::string {
@@ -106,7 +106,7 @@ template <typename K, typename V> void Tree<K, V>::printCLI() const {
     auto print_node = [&](auto self, const Node* node, int depth) {
         if (!node) return;
         self(self, node->lchild.get(), depth + 1);
-        std::cout << std::string(depth * 2, ' ') << node->key << ": " << node->value << "\n";
+        std::cout << std::string(depth * 4, ' ') << node->key << ": " << node->value << "\n";
         self(self, node->rchild.get(), depth + 1);
     };
     print_node(print_node, root.get(), 0);

@@ -60,10 +60,11 @@ int run_test(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc > 1 && strcmp(argv[1], "test") == 0) return run_test(argc, argv);
+    int ret = run_test(argc, argv);
+    if (argc > 1 && strcmp(argv[1], "test") == 0) return ret;  // only run tests
     cout << "====================" << endl;
     polymorphism_demo();
     cout << "====================" << endl;
     algorithm_demo();
-    return 0;
+    return ret;
 }
