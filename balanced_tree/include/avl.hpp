@@ -23,14 +23,18 @@ template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     auto split(const Key& key) -> std::unique_ptr<Tree> override;
     auto merge(std::unique_ptr<Tree> other) -> Status override;
 
+    auto height() const -> int;
+
 private:
     static void rotateR(std::unique_ptr<Node>& root);
     static void rotateL(std::unique_ptr<Node>& root);
     static void rotateLR(std::unique_ptr<Node>& root);
     static void rotateRL(std::unique_ptr<Node>& root);
+    static auto avl(const std::unique_ptr<Node>& node) -> AVLNode*;
+    static auto avl(Node*) -> AVLNode*;
     void balance(Node* node);
     void balanceNode(std::unique_ptr<Node>& node);
-    auto concat(std::unique_ptr<AVLTree> other) -> Status;
+    auto join(std::unique_ptr<AVLTree> other) -> Status;
 };
 
 /****************************** Implementation ********************************/
@@ -67,6 +71,19 @@ template <typename K, typename V> auto AVLTree<K, V>::stringify() const -> std::
     return "AVLTree : " + this->Tree::stringify();
 }
 
+template <typename K, typename V> auto AVLTree<K, V>::height() const -> int {
+    return static_cast<AVLNode*>(this->root.get())->height;
+}
+
+template <typename K, typename V>
+auto AVLTree<K, V>::avl(const std::unique_ptr<Node>& node) -> AVLNode* {
+    return static_cast<AVLNode*>(node.get());
+}
+
+template <typename K, typename V> auto AVLTree<K, V>::avl(Node* node) -> AVLNode* {
+    return static_cast<AVLNode*>(node);
+}
+
 template <typename K, typename V> void AVLTree<K, V>::rotateR(std::unique_ptr<Node>& root) {
     auto new_root = root->lchild.release();
     if (new_root->rchild) {
@@ -101,7 +118,7 @@ template <typename K, typename V> void AVLTree<K, V>::rotateRL(std::unique_ptr<N
 
 template <typename K, typename V> void AVLTree<K, V>::balanceNode(std::unique_ptr<Node>& node) {
     if (!node) return;
-    auto avl_node = static_cast<AVLNode*>(node.get());
+    auto avl_node = avl(node);
     if (avl_node->factor() > 1) {
         if (avl_node->avlLeft()->factor() >= 0) {
             rotateR(node);
@@ -119,7 +136,7 @@ template <typename K, typename V> void AVLTree<K, V>::balanceNode(std::unique_pt
 
 template <typename K, typename V> void AVLTree<K, V>::balance(Node* node) {
     while (node) {
-        auto avl_node = static_cast<AVLNode*>(node);
+        auto avl_node = avl(node);
         if (avl_node->factor() > 1 || avl_node->factor() < -1) {
             this->balanceNode(this->box(node));
             return;
@@ -129,7 +146,7 @@ template <typename K, typename V> void AVLTree<K, V>::balance(Node* node) {
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, const V& value) {
-    auto [parent, node] = this->container(key);
+    auto [parent, node] = this->findBox(key);
     if (node) return Status::FAILED;  // key already exists
     node = std::make_unique<AVLNode>(key, value, parent);
     Tree::maintain(parent);
@@ -138,22 +155,17 @@ template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, con
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
-    auto [parent, node] = this->container(key);
+    auto [parent, node] = this->findBox(key);
     if (!node) return Status::FAILED;
     if (!node->lchild || !node->rchild) {
         Tree::detach(node);
         Tree::maintain(parent);
         this->balance(parent);
     } else {
-        auto find_max = [](auto self, auto& node) -> decltype(node) {
-            if (!node || !node->rchild) return node;
-            return self(self, node->rchild);
-        };
-        auto detached = Tree::detach(find_max(find_max, node->lchild));
+        auto detached = Tree::detach(Tree::max(node->lchild));
         detached->bindL(std::move(node->lchild));
         detached->bindR(std::move(node->rchild));
-        detached->parent = parent;
-        node = std::move(detached);
+        Node::move(node, std::move(detached));
         Tree::maintain(node.get());
         this->balance(node.get());
     }
@@ -165,14 +177,38 @@ template <typename K, typename V> auto AVLTree<K, V>::split(const K&) -> std::un
     return nullptr;
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::concat(std::unique_ptr<AVLTree> other) {
+template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVLTree> other) {
     if (!other) return Status::FAILED;  // tree does not exist
     if (!this->root) {
         this->root = std::move(other->root);
-        return Status::SUCCESS;  // concat into empty tree
+        return Status::SUCCESS;  // join into empty tree
     }
-    if (!other->root) return Status::SUCCESS;  // nothing to concat
-    return Status::FAILED;
+    if (!other->root) return Status::SUCCESS;
+    auto find = [](auto self, bool is_right, auto height, AVLNode* node) -> Node* {
+        if (!node) return nullptr;
+        if (node->height <= height) return node;
+        if (is_right) return self(self, is_right, height, node->avlRight());
+        return self(self, is_right, height, node->avlLeft());
+    };
+    Node* insert_pos = nullptr;
+    if (this->height() >= other->height()) {
+        auto mid = other->detach(Tree::min(other->root));
+        auto& cut = this->box(find(find, true, other->height() + 1, avl(this->root)));
+        mid->bindL(std::move(cut));
+        mid->bindR(std::move(other->root));
+        Node::move(cut, std::move(mid));
+        insert_pos = cut.get();
+    } else {
+        auto mid = this->detach(Tree::max(this->root));
+        auto& cut = other->box(find(find, false, this->height() + 1, avl(other->root)));
+        mid->bindL(std::move(this->root));
+        mid->bindR(std::move(cut));
+        Node::move(cut, std::move(mid));
+        insert_pos = cut.get();
+    }
+    Tree::maintain(insert_pos);
+    balance(insert_pos);
+    return Status::SUCCESS;
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tree> other) {
@@ -188,5 +224,5 @@ template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tr
         return this->mixin(std::move(other));
     }
     other.release();
-    return this->concat(std::unique_ptr<AVLTree>(avl_other));
+    return this->join(std::unique_ptr<AVLTree>(avl_other));
 }

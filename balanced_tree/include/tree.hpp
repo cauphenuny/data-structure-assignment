@@ -48,7 +48,7 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     virtual auto insert(const Key& key, const Value& value) -> Status;
     virtual auto remove(const Key& key) -> Status;
     virtual auto split(const Key& key) -> std::unique_ptr<Tree>;  // split out nodes that >= key
-    virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes concat/mixin
+    virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes join/mixin
 
     // NOTE:
     // conflict:
@@ -62,7 +62,7 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     //     - time complexity: O(m log(n)), m = other->size(), n = this->size()
     //     - If key conflicts, the conflicted node would not be inserted, the rest of the nodes
     //     would be inserted normally
-    // concat:
+    // join:
     //   requires:
     //     - key-range not overlapping
     //     - tree type compatible
@@ -83,19 +83,24 @@ template <typename Key, typename Value> struct Tree : TreeBase {
 protected:
     static void maintain(Node* start);  // refresh nodes info upwards from start to root
     static auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node>;  // detach a node
-    auto container(const Key& key) -> std::tuple<Node*, std::unique_ptr<Node>&>;
-    auto container(const Key& key) const -> std::tuple<const Node*, const std::unique_ptr<Node>&>;
     auto box(Node* node) -> std::unique_ptr<Node>&;
+    auto findBox(const Key& key) -> std::tuple<Node*, std::unique_ptr<Node>&>;
+    auto findBox(const Key& key) const -> std::tuple<const Node*, const std::unique_ptr<Node>&>;
+    static auto min(std::unique_ptr<Node>&)
+        -> std::unique_ptr<Node>&;  // return box contained min node
+    static auto max(std::unique_ptr<Node>&)
+        -> std::unique_ptr<Node>&;  // return box contained max node
 
     auto mixin(std::unique_ptr<Tree> other) -> Status;
 
     // NOTE: detach would return nullptr when the node have two children (not trivial)
+
     // NOTE: mixin calls insert() in implement, so have polymorphic behavior to auto maintain
     // variant tree node data, can be called by derived class object
 
 private:
-    auto concat(std::unique_ptr<Tree> other) -> Status;
-    // NOTE: derived classes should not call this, implement their own cancat() instead.
+    auto join(std::unique_ptr<Tree> other) -> Status;
+    // NOTE: derived classes should not call this, implement their own join() instead.
 };
 
 template <typename K, typename V> struct AVLTree;
@@ -139,6 +144,11 @@ protected:
     void bindR(std::unique_ptr<Node> node) {
         rchild = std::move(node);
         if (rchild) rchild->parent = this;
+    }
+    static void move(std::unique_ptr<Node>& dest, std::unique_ptr<Node> src) {
+        auto parent = dest ? dest->parent : nullptr;
+        dest = std::move(src);
+        dest->parent = parent;
     }
 };
 
@@ -195,6 +205,24 @@ template <typename K, typename V> auto Tree<K, V>::minimum() const -> const Node
 }
 
 template <typename K, typename V>
+auto Tree<K, V>::max(std::unique_ptr<Node>& node) -> std::unique_ptr<Node>& {
+    auto find_max = [](auto self, auto& node) -> decltype(node) {
+        if (!node || !node->rchild) return node;
+        return self(self, node->rchild);
+    };
+    return find_max(find_max, node);
+}
+
+template <typename K, typename V>
+auto Tree<K, V>::min(std::unique_ptr<Node>& node) -> std::unique_ptr<Node>& {
+    auto find_min = [](auto self, auto& node) -> decltype(node) {
+        if (!node || !node->lchild) return node;
+        return self(self, node->lchild);
+    };
+    return find_min(find_min, node);
+}
+
+template <typename K, typename V>
 auto Tree<K, V>::detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
     if (node->lchild && node->rchild) return std::unique_ptr<Node>(nullptr);
     auto parent = node->parent;
@@ -210,7 +238,7 @@ auto Tree<K, V>::detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
 }
 
 template <typename K, typename V>
-auto Tree<K, V>::container(const K& key) -> std::tuple<Node*, std::unique_ptr<Node>&> {
+auto Tree<K, V>::findBox(const K& key) -> std::tuple<Node*, std::unique_ptr<Node>&> {
     using T = std::unique_ptr<Node>;
     auto search = [&key](auto self, Node* parent, T& current) -> std::tuple<Node*, T&> {
         if (!current || key == current->key) return {parent, current};
@@ -223,7 +251,7 @@ auto Tree<K, V>::container(const K& key) -> std::tuple<Node*, std::unique_ptr<No
 }
 
 template <typename K, typename V>
-auto Tree<K, V>::container(const K& key) const
+auto Tree<K, V>::findBox(const K& key) const
     -> std::tuple<const Node*, const std::unique_ptr<Node>&> {
     auto search = [&key](auto self, const Node* parent, const std::unique_ptr<Node>& current)
         -> std::tuple<const Node*, const std::unique_ptr<Node>&> {
@@ -246,18 +274,18 @@ template <typename K, typename V> auto Tree<K, V>::box(Node* node) -> std::uniqu
 }
 
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> const Node* {
-    auto [_, node] = this->container(key);
+    auto [_, node] = this->findBox(key);
     return node.get();
 }
 
 template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) -> V& {
-    auto [_, node] = this->container(key);
+    auto [_, node] = this->findBox(key);
     if (!node) this->insert(key, V{});
     return node->value;
 }
 
 template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) const -> const V& {
-    auto [_, node] = this->container(key);
+    auto [_, node] = this->findBox(key);
     if (!node) throw std::out_of_range(std::format("key {} not found", key));
     return node->value;
 }
@@ -270,7 +298,7 @@ template <typename K, typename V> void Tree<K, V>::maintain(Node* start) {
 }
 
 template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const V& value) {
-    auto [parent, node] = this->container(key);
+    auto [parent, node] = this->findBox(key);
     if (node) return Status::FAILED;
     node = std::make_unique<Node>(key, value, parent);
     maintain(parent);
@@ -278,22 +306,17 @@ template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const 
 }
 
 template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
-    auto [parent, node] = this->container(key);
+    auto [parent, node] = this->findBox(key);
     if (!node) return Status::FAILED;
     if (!node->lchild || !node->rchild) {
         Tree::detach(node);
         Tree::maintain(parent);
         return Status::SUCCESS;
     }
-    auto find_max = [](auto self, auto& node) -> decltype(node) {
-        if (!node || !node->rchild) return node;
-        return self(self, node->rchild);
-    };
-    auto detached = Tree::detach(find_max(find_max, node->lchild));
+    auto detached = Tree::detach(Tree::max(node->lchild));
     detached->bindL(std::move(node->lchild));
     detached->bindR(std::move(node->rchild));
-    detached->parent = parent;
-    node = std::move(detached);
+    Node::move(node, std::move(detached));
     Tree::maintain(node.get());
     return Status::SUCCESS;
 }
@@ -346,7 +369,7 @@ template <typename K, typename V> auto Tree<K, V>::merge(std::unique_ptr<Tree> o
     }
     if (this->minimum()->key > other->maximum()->key ||
         other->minimum()->key > this->maximum()->key) {
-        return this->concat(std::move(other));
+        return this->join(std::move(other));
     }
     return this->mixin(std::move(other));
 }
@@ -371,7 +394,7 @@ template <typename K, typename V> auto Tree<K, V>::mixin(std::unique_ptr<Tree> o
 }
 
 // NOTE: when key-range overlapping, the merge will fail, lost all nodes in `other`
-template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree> other) {
+template <typename K, typename V> Status Tree<K, V>::join(std::unique_ptr<Tree> other) {
     if (!other) return Status::FAILED;
     if (!other->root) return Status::SUCCESS;
     if (!this->root) {
@@ -387,11 +410,8 @@ template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree
             std::swap(this->root, other->root);
         }
     }
-    Node* rightmost = this->root.get();
-    while (rightmost->rchild) {
-        rightmost = rightmost->rchild.get();
-    }
-    rightmost->bindR(std::move(other->root));
-    maintain(rightmost);
+    auto& max_node = Tree::max(this->root);
+    max_node->bindR(std::move(other->root));
+    maintain(max_node.get());
     return Status::SUCCESS;
 }

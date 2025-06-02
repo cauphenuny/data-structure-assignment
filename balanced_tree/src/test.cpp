@@ -83,8 +83,8 @@ struct Test {  // extract private/protected members from class
         CHECK(traverse(avl_tree->root, check_balance));
     }
 
-    constexpr static auto concat = [](auto& tree1, auto tree2) {
-        return tree1->concat(std::move(tree2));
+    constexpr static auto join = [](auto& tree1, auto tree2) {
+        return tree1->join(std::move(tree2));
     };
     constexpr static auto mixin = [](auto& tree1, auto tree2) {
         return tree1->mixin(std::move(tree2));
@@ -222,8 +222,8 @@ TEST_CASE("`Tree` removal, split, merge") {
     }
 }
 
-TEST_CASE("`Tree` conflict, concat, mix, merge") {
-    SUBCASE("Basic non-overlapping merge (concat)") {
+TEST_CASE("`Tree` conflict, join, mix, merge") {
+    SUBCASE("Basic non-overlapping merge (join)") {
         auto tree1 = std::make_unique<Tree<int, std::string>>();
         auto tree2 = std::make_unique<Tree<int, std::string>>();
 
@@ -237,8 +237,8 @@ TEST_CASE("`Tree` conflict, concat, mix, merge") {
         tree2->insert(25, "twenty-five");
         tree2->insert(35, "thirty-five");
 
-        // Perform concat operation
-        auto result = Test::concat(tree1, std::move(tree2));
+        // Perform join operation
+        auto result = Test::join(tree1, std::move(tree2));
 
         CHECK(result == Status::SUCCESS);
         CHECK(tree1->size() == 6);
@@ -489,122 +489,6 @@ TEST_CASE("`AVLTree` insertion") {
     }
 }
 
-/* TEST_CASE("`AVLTree` concat and merge") {
-    SUBCASE("Basic non-overlapping concat") {
-        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
-        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
-
-        // First tree with smaller keys
-        tree1->insert(10, "ten");
-        tree1->insert(5, "five");
-        tree1->insert(15, "fifteen");
-
-        // Second tree with larger keys
-        tree2->insert(30, "thirty");
-        tree2->insert(25, "twenty-five");
-        tree2->insert(35, "thirty-five");
-
-        // Record original sizes
-        size_t originalSize1 = tree1->size();
-        size_t originalSize2 = tree2->size();
-
-        // Perform concat operation via merge (which should choose concat)
-        auto result = tree1->merge(std::move(tree2));
-
-        debug(tree1);
-        CHECK(result == Status::SUCCESS);
-        CHECK(tree1->size() == originalSize1 + originalSize2);
-
-        // Verify all keys exist and are accessible
-        CHECK(tree1->find(5) != nullptr);
-        CHECK(tree1->find(10) != nullptr);
-        CHECK(tree1->find(15) != nullptr);
-        CHECK(tree1->find(25) != nullptr);
-        CHECK(tree1->find(30) != nullptr);
-        CHECK(tree1->find(35) != nullptr);
-
-        // Verify AVL properties are maintained
-        CHECK(Test::traverse(tree1->root, Test::check_height));
-        CHECK(Test::traverse(tree1->root, Test::check_balance));
-    }
-
-    SUBCASE("Edge case: empty trees") {
-        // Empty first tree
-        auto empty1 = std::make_unique<AVLTree<int, std::string>>();
-        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
-        tree2->insert(10, "ten");
-        tree2->insert(5, "five");
-
-        auto result = empty1->merge(std::move(tree2));
-        CHECK(result == Status::SUCCESS);
-        CHECK(empty1->size() == 2);
-        CHECK(empty1->find(5) != nullptr);
-        CHECK(empty1->find(10) != nullptr);
-        CHECK(Test::traverse(empty1->root, Test::check_balance));
-
-        // Empty second tree
-        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
-        auto empty2 = std::make_unique<AVLTree<int, std::string>>();
-        tree1->insert(30, "thirty");
-
-        result = tree1->merge(std::move(empty2));
-        CHECK(result == Status::SUCCESS);
-        CHECK(tree1->size() == 1);
-        CHECK(tree1->find(30) != nullptr);
-    }
-
-    SUBCASE("Overlapping keys should fail concat") {
-        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
-        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
-
-        tree1->insert(10, "ten");
-        tree1->insert(20, "twenty");
-
-        tree2->insert(15, "fifteen");
-        tree2->insert(25, "twenty-five");
-
-        // This should use mixin instead of concat due to overlapping ranges
-        auto result = tree1->merge(std::move(tree2));
-        CHECK(result == Status::SUCCESS);
-        CHECK(tree1->size() == 4);
-        CHECK(tree1->find(15) != nullptr);
-        CHECK(Test::traverse(tree1->root, Test::check_balance));
-    }
-
-    SUBCASE("Balance maintenance with larger trees") {
-        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
-        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
-
-        // First tree with 20 elements
-        for (int i = 1; i <= 20; i++) {
-            tree1->insert(i, std::to_string(i));
-        }
-
-        // Second tree with 15 elements
-        for (int i = 30; i <= 45; i++) {
-            tree2->insert(i, std::to_string(i));
-        }
-
-        // Verify trees are initially balanced
-        CHECK(Test::traverse(tree1->root, Test::check_balance));
-        CHECK(Test::traverse(tree2->root, Test::check_balance));
-
-        // Perform concat
-        auto result = tree1->merge(std::move(tree2));
-
-        CHECK(result == Status::SUCCESS);
-        CHECK(tree1->size() == 35);
-
-        // Verify resulting tree is still balanced
-        CHECK(Test::traverse(tree1->root, Test::check_height));
-        CHECK(Test::traverse(tree1->root, Test::check_balance));
-
-        // Verify parent pointers are correctly set
-        CHECK(Test::traverse(tree1->root, Test::check_parent));
-    }
-}
-*/
-
 TEST_CASE("`AVLTree` removal") {
     auto tree = std::make_unique<AVLTree<int, std::string>>();
 
@@ -719,5 +603,131 @@ TEST_CASE("`AVLTree` removal") {
         }
 
         CHECK(tree->size() == 8);
+    }
+}
+
+TEST_CASE("`AVLTree` join operation") {
+    SUBCASE("Basic join with non-overlapping trees") {
+        // Create two trees with non-overlapping keys
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // First tree with smaller keys
+        tree1->insert(10, "ten");
+        tree1->insert(5, "five");
+        tree1->insert(15, "fifteen");
+
+        // Second tree with larger keys
+        tree2->insert(30, "thirty");
+        tree2->insert(25, "twenty-five");
+        tree2->insert(35, "thirty-five");
+
+        // Verify trees before join
+        CHECK(tree1->size() == 3);
+        CHECK(tree2->size() == 3);
+        Test::checkAVL(tree1);
+        Test::checkAVL(tree2);
+
+        // Perform join operation
+        CHECK(tree1->merge(std::move(tree2)) == Status::SUCCESS);
+
+        // Verify the joined tree
+        CHECK(tree1->size() == 6);
+        CHECK(tree1->find(5) != nullptr);
+        CHECK(tree1->find(35) != nullptr);
+        Test::checkAVL(tree1);
+    }
+
+    SUBCASE("Join with empty trees") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        SUBCASE("First tree empty") {
+            tree2->insert(30, "thirty");
+            tree2->insert(20, "twenty");
+            tree2->insert(40, "forty");
+
+            CHECK(tree1->merge(std::move(tree2)) == Status::SUCCESS);
+            CHECK(tree1->size() == 3);
+            CHECK(tree1->find(30) != nullptr);
+            Test::checkAVL(tree1);
+        }
+
+        SUBCASE("Second tree empty") {
+            tree1->insert(10, "ten");
+            tree1->insert(5, "five");
+            tree1->insert(15, "fifteen");
+
+            auto empty = std::make_unique<AVLTree<int, std::string>>();
+            CHECK(tree1->merge(std::move(empty)) == Status::SUCCESS);
+            CHECK(tree1->size() == 3);
+            Test::checkAVL(tree1);
+        }
+
+        SUBCASE("Both trees empty") {
+            CHECK(tree1->merge(std::move(tree2)) == Status::SUCCESS);
+            CHECK(tree1->size() == 0);
+        }
+    }
+
+    SUBCASE("Join with height differences") {
+        auto tall = std::make_unique<AVLTree<int, std::string>>();
+        auto short_tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Create a taller tree
+        for (int i = 1; i <= 7; i++) {
+            tall->insert(i, std::to_string(i));
+        }
+
+        // Create a shorter tree with larger keys
+        short_tree->insert(10, "ten");
+        short_tree->insert(15, "fifteen");
+
+        CHECK(tall->merge(std::move(short_tree)) == Status::SUCCESS);
+        CHECK(tall->size() == 9);
+        CHECK(tall->find(15) != nullptr);
+        Test::checkAVL(tall);
+
+        // Test the opposite case (short tree merging tall tree)
+        auto tall2 = std::make_unique<AVLTree<int, std::string>>();
+        auto short2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // Create a shorter tree with smaller keys
+        short2->insert(1, "one");
+        short2->insert(2, "two");
+
+        // Create a taller tree with larger keys
+        for (int i = 10; i <= 20; i++) {
+            tall2->insert(i, std::to_string(i));
+        }
+
+        CHECK(short2->merge(std::move(tall2)) == Status::SUCCESS);
+        CHECK(short2->size() == 13);
+        CHECK(short2->find(1) != nullptr);
+        CHECK(short2->find(20) != nullptr);
+        Test::checkAVL(short2);
+    }
+
+    SUBCASE("Join larger trees") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // First tree with keys 1-50
+        for (int i = 1; i <= 50; i++) {
+            tree1->insert(i, std::to_string(i));
+        }
+
+        // Second tree with keys 100-150
+        for (int i = 100; i <= 150; i++) {
+            tree2->insert(i, std::to_string(i));
+        }
+
+        CHECK(tree1->merge(std::move(tree2)) == Status::SUCCESS);
+        CHECK(tree1->size() == 101);
+        CHECK(tree1->find(1) != nullptr);
+        CHECK(tree1->find(50) != nullptr);
+        CHECK(tree1->find(100) != nullptr);
+        CHECK(tree1->find(150) != nullptr);
+        Test::checkAVL(tree1);
     }
 }
