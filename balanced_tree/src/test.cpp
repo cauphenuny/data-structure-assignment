@@ -4,12 +4,35 @@
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
 
-struct Test {
+struct Test {  // extract private/protected members from class
     static bool traverse(auto& node, auto func) {
+        if (!node) return true;
         bool result = func(node);
-        if (node->lchild) result = result && traverse(node->lchild, func);
-        if (node->rchild) result = result && traverse(node->rchild, func);
+        if (!result) {
+            debug(node);
+        }
+        result = result && traverse(node->lchild, func);
+        result = result && traverse(node->rchild, func);
         return result;
+    }
+
+    static bool sorted(auto& node) {
+        std::vector<decltype(node->key)> ret;
+        auto dfs = [&ret](auto self, auto& node) {
+            if (!node) return;
+            self(self, node->lchild);
+            ret.push_back(node->key);
+            self(self, node->rchild);
+        };
+        dfs(dfs, node);
+        for (int i = 0; i < (int)ret.size() - 1; i++) {
+            if (ret[i] > ret[i + 1]) {
+                // debug(ret);
+                debug(i, ret[i], ret[i + 1]);
+                return false;
+            }
+        }
+        return true;
     }
 
     constexpr static auto check_size = [](auto& node) {
@@ -45,6 +68,20 @@ struct Test {
         int factor = avl_node->factor();
         return factor >= -1 && factor <= 1;
     };
+
+    static void check(auto& tree) {
+        CHECK(sorted(tree->root));
+        CHECK(traverse(tree->root, check_parent));
+        CHECK(traverse(tree->root, check_size));
+    }
+
+    static void checkAVL(auto& avl_tree) {
+        CHECK(sorted(avl_tree->root));
+        CHECK(traverse(avl_tree->root, check_parent));
+        CHECK(traverse(avl_tree->root, check_size));
+        CHECK(traverse(avl_tree->root, check_height));
+        CHECK(traverse(avl_tree->root, check_balance));
+    }
 
     constexpr static auto concat = [](auto& tree1, auto tree2) {
         return tree1->concat(std::move(tree2));
@@ -126,16 +163,16 @@ TEST_CASE("`Tree` removal, split, merge") {
                 CHECK(tree->size() == 5);
                 CHECK(tree->find(40) != nullptr);
             }
-            CHECK(Test::traverse(tree->root, Test::check_size));
-            CHECK(Test::traverse(tree->root, Test::check_parent));
+            Test::check(tree);
         }
 
         SUBCASE("two children") {
             CHECK(tree->remove(50) == Status::SUCCESS);
             CHECK(tree->find(50) == nullptr);
             CHECK(tree->size() == 6);
-            CHECK(Test::traverse(tree->root, Test::check_size));
-            CHECK(Test::traverse(tree->root, Test::check_parent));
+            // debug(tree);
+            // tree->printCLI();
+            Test::check(tree);
         }
 
         SUBCASE("remove all") {
@@ -143,6 +180,7 @@ TEST_CASE("`Tree` removal, split, merge") {
             for (int i = size - 1; i >= 0; i--) {
                 CHECK(tree->remove(tree->root->key) == Status::SUCCESS);
                 CHECK(tree->size() == i);
+                Test::check(tree);
             }
         }
     }
@@ -153,8 +191,10 @@ TEST_CASE("`Tree` removal, split, merge") {
         CHECK(other != nullptr);
         CHECK(tree->size() + other->size() == 7);
 
+        CHECK(Test::sorted(tree->root));
         CHECK(Test::traverse(tree->root, Test::check_size));
         CHECK(Test::traverse(tree->root, Test::check_parent));
+        CHECK(Test::sorted(other->root));
         CHECK(Test::traverse(other->root, Test::check_size));
         CHECK(Test::traverse(other->root, Test::check_parent));
 
@@ -178,8 +218,7 @@ TEST_CASE("`Tree` removal, split, merge") {
         CHECK(tree->find(60) != nullptr);
         CHECK(tree->find(80) != nullptr);
 
-        CHECK(Test::traverse(tree->root, Test::check_size));
-        CHECK(Test::traverse(tree->root, Test::check_parent));
+        Test::check(tree);
     }
 }
 
@@ -206,6 +245,7 @@ TEST_CASE("`Tree` conflict, concat, mix, merge") {
         CHECK(tree1->find(5) != nullptr);
         CHECK(tree1->find(35) != nullptr);
         CHECK(tree1->find(25)->value == "twenty-five");
+        Test::check(tree1);
     }
 
     SUBCASE("Overlapping merge (mix)") {
@@ -277,6 +317,52 @@ TEST_CASE("`Tree` conflict, concat, mix, merge") {
     }
 }
 
+TEST_CASE("`Tree` operator[]") {
+    auto tree = std::make_unique<Tree<int, std::string>>();
+
+    // Setup tree with some initial values
+    tree->insert(10, "ten");
+    tree->insert(20, "twenty");
+    tree->insert(30, "thirty");
+
+    SUBCASE("Non-const operator[] - accessing existing keys") {
+        // Access and modify existing key
+        CHECK(tree->operator[](10) == "ten");
+        tree->operator[](10) = "TEN";
+        CHECK(tree->find(10)->value == "TEN");
+
+        // Shorthand syntax
+        (*tree)[20] = "TWENTY";
+        CHECK(tree->find(20)->value == "TWENTY");
+    }
+
+    SUBCASE("Non-const operator[] - inserting new keys") {
+        // Access non-existing key should insert default value
+        CHECK(tree->find(40) == nullptr);
+        CHECK(tree->operator[](40) == "");  // Default-constructed string is empty
+        CHECK(tree->find(40) != nullptr);
+        CHECK(tree->size() == 4);
+
+        // Modify the newly inserted value
+        tree->operator[](40) = "forty";
+        CHECK(tree->find(40)->value == "forty");
+    }
+
+    SUBCASE("Const operator[] - accessing existing keys") {
+        const auto& const_tree = *tree;
+        CHECK(const_tree[10] == "ten");
+        CHECK(const_tree[20] == "twenty");
+        CHECK(const_tree[30] == "thirty");
+    }
+
+    SUBCASE("Const operator[] - throws on missing keys") {
+        const auto& const_tree = *tree;
+        CHECK_THROWS_AS(const_tree[40], std::out_of_range);
+        // Size remains unchanged
+        CHECK(tree->size() == 3);
+    }
+}
+
 TEST_CASE("`AVLTree` insertion") {
     auto tree = std::make_unique<AVLTree<int, std::string>>();
 
@@ -316,8 +402,8 @@ TEST_CASE("`AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(tree->find(20) == tree->root.get());
-        CHECK(tree->find(10) == tree->root->leftChild());
-        CHECK(tree->find(30) == tree->root->rightChild());
+        CHECK(tree->find(10) == tree->root->left());
+        CHECK(tree->find(30) == tree->root->right());
 
         // Check balance factors
         auto root = static_cast<const AVLNodeType*>(tree->root.get());
@@ -333,8 +419,8 @@ TEST_CASE("`AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(tree->find(20) == tree->root.get());
-        CHECK(tree->find(10) == tree->root->leftChild());
-        CHECK(tree->find(30) == tree->root->rightChild());
+        CHECK(tree->find(10) == tree->root->left());
+        CHECK(tree->find(30) == tree->root->right());
 
         // Check balance factors
         auto root = static_cast<AVLNodeType*>(tree->root.get());
@@ -350,8 +436,8 @@ TEST_CASE("`AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(tree->find(20) == tree->root.get());
-        CHECK(tree->find(10) == tree->root->leftChild());
-        CHECK(tree->find(30) == tree->root->rightChild());
+        CHECK(tree->find(10) == tree->root->left());
+        CHECK(tree->find(30) == tree->root->right());
 
         // Check balance factors
         auto root = static_cast<AVLNodeType*>(tree->root.get());
@@ -367,8 +453,8 @@ TEST_CASE("`AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(tree->find(20) == tree->root.get());
-        CHECK(tree->find(10) == tree->root->leftChild());
-        CHECK(tree->find(30) == tree->root->rightChild());
+        CHECK(tree->find(10) == tree->root->left());
+        CHECK(tree->find(30) == tree->root->right());
 
         // Check balance factors
         auto root = static_cast<AVLNodeType*>(tree->root.get());
@@ -400,5 +486,238 @@ TEST_CASE("`AVLTree` insertion") {
         CHECK(Test::traverse(tree->root, Test::check_height));
         auto root = static_cast<AVLNodeType*>(tree->root.get());
         CHECK(root->height <= std::ceil(std::sqrt(2) * std::log2(N)));
+    }
+}
+
+/* TEST_CASE("`AVLTree` concat and merge") {
+    SUBCASE("Basic non-overlapping concat") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // First tree with smaller keys
+        tree1->insert(10, "ten");
+        tree1->insert(5, "five");
+        tree1->insert(15, "fifteen");
+
+        // Second tree with larger keys
+        tree2->insert(30, "thirty");
+        tree2->insert(25, "twenty-five");
+        tree2->insert(35, "thirty-five");
+
+        // Record original sizes
+        size_t originalSize1 = tree1->size();
+        size_t originalSize2 = tree2->size();
+
+        // Perform concat operation via merge (which should choose concat)
+        auto result = tree1->merge(std::move(tree2));
+
+        debug(tree1);
+        CHECK(result == Status::SUCCESS);
+        CHECK(tree1->size() == originalSize1 + originalSize2);
+
+        // Verify all keys exist and are accessible
+        CHECK(tree1->find(5) != nullptr);
+        CHECK(tree1->find(10) != nullptr);
+        CHECK(tree1->find(15) != nullptr);
+        CHECK(tree1->find(25) != nullptr);
+        CHECK(tree1->find(30) != nullptr);
+        CHECK(tree1->find(35) != nullptr);
+
+        // Verify AVL properties are maintained
+        CHECK(Test::traverse(tree1->root, Test::check_height));
+        CHECK(Test::traverse(tree1->root, Test::check_balance));
+    }
+
+    SUBCASE("Edge case: empty trees") {
+        // Empty first tree
+        auto empty1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+        tree2->insert(10, "ten");
+        tree2->insert(5, "five");
+
+        auto result = empty1->merge(std::move(tree2));
+        CHECK(result == Status::SUCCESS);
+        CHECK(empty1->size() == 2);
+        CHECK(empty1->find(5) != nullptr);
+        CHECK(empty1->find(10) != nullptr);
+        CHECK(Test::traverse(empty1->root, Test::check_balance));
+
+        // Empty second tree
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto empty2 = std::make_unique<AVLTree<int, std::string>>();
+        tree1->insert(30, "thirty");
+
+        result = tree1->merge(std::move(empty2));
+        CHECK(result == Status::SUCCESS);
+        CHECK(tree1->size() == 1);
+        CHECK(tree1->find(30) != nullptr);
+    }
+
+    SUBCASE("Overlapping keys should fail concat") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        tree1->insert(10, "ten");
+        tree1->insert(20, "twenty");
+
+        tree2->insert(15, "fifteen");
+        tree2->insert(25, "twenty-five");
+
+        // This should use mixin instead of concat due to overlapping ranges
+        auto result = tree1->merge(std::move(tree2));
+        CHECK(result == Status::SUCCESS);
+        CHECK(tree1->size() == 4);
+        CHECK(tree1->find(15) != nullptr);
+        CHECK(Test::traverse(tree1->root, Test::check_balance));
+    }
+
+    SUBCASE("Balance maintenance with larger trees") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // First tree with 20 elements
+        for (int i = 1; i <= 20; i++) {
+            tree1->insert(i, std::to_string(i));
+        }
+
+        // Second tree with 15 elements
+        for (int i = 30; i <= 45; i++) {
+            tree2->insert(i, std::to_string(i));
+        }
+
+        // Verify trees are initially balanced
+        CHECK(Test::traverse(tree1->root, Test::check_balance));
+        CHECK(Test::traverse(tree2->root, Test::check_balance));
+
+        // Perform concat
+        auto result = tree1->merge(std::move(tree2));
+
+        CHECK(result == Status::SUCCESS);
+        CHECK(tree1->size() == 35);
+
+        // Verify resulting tree is still balanced
+        CHECK(Test::traverse(tree1->root, Test::check_height));
+        CHECK(Test::traverse(tree1->root, Test::check_balance));
+
+        // Verify parent pointers are correctly set
+        CHECK(Test::traverse(tree1->root, Test::check_parent));
+    }
+}
+*/
+
+TEST_CASE("`AVLTree` removal") {
+    auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+    SUBCASE("Empty tree removal") {
+        CHECK(tree->remove(10) == Status::FAILED);
+        CHECK(tree->size() == 0);
+    }
+
+    SUBCASE("Leaf node removal") {
+        // Setup a balanced tree
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+        tree->insert(20, "twenty");
+        tree->insert(40, "forty");
+        tree->insert(60, "sixty");
+        tree->insert(80, "eighty");
+
+        // Remove a leaf node
+        CHECK(tree->remove(20) == Status::SUCCESS);
+        CHECK(tree->size() == 6);
+        CHECK(tree->find(20) == nullptr);
+
+        // Verify tree properties are maintained
+        Test::checkAVL(tree);
+    }
+
+    SUBCASE("Single child removal") {
+        // Setup tree with a node that has one child
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+        tree->insert(20, "twenty");
+
+        // Remove a node with one child
+        CHECK(tree->remove(30) == Status::SUCCESS);
+        CHECK(tree->size() == 3);
+        CHECK(tree->find(30) == nullptr);
+        CHECK(tree->find(20) != nullptr);
+
+        // Verify tree properties
+        Test::checkAVL(tree);
+    }
+
+    SUBCASE("Two children removal") {
+        // Setup tree
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+        tree->insert(20, "twenty");
+        tree->insert(40, "forty");
+        tree->insert(60, "sixty");
+        tree->insert(80, "eighty");
+
+        // Remove a node with two children
+        CHECK(tree->remove(30) == Status::SUCCESS);
+        CHECK(tree->size() == 6);
+        CHECK(tree->find(30) == nullptr);
+        CHECK(tree->find(20) != nullptr);
+        CHECK(tree->find(40) != nullptr);
+
+        // Verify tree properties
+        Test::checkAVL(tree);
+    }
+
+    SUBCASE("Root removal") {
+        // Setup a smaller tree
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+
+        // Remove the root
+        CHECK(tree->remove(50) == Status::SUCCESS);
+        CHECK(tree->size() == 2);
+        CHECK(tree->find(50) == nullptr);
+
+        // Verify tree properties
+        Test::checkAVL(tree);
+    }
+
+    SUBCASE("Removal requiring rebalancing") {
+        // Create a tree that will require rebalancing after removal
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+        tree->insert(20, "twenty");
+        tree->insert(40, "forty");
+        tree->insert(60, "sixty");
+        tree->insert(80, "eighty");
+        tree->insert(10, "ten");
+        tree->insert(25, "twenty-five");
+
+        // Remove nodes that will trigger rotations
+        CHECK(tree->remove(70) == Status::SUCCESS);
+        CHECK(tree->remove(80) == Status::SUCCESS);
+
+        // Verify tree properties and balance
+        Test::checkAVL(tree);
+    }
+
+    SUBCASE("Sequential removal") {
+        // Create a larger tree
+        for (int i = 1; i <= 15; i++) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Remove nodes in sequence
+        for (int i = 1; i <= 7; i++) {
+            CHECK(tree->remove(i) == Status::SUCCESS);
+            // Verify tree properties after each removal
+            Test::checkAVL(tree);
+        }
+
+        CHECK(tree->size() == 8);
     }
 }

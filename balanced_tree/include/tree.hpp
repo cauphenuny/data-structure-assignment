@@ -81,10 +81,15 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     // Is it better to change interface to use reference instead of take ownership?
 
 protected:
-    static void refresh(Node* start);  // refresh nodes info upwards from start to root
+    static void maintain(Node* start);  // refresh nodes info upwards from start to root
+    static auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node>;  // detach a node
     auto container(const Key& key) -> std::tuple<Node*, std::unique_ptr<Node>&>;
     auto container(const Key& key) const -> std::tuple<const Node*, const std::unique_ptr<Node>&>;
+    auto box(Node* node) -> std::unique_ptr<Node>&;
+
     auto mixin(std::unique_ptr<Tree> other) -> Status;
+
+    // NOTE: detach would return nullptr when the node have two children (not trivial)
     // NOTE: mixin calls insert() in implement, so have polymorphic behavior to auto maintain
     // variant tree node data, can be called by derived class object
 
@@ -115,17 +120,26 @@ template <typename K, typename V> struct Tree<K, V>::Node {
     virtual auto stringify() const -> std::string {
         return serializeClass("Node", key, value, size, this, parent, lchild, rchild);
     }
-    virtual void refresh() {
+    virtual void maintain() {
         this->size =
             1 + (this->lchild ? this->lchild->size : 0) + (this->rchild ? this->rchild->size : 0);
     }
 
-    const Node* leftChild() const { return lchild.get(); }
-    const Node* rightChild() const { return rchild.get(); }
+    const Node* left() const { return lchild.get(); }
+    const Node* right() const { return rchild.get(); }
 
 protected:
     std::unique_ptr<Node> lchild, rchild;
     Node* parent;
+    enum { L, R };
+    void bindL(std::unique_ptr<Node> node) {
+        lchild = std::move(node);
+        if (lchild) lchild->parent = this;
+    }
+    void bindR(std::unique_ptr<Node> node) {
+        rchild = std::move(node);
+        if (rchild) rchild->parent = this;
+    }
 };
 
 template <typename K, typename V>
@@ -181,6 +195,21 @@ template <typename K, typename V> auto Tree<K, V>::minimum() const -> const Node
 }
 
 template <typename K, typename V>
+auto Tree<K, V>::detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
+    if (node->lchild && node->rchild) return std::unique_ptr<Node>(nullptr);
+    auto parent = node->parent;
+    if (node->lchild) node->lchild->parent = parent;
+    if (node->rchild) node->rchild->parent = parent;
+    auto raw = node.release();
+    if (!raw->lchild)
+        node = std::move(raw->rchild);
+    else
+        node = std::move(raw->lchild);
+    Tree::maintain(parent);
+    return std::unique_ptr<Node>(raw);
+}
+
+template <typename K, typename V>
 auto Tree<K, V>::container(const K& key) -> std::tuple<Node*, std::unique_ptr<Node>&> {
     using T = std::unique_ptr<Node>;
     auto search = [&key](auto self, Node* parent, T& current) -> std::tuple<Node*, T&> {
@@ -207,6 +236,15 @@ auto Tree<K, V>::container(const K& key) const
     return search(search, nullptr, this->root);
 }
 
+template <typename K, typename V> auto Tree<K, V>::box(Node* node) -> std::unique_ptr<Node>& {
+    if (!node) throw std::invalid_argument("node is nullptr");
+    if (node == this->root.get()) return this->root;
+    if (!node->parent) throw std::invalid_argument("invalid node: no parent");
+    if (node->parent->lchild.get() == node) return node->parent->lchild;
+    if (node->parent->rchild.get() == node) return node->parent->rchild;
+    throw std::invalid_argument("invalid node");
+}
+
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> const Node* {
     auto [_, node] = this->container(key);
     return node.get();
@@ -224,9 +262,9 @@ template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) cons
     return node->value;
 }
 
-template <typename K, typename V> void Tree<K, V>::refresh(Node* start) {
+template <typename K, typename V> void Tree<K, V>::maintain(Node* start) {
     while (start) {
-        start->refresh();
+        start->maintain();
         start = start->parent;
     }
 }
@@ -235,19 +273,28 @@ template <typename K, typename V> Status Tree<K, V>::insert(const K& key, const 
     auto [parent, node] = this->container(key);
     if (node) return Status::FAILED;
     node = std::make_unique<Node>(key, value, parent);
-    refresh(parent);
+    maintain(parent);
     return Status::SUCCESS;
 }
 
 template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
     auto [parent, node] = this->container(key);
     if (!node) return Status::FAILED;
-    auto left_tree = std::make_unique<Tree>(node->lchild.release());
-    auto right_tree = std::make_unique<Tree>(node->rchild.release());
-    left_tree->concat(std::move(right_tree));
-    if (left_tree->root) left_tree->root->parent = parent;
-    node.reset(left_tree->root.release());
-    this->refresh(parent);
+    if (!node->lchild || !node->rchild) {
+        Tree::detach(node);
+        Tree::maintain(parent);
+        return Status::SUCCESS;
+    }
+    auto find_max = [](auto self, auto& node) -> decltype(node) {
+        if (!node || !node->rchild) return node;
+        return self(self, node->rchild);
+    };
+    auto detached = Tree::detach(find_max(find_max, node->lchild));
+    detached->bindL(std::move(node->lchild));
+    detached->bindR(std::move(node->rchild));
+    detached->parent = parent;
+    node = std::move(detached);
+    Tree::maintain(node.get());
     return Status::SUCCESS;
 }
 
@@ -294,7 +341,7 @@ template <typename K, typename V> auto Tree<K, V>::merge(std::unique_ptr<Tree> o
     if (!other) return Status::FAILED;         // tree does not exist
     if (!other->root) return Status::SUCCESS;  // nothing to merge
     if (!this->root) {
-        this->root.reset(other->root.release());
+        this->root = std::move(other->root);
         return Status::SUCCESS;  // merging into empty tree
     }
     if (this->minimum()->key > other->maximum()->key ||
@@ -308,7 +355,7 @@ template <typename K, typename V> auto Tree<K, V>::mixin(std::unique_ptr<Tree> o
     if (!other) return Status::FAILED;
     if (!other->root) return Status::SUCCESS;
     if (!this->root) {
-        this->root.reset(other->root.release());
+        this->root = std::move(other->root);
         return Status::SUCCESS;
     }
     auto copy = [&](auto self, Tree* dest, std::unique_ptr<Node>& node) -> Status {
@@ -328,7 +375,7 @@ template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree
     if (!other) return Status::FAILED;
     if (!other->root) return Status::SUCCESS;
     if (!this->root) {
-        this->root.reset(other->root.release());
+        this->root = std::move(other->root);
         return Status::SUCCESS;
     }
     if (this->size() && other->size()) {
@@ -344,8 +391,7 @@ template <typename K, typename V> Status Tree<K, V>::concat(std::unique_ptr<Tree
     while (rightmost->rchild) {
         rightmost = rightmost->rchild.get();
     }
-    rightmost->rchild.reset(other->root.release());
-    rightmost->rchild->parent = rightmost;
-    refresh(rightmost);
+    rightmost->bindR(std::move(other->root));
+    maintain(rightmost);
     return Status::SUCCESS;
 }
