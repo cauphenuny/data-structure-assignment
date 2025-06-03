@@ -36,6 +36,7 @@ private:
     void balance(Node* node);
     auto balanceNode(std::unique_ptr<Node>& node) -> bool;
     auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(|h1 - h2|) = O(log n)
+    auto join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> right) -> Status;
 };
 
 /****************************** Implementation ********************************/
@@ -185,14 +186,12 @@ template <typename K, typename V> auto AVLTree<K, V>::split(const K& key) -> std
         auto [lchild, rchild] = node->unbind();
         if (key <= node->key) {
             auto [left, right] = self(self, std::move(lchild));
-            right->join(tree(std::move(node)));
-            right->join(tree(std::move(rchild)));
+            right->join(std::move(node), tree(std::move(rchild)));
             return {std::move(left), std::move(right)};
         } else {
             auto [mid, right] = self(self, std::move(rchild));
             auto left = tree(std::move(lchild));
-            left->join(tree(std::move(node)));
-            left->join(std::move(mid));
+            left->join(std::move(node), std::move(mid));
             return {std::move(left), std::move(right)};
         }
     };
@@ -201,12 +200,8 @@ template <typename K, typename V> auto AVLTree<K, V>::split(const K& key) -> std
     return std::move(right);
 }
 
-template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVLTree> other) {
-    if (!other) return Status::FAILED;  // tree does not exist
-    if (!this->root || !other->root) {
-        this->root = std::move(other->root ? other->root : this->root);
-        return Status::SUCCESS;
-    }
+template <typename K, typename V>
+Status AVLTree<K, V>::join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> right) {
     auto find = [](auto self, bool is_right, auto height, Node* parent,
                    std::unique_ptr<Node>& node) -> std::tuple<Node*, std::unique_ptr<Node>&> {
         if (!node) return {parent, node};
@@ -214,26 +209,40 @@ template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVL
         return self(self, is_right, height, node.get(), is_right ? node->rchild : node->lchild);
     };
     Node* insert_pos = nullptr;
-    if (this->height() >= other->height()) {
-        auto mid = Tree::detach(Tree::min(other->root));
-        auto [parent, cut] = find(find, true, other->height() + 1, nullptr, this->root);
+    if (this->height() >= right->height()) {
+        auto [parent, cut] = find(find, true, right->height() + 1, nullptr, this->root);
         mid->bindL(std::move(cut));
-        mid->bindR(std::move(other->root));
+        mid->bindR(std::move(right->root));
         cut = std::move(mid);
         cut->parent = parent;
         insert_pos = cut.get();
     } else {
-        auto mid = Tree::detach(Tree::max(this->root));
-        auto [parent, cut] = find(find, false, this->height() + 1, nullptr, other->root);
+        auto [parent, cut] = find(find, false, this->height() + 1, nullptr, right->root);
         mid->bindL(std::move(this->root));
         mid->bindR(std::move(cut));
         cut = std::move(mid);
         cut->parent = parent;
         insert_pos = cut.get();
-        this->root = std::move(other->root);
+        this->root = std::move(right->root);
     }
     Tree::maintain(insert_pos);
     this->balance(insert_pos);
+    return Status::SUCCESS;
+}
+
+template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVLTree> other) {
+    if (!other) return Status::FAILED;  // tree does not exist
+    if (!this->root || !other->root) {
+        this->root = std::move(other->root ? other->root : this->root);
+        return Status::SUCCESS;
+    }
+    if (this->height() >= other->height()) {
+        auto mid = Tree::detach(Tree::min(other->root));
+        this->join(std::move(mid), std::move(other));
+    } else {
+        auto mid = Tree::detach(Tree::max(this->root));
+        this->join(std::move(mid), std::move(other));
+    }
     return Status::SUCCESS;
 }
 
