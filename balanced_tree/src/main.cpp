@@ -52,18 +52,19 @@ void algorithm_demo() {
     tree->printCLI();
 }
 
-int run_test(int argc, char* argv[]) {
+int run_test(int argc, char* argv[], bool run_perf) {
     doctest::Context context;
     context.setOption("no-breaks", true);
     context.applyCommandLine(argc, argv);
+    if (!run_perf) context.addFilter("test-case-exclude", "*PERF*");
     int res = context.run();
     if (context.shouldExit()) exit(res);
     return res;
 }
 
 int main(int argc, char* argv[]) {
-    int ret = run_test(argc, argv);
-    if (argc > 1 && strcmp(argv[1], "test") == 0) return ret;  // only run tests
+    if (argc > 1 && strcmp(argv[1], "test") == 0) return run_test(argc, argv, true);
+    int ret = run_test(argc, argv, false);
     cout << "====================" << endl;
     polymorphism_demo();
     cout << "====================" << endl;
