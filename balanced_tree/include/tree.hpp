@@ -64,7 +64,7 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     //     would be inserted normally
     // join:
     //   requires:
-    //     - key-range not overlapping
+    //     - all keys in this tree less than all keys in other tree
     //     - tree type compatible
     //   notes:
     //     - time complexity: O(log (n + m))
@@ -144,11 +144,6 @@ protected:
     void bindR(std::unique_ptr<Node> node) {
         rchild = std::move(node);
         if (rchild) rchild->parent = this;
-    }
-    static void move(std::unique_ptr<Node>& dest, std::unique_ptr<Node> src) {
-        auto parent = dest ? dest->parent : nullptr;
-        dest = std::move(src);
-        dest->parent = parent;
     }
 };
 
@@ -316,7 +311,8 @@ template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
     auto detached = Tree::detach(Tree::max(node->lchild));
     detached->bindL(std::move(node->lchild));
     detached->bindR(std::move(node->rchild));
-    Node::move(node, std::move(detached));
+    node = std::move(detached);
+    node->parent = parent;
     Tree::maintain(node.get());
     return Status::SUCCESS;
 }
@@ -367,11 +363,13 @@ template <typename K, typename V> auto Tree<K, V>::merge(std::unique_ptr<Tree> o
         this->root = std::move(other->root);
         return Status::SUCCESS;  // merging into empty tree
     }
-    if (this->minimum()->key > other->maximum()->key ||
-        other->minimum()->key > this->maximum()->key) {
-        return this->join(std::move(other));
+    auto this_min = this->minimum()->key, this_max = this->maximum()->key;
+    auto other_min = other->minimum()->key, other_max = other->maximum()->key;
+    if (this_min <= other_max && other_min <= this_max) {
+        return this->mixin(std::move(other));
     }
-    return this->mixin(std::move(other));
+    if (other_max < this_min) std::swap(this->root, other->root);
+    return this->join(std::move(other));
 }
 
 template <typename K, typename V> auto Tree<K, V>::mixin(std::unique_ptr<Tree> other) -> Status {

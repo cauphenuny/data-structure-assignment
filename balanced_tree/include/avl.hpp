@@ -165,7 +165,8 @@ template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
         auto detached = Tree::detach(Tree::max(node->lchild));
         detached->bindL(std::move(node->lchild));
         detached->bindR(std::move(node->rchild));
-        Node::move(node, std::move(detached));
+        node = std::move(detached);
+        node->parent = parent;
         Tree::maintain(node.get());
         this->balance(node.get());
     }
@@ -179,50 +180,55 @@ template <typename K, typename V> auto AVLTree<K, V>::split(const K&) -> std::un
 
 template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVLTree> other) {
     if (!other) return Status::FAILED;  // tree does not exist
-    if (!this->root) {
-        this->root = std::move(other->root);
-        return Status::SUCCESS;  // join into empty tree
+    if (!this->root || !other->root) {
+        this->root = std::move(other->root ? other->root : this->root);
+        return Status::SUCCESS;
     }
-    if (!other->root) return Status::SUCCESS;
     auto find = [](auto self, bool is_right, auto height, AVLNode* node) -> Node* {
         if (!node) return nullptr;
-        if (node->height <= height) return node;
-        if (is_right) return self(self, is_right, height, node->avlRight());
-        return self(self, is_right, height, node->avlLeft());
+        auto next = is_right ? node->avlRight() : node->avlLeft();
+        if (node->height <= height) return next ? next : node;
+        return self(self, is_right, height, next);
     };
     Node* insert_pos = nullptr;
     if (this->height() >= other->height()) {
         auto mid = other->detach(Tree::min(other->root));
         auto& cut = this->box(find(find, true, other->height() + 1, avl(this->root)));
+        auto parent = cut->parent;
         mid->bindL(std::move(cut));
         mid->bindR(std::move(other->root));
-        Node::move(cut, std::move(mid));
+        cut = std::move(mid);
+        cut->parent = parent;
         insert_pos = cut.get();
     } else {
         auto mid = this->detach(Tree::max(this->root));
         auto& cut = other->box(find(find, false, this->height() + 1, avl(other->root)));
+        auto parent = cut->parent;
         mid->bindL(std::move(this->root));
         mid->bindR(std::move(cut));
-        Node::move(cut, std::move(mid));
+        cut = std::move(mid);
+        cut->parent = parent;
         insert_pos = cut.get();
+        this->root = std::move(other->root);
     }
     Tree::maintain(insert_pos);
-    balance(insert_pos);
+    this->balance(insert_pos);
     return Status::SUCCESS;
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tree> other) {
-    if (!other) return Status::FAILED;         // tree does not exist
-    if (!other->root) return Status::SUCCESS;  // nothing to merge
-    if (!this->root) {
-        this->root = std::move(other->root);
-        return Status::SUCCESS;  // merging into empty tree
+    if (!other) return Status::FAILED;  // tree does not exist
+    if (!this->root || !other->root) {
+        this->root = std::move(other->root ? other->root : this->root);
+        return Status::SUCCESS;
     }
     auto avl_other = dynamic_cast<AVLTree<K, V>*>(other.get());
-    if (!avl_other || (this->minimum()->key <= other->maximum()->key &&
-                       other->minimum()->key <= this->maximum()->key)) {
+    auto this_min = this->minimum()->key, this_max = this->maximum()->key;
+    auto other_min = other->minimum()->key, other_max = other->maximum()->key;
+    if (!avl_other || (this_min <= other_max && other_min <= this_max)) {
         return this->mixin(std::move(other));
     }
+    if (other_max < this_min) std::swap(this->root, other->root);
     other.release();
     return this->join(std::unique_ptr<AVLTree>(avl_other));
 }

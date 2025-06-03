@@ -730,4 +730,121 @@ TEST_CASE("`AVLTree` join operation") {
         CHECK(tree1->find(150) != nullptr);
         Test::checkAVL(tree1);
     }
+
+    SUBCASE("Join smaller tree into larger tree") {
+        auto tree1 = std::make_unique<AVLTree<int, std::string>>();
+        auto tree2 = std::make_unique<AVLTree<int, std::string>>();
+
+        // First tree with fewer keys (1-25)
+        for (int i = 1; i <= 25; i++) {
+            tree1->insert(i, std::to_string(i));
+        }
+
+        // Second tree with more keys (100-150)
+        for (int i = 100; i <= 150; i++) {
+            tree2->insert(i, std::to_string(i));
+        }
+
+        // Check initial sizes
+        CHECK(tree1->size() == 25);
+        CHECK(tree2->size() == 51);
+
+        // Join smaller tree into larger tree
+        CHECK(tree2->merge(std::move(tree1)) == Status::SUCCESS);
+        CHECK(tree2->size() == 76);
+        CHECK(tree2->find(1) != nullptr);
+        CHECK(tree2->find(25) != nullptr);
+        CHECK(tree2->find(100) != nullptr);
+        CHECK(tree2->find(150) != nullptr);
+        Test::checkAVL(tree2);
+    }
+    SUBCASE("Four joining scenarios based on tree size and key range") {
+        // Test all four combinations of:
+        // - This tree smaller/larger than other tree
+        // - This tree's keys smaller/larger than other tree's keys
+
+        SUBCASE("1. This tree smaller & keys smaller") {
+            auto small_small = std::make_unique<AVLTree<int, std::string>>();
+            auto large_large = std::make_unique<AVLTree<int, std::string>>();
+
+            // Smaller tree with smaller keys (1-10)
+            for (int i = 1; i <= 10; i++) {
+                small_small->insert(i, std::to_string(i));
+            }
+
+            // Larger tree with larger keys (100-130)
+            for (int i = 100; i <= 130; i++) {
+                large_large->insert(i, std::to_string(i));
+            }
+
+            CHECK(small_small->merge(std::move(large_large)) == Status::SUCCESS);
+            CHECK(small_small->size() == 41);
+            CHECK(small_small->find(5) != nullptr);
+            CHECK(small_small->find(120) != nullptr);
+            Test::checkAVL(small_small);
+        }
+
+        SUBCASE("2. This tree smaller & keys larger") {
+            auto small_large = std::make_unique<AVLTree<int, std::string>>();
+            auto large_small = std::make_unique<AVLTree<int, std::string>>();
+
+            // Smaller tree with larger keys (100-110)
+            for (int i = 100; i <= 110; i++) {
+                small_large->insert(i, std::to_string(i));
+            }
+
+            // Larger tree with smaller keys (1-30)
+            for (int i = 1; i <= 30; i++) {
+                large_small->insert(i, std::to_string(i));
+            }
+
+            CHECK(small_large->merge(std::move(large_small)) == Status::SUCCESS);
+            CHECK(small_large->size() == 41);
+            CHECK(small_large->find(15) != nullptr);
+            CHECK(small_large->find(105) != nullptr);
+            Test::checkAVL(small_large);
+        }
+
+        SUBCASE("3. This tree larger & keys smaller") {
+            auto large_small = std::make_unique<AVLTree<int, std::string>>();
+            auto small_large = std::make_unique<AVLTree<int, std::string>>();
+
+            // Larger tree with smaller keys (1-30)
+            for (int i = 1; i <= 30; i++) {
+                large_small->insert(i, std::to_string(i));
+            }
+
+            // Smaller tree with larger keys (100-110)
+            for (int i = 100; i <= 110; i++) {
+                small_large->insert(i, std::to_string(i));
+            }
+
+            CHECK(large_small->merge(std::move(small_large)) == Status::SUCCESS);
+            CHECK(large_small->size() == 41);
+            CHECK(large_small->find(15) != nullptr);
+            CHECK(large_small->find(105) != nullptr);
+            Test::checkAVL(large_small);
+        }
+
+        SUBCASE("4. This tree larger & keys larger") {
+            auto large_large = std::make_unique<AVLTree<int, std::string>>();
+            auto small_small = std::make_unique<AVLTree<int, std::string>>();
+
+            // Larger tree with larger keys (100-130)
+            for (int i = 100; i <= 130; i++) {
+                large_large->insert(i, std::to_string(i));
+            }
+
+            // Smaller tree with smaller keys (1-10)
+            for (int i = 1; i <= 10; i++) {
+                small_small->insert(i, std::to_string(i));
+            }
+
+            CHECK(large_large->merge(std::move(small_small)) == Status::SUCCESS);
+            CHECK(large_large->size() == 41);
+            CHECK(large_large->find(5) != nullptr);
+            CHECK(large_large->find(120) != nullptr);
+            Test::checkAVL(large_large);
+        }
+    }
 }
