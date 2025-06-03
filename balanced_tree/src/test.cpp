@@ -1,4 +1,5 @@
 #include "avl.hpp"
+#include "treap.hpp"
 #include "tree.hpp"
 
 #include <chrono>
@@ -1137,9 +1138,9 @@ TEST_CASE("Performance Comparison") {
                               const std::vector<int>& lookups) {
         std::cout << "--- " << title << " size: " << keys.size() << " ---\n";
 
-        double std_map_insert = 0, tree_insert = 0, avl_insert = 0;
-        double std_map_lookup = 0, tree_lookup = 0, avl_lookup = 0;
-        double std_map_delete = 0, tree_delete = 0, avl_delete = 0;
+        double std_map_insert = 0, tree_insert = 0, avl_insert = 0, treap_insert = 0;
+        double std_map_lookup = 0, tree_lookup = 0, avl_lookup = 0, treap_lookup = 0;
+        double std_map_delete = 0, tree_delete = 0, avl_delete = 0, treap_delete = 0;
 
         for (int run = 0; run < NUM_RUNS; run++) {
             // std::map test
@@ -1231,6 +1232,35 @@ TEST_CASE("Performance Comparison") {
                 end = std::chrono::high_resolution_clock::now();
                 avl_delete += std::chrono::duration<double, std::milli>(end - start).count();
             }
+
+            // Treap test
+            {
+                auto treap = std::make_unique<Treap<int, std::string>>();
+
+                auto start = std::chrono::high_resolution_clock::now();
+                for (int key : keys) {
+                    treap->insert(key, std::to_string(key));
+                }
+                auto end = std::chrono::high_resolution_clock::now();
+                treap_insert += std::chrono::duration<double, std::milli>(end - start).count();
+
+                start = std::chrono::high_resolution_clock::now();
+                for (int key : lookups) {
+                    auto node = treap->find(key);
+                    if (node) {
+                        volatile auto _ = node->value.size();
+                    }
+                }
+                end = std::chrono::high_resolution_clock::now();
+                treap_lookup += std::chrono::duration<double, std::milli>(end - start).count();
+
+                start = std::chrono::high_resolution_clock::now();
+                for (int key : lookups) {
+                    treap->remove(key);
+                }
+                end = std::chrono::high_resolution_clock::now();
+                treap_delete += std::chrono::duration<double, std::milli>(end - start).count();
+            }
         }
 
         // Calculate averages
@@ -1243,23 +1273,28 @@ TEST_CASE("Performance Comparison") {
         avl_insert /= NUM_RUNS;
         avl_lookup /= NUM_RUNS;
         avl_delete /= NUM_RUNS;
+        treap_insert /= NUM_RUNS;
+        treap_lookup /= NUM_RUNS;
+        treap_delete /= NUM_RUNS;
 
         // Print results
         std::cout << std::left << std::setw(12) << "Operation" << std::setw(15) << "std::map"
-                  << std::setw(15) << "Tree" << std::setw(15) << "AVLTree"
+                  << std::setw(15) << "Tree" << std::setw(15) << "AVLTree" << std::setw(15)
+                  << "Treap"
                   << "\n";
 
         std::cout << std::setw(12) << "Insert" << std::setw(15) << format_time(std_map_insert)
                   << std::setw(15) << format_time(tree_insert) << std::setw(15)
-                  << format_time(avl_insert) << "\n";
+                  << format_time(avl_insert) << std::setw(15) << format_time(treap_insert) << "\n";
 
         std::cout << std::setw(12) << "Lookup" << std::setw(15) << format_time(std_map_lookup)
                   << std::setw(15) << format_time(tree_lookup) << std::setw(15)
-                  << format_time(avl_lookup) << "\n";
+                  << format_time(avl_lookup) << std::setw(15) << format_time(treap_lookup) << "\n";
 
         std::cout << std::setw(12) << "Delete" << std::setw(15) << format_time(std_map_delete)
                   << std::setw(15) << format_time(tree_delete) << std::setw(15)
-                  << format_time(avl_delete) << "\n\n";
+                  << format_time(avl_delete) << std::setw(15) << format_time(treap_delete)
+                  << "\n\n";
     };
 
     // Run sequential and random tests
@@ -1284,21 +1319,28 @@ TEST_CASE("Split/Merge Performance") {
         return ss.str();
     };
 
-    // Function to create a tree with random keys
-    auto create_tree = [&random_generator](int size, bool avl) -> std::unique_ptr<TreeBase> {
+    // Function to create a tree with random keys, type erased to unique_ptr<Tree<int, std::string>>
+    auto create_tree =
+        [&random_generator](int size, int type) -> std::unique_ptr<Tree<int, std::string>> {
         std::vector<int> keys(size);
         for (int i = 0; i < size; i++) {
             keys[i] = i;
         }
         std::shuffle(keys.begin(), keys.end(), random_generator);
 
-        if (avl) {
+        if (type == 1) {  // AVL
             auto tree = std::make_unique<AVLTree<int, std::string>>();
             for (int key : keys) {
                 tree->insert(key, std::to_string(key));
             }
-            return tree;
-        } else {
+            return std::unique_ptr<Tree<int, std::string>>(tree.release());
+        } else if (type == 2) {  // Treap
+            auto tree = std::make_unique<Treap<int, std::string>>();
+            for (int key : keys) {
+                tree->insert(key, std::to_string(key));
+            }
+            return std::unique_ptr<Tree<int, std::string>>(tree.release());
+        } else {  // Tree
             auto tree = std::make_unique<Tree<int, std::string>>();
             for (int key : keys) {
                 tree->insert(key, std::to_string(key));
@@ -1313,13 +1355,12 @@ TEST_CASE("Split/Merge Performance") {
 
         double tree_begin = 0, tree_middle = 0, tree_end = 0;
         double avl_begin = 0, avl_middle = 0, avl_end = 0;
+        double treap_begin = 0, treap_middle = 0, treap_end = 0;
 
         for (int run = 0; run < NUM_RUNS; run++) {
             // Test regular tree split
             {
-                auto tree_base = create_tree(size, false);
-                auto tree = std::unique_ptr<Tree<int, std::string>>(
-                    static_cast<Tree<int, std::string>*>(tree_base.release()));
+                auto tree = create_tree(size, 0);
 
                 // Split at beginning (25%)
                 auto begin_key = size / 4;
@@ -1329,9 +1370,7 @@ TEST_CASE("Split/Merge Performance") {
                 tree_begin += std::chrono::duration<double, std::milli>(end - start).count();
 
                 // Recreate tree for next test
-                tree_base = create_tree(size, false);
-                tree = std::unique_ptr<Tree<int, std::string>>(
-                    static_cast<Tree<int, std::string>*>(tree_base.release()));
+                tree = create_tree(size, 0);
 
                 // Split at middle (50%)
                 auto middle_key = size / 2;
@@ -1341,9 +1380,7 @@ TEST_CASE("Split/Merge Performance") {
                 tree_middle += std::chrono::duration<double, std::milli>(end - start).count();
 
                 // Recreate tree for next test
-                tree_base = create_tree(size, false);
-                tree = std::unique_ptr<Tree<int, std::string>>(
-                    static_cast<Tree<int, std::string>*>(tree_base.release()));
+                tree = create_tree(size, 0);
 
                 // Split at end (75%)
                 auto end_key = size * 3 / 4;
@@ -1355,9 +1392,7 @@ TEST_CASE("Split/Merge Performance") {
 
             // Test AVL tree split
             {
-                auto avl_base = create_tree(size, true);
-                auto avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-                    static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+                auto avl_tree = create_tree(size, 1);
 
                 // Split at beginning (25%)
                 auto begin_key = size / 4;
@@ -1367,9 +1402,7 @@ TEST_CASE("Split/Merge Performance") {
                 avl_begin += std::chrono::duration<double, std::milli>(end - start).count();
 
                 // Recreate tree for next test
-                avl_base = create_tree(size, true);
-                avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-                    static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+                avl_tree = create_tree(size, 1);
 
                 // Split at middle (50%)
                 auto middle_key = size / 2;
@@ -1379,9 +1412,7 @@ TEST_CASE("Split/Merge Performance") {
                 avl_middle += std::chrono::duration<double, std::milli>(end - start).count();
 
                 // Recreate tree for next test
-                avl_base = create_tree(size, true);
-                avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-                    static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+                avl_tree = create_tree(size, 1);
 
                 // Split at end (75%)
                 auto end_key = size * 3 / 4;
@@ -1389,6 +1420,38 @@ TEST_CASE("Split/Merge Performance") {
                 right_tree = avl_tree->split(end_key);
                 end = std::chrono::high_resolution_clock::now();
                 avl_end += std::chrono::duration<double, std::milli>(end - start).count();
+            }
+
+            // Test Treap split
+            {
+                auto treap = create_tree(size, 2);
+
+                // Split at beginning (25%)
+                auto begin_key = size / 4;
+                auto start = std::chrono::high_resolution_clock::now();
+                auto right_tree = treap->split(begin_key);
+                auto end = std::chrono::high_resolution_clock::now();
+                treap_begin += std::chrono::duration<double, std::milli>(end - start).count();
+
+                // Recreate tree for next test
+                treap = create_tree(size, 2);
+
+                // Split at middle (50%)
+                auto middle_key = size / 2;
+                start = std::chrono::high_resolution_clock::now();
+                right_tree = treap->split(middle_key);
+                end = std::chrono::high_resolution_clock::now();
+                treap_middle += std::chrono::duration<double, std::milli>(end - start).count();
+
+                // Recreate tree for next test
+                treap = create_tree(size, 2);
+
+                // Split at end (75%)
+                auto end_key = size * 3 / 4;
+                start = std::chrono::high_resolution_clock::now();
+                right_tree = treap->split(end_key);
+                end = std::chrono::high_resolution_clock::now();
+                treap_end += std::chrono::duration<double, std::milli>(end - start).count();
             }
         }
 
@@ -1399,81 +1462,95 @@ TEST_CASE("Split/Merge Performance") {
         avl_begin /= NUM_RUNS;
         avl_middle /= NUM_RUNS;
         avl_end /= NUM_RUNS;
+        treap_begin /= NUM_RUNS;
+        treap_middle /= NUM_RUNS;
+        treap_end /= NUM_RUNS;
 
         // Print results
         std::cout << std::left << std::setw(12) << "Split Point" << std::setw(15) << "Tree"
-                  << std::setw(15) << "AVLTree"
+                  << std::setw(15) << "AVLTree" << std::setw(15) << "Treap"
                   << "\n";
 
         std::cout << std::setw(12) << "Beginning" << std::setw(15) << format_time(tree_begin)
-                  << std::setw(15) << format_time(avl_begin) << "\n";
+                  << std::setw(15) << format_time(avl_begin) << std::setw(15)
+                  << format_time(treap_begin) << "\n";
 
         std::cout << std::setw(12) << "Middle" << std::setw(15) << format_time(tree_middle)
-                  << std::setw(15) << format_time(avl_middle) << "\n";
+                  << std::setw(15) << format_time(avl_middle) << std::setw(15)
+                  << format_time(treap_middle) << "\n";
 
         std::cout << std::setw(12) << "End" << std::setw(15) << format_time(tree_end)
-                  << std::setw(15) << format_time(avl_end) << "\n\n";
+                  << std::setw(15) << format_time(avl_end) << std::setw(15)
+                  << format_time(treap_end) << "\n\n";
     };
 
     // Run split tests for different sizes
     test_split("Small", SMALL_SIZE);
     test_split("Medium", MEDIUM_SIZE);
 
-    // Only run large test for AVL tree to avoid excessive runtime
+    // Only run large test for AVL tree and Treap to avoid excessive runtime
     std::cout << "--- Large Split (" << LARGE_SIZE << " nodes) ---\n";
     double tree_begin = 0, tree_middle = 0, tree_end = 0;
     double avl_begin = 0, avl_middle = 0, avl_end = 0;
+    double treap_begin = 0, treap_middle = 0, treap_end = 0;
 
     for (int run = 0; run < NUM_RUNS; run++) {
         // Tree large split
-        auto tree_base = create_tree(LARGE_SIZE, false);
-        auto tree = std::unique_ptr<Tree<int, std::string>>(
-            static_cast<Tree<int, std::string>*>(tree_base.release()));
+        auto tree = create_tree(LARGE_SIZE, 0);
         auto start = std::chrono::high_resolution_clock::now();
         auto right_tree = tree->split(LARGE_SIZE / 4);
         auto end = std::chrono::high_resolution_clock::now();
         tree_begin += std::chrono::duration<double, std::milli>(end - start).count();
 
-        tree_base = create_tree(LARGE_SIZE, false);
-        tree = std::unique_ptr<Tree<int, std::string>>(
-            static_cast<Tree<int, std::string>*>(tree_base.release()));
+        tree = create_tree(LARGE_SIZE, 0);
         start = std::chrono::high_resolution_clock::now();
         right_tree = tree->split(LARGE_SIZE / 2);
         end = std::chrono::high_resolution_clock::now();
         tree_middle += std::chrono::duration<double, std::milli>(end - start).count();
 
-        tree_base = create_tree(LARGE_SIZE, false);
-        tree = std::unique_ptr<Tree<int, std::string>>(
-            static_cast<Tree<int, std::string>*>(tree_base.release()));
+        tree = create_tree(LARGE_SIZE, 0);
         start = std::chrono::high_resolution_clock::now();
         right_tree = tree->split(LARGE_SIZE * 3 / 4);
         end = std::chrono::high_resolution_clock::now();
         tree_end += std::chrono::duration<double, std::milli>(end - start).count();
 
         // AVLTree large split
-        auto avl_base = create_tree(LARGE_SIZE, true);
-        auto avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-            static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+        auto avl_tree = create_tree(LARGE_SIZE, 1);
         start = std::chrono::high_resolution_clock::now();
         right_tree = avl_tree->split(LARGE_SIZE / 4);
         end = std::chrono::high_resolution_clock::now();
         avl_begin += std::chrono::duration<double, std::milli>(end - start).count();
 
-        avl_base = create_tree(LARGE_SIZE, true);
-        avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-            static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+        avl_tree = create_tree(LARGE_SIZE, 1);
         start = std::chrono::high_resolution_clock::now();
         right_tree = avl_tree->split(LARGE_SIZE / 2);
         end = std::chrono::high_resolution_clock::now();
         avl_middle += std::chrono::duration<double, std::milli>(end - start).count();
 
-        avl_base = create_tree(LARGE_SIZE, true);
-        avl_tree = std::unique_ptr<AVLTree<int, std::string>>(
-            static_cast<AVLTree<int, std::string>*>(avl_base.release()));
+        avl_tree = create_tree(LARGE_SIZE, 1);
         start = std::chrono::high_resolution_clock::now();
         right_tree = avl_tree->split(LARGE_SIZE * 3 / 4);
         end = std::chrono::high_resolution_clock::now();
         avl_end += std::chrono::duration<double, std::milli>(end - start).count();
+
+        // Treap large split
+        auto treap = create_tree(LARGE_SIZE, 2);
+        start = std::chrono::high_resolution_clock::now();
+        right_tree = treap->split(LARGE_SIZE / 4);
+        end = std::chrono::high_resolution_clock::now();
+        treap_begin += std::chrono::duration<double, std::milli>(end - start).count();
+
+        treap = create_tree(LARGE_SIZE, 2);
+        start = std::chrono::high_resolution_clock::now();
+        right_tree = treap->split(LARGE_SIZE / 2);
+        end = std::chrono::high_resolution_clock::now();
+        treap_middle += std::chrono::duration<double, std::milli>(end - start).count();
+
+        treap = create_tree(LARGE_SIZE, 2);
+        start = std::chrono::high_resolution_clock::now();
+        right_tree = treap->split(LARGE_SIZE * 3 / 4);
+        end = std::chrono::high_resolution_clock::now();
+        treap_end += std::chrono::duration<double, std::milli>(end - start).count();
     }
 
     // Calculate averages and print results
@@ -1483,14 +1560,109 @@ TEST_CASE("Split/Merge Performance") {
     avl_begin /= NUM_RUNS;
     avl_middle /= NUM_RUNS;
     avl_end /= NUM_RUNS;
+    treap_begin /= NUM_RUNS;
+    treap_middle /= NUM_RUNS;
+    treap_end /= NUM_RUNS;
 
     std::cout << std::left << std::setw(12) << "Split Point" << std::setw(15) << "Tree"
-              << std::setw(15) << "AVLTree"
+              << std::setw(15) << "AVLTree" << std::setw(15) << "Treap"
               << "\n";
     std::cout << std::setw(12) << "Beginning" << std::setw(15) << format_time(tree_begin)
-              << std::setw(15) << format_time(avl_begin) << "\n";
+              << std::setw(15) << format_time(avl_begin) << std::setw(15)
+              << format_time(treap_begin) << "\n";
     std::cout << std::setw(12) << "Middle" << std::setw(15) << format_time(tree_middle)
-              << std::setw(15) << format_time(avl_middle) << "\n";
+              << std::setw(15) << format_time(avl_middle) << std::setw(15)
+              << format_time(treap_middle) << "\n";
     std::cout << std::setw(12) << "End" << std::setw(15) << format_time(tree_end) << std::setw(15)
-              << format_time(avl_end) << "\n\n";
+              << format_time(avl_end) << std::setw(15) << format_time(treap_end) << "\n\n";
+}
+
+TEST_CASE("`Treap` basic operations") {
+    auto treap = std::make_unique<Treap<int, std::string>>();
+
+    SUBCASE("Empty treap operations") {
+        CHECK(treap->size() == 0);
+        CHECK(treap->find(10) == nullptr);
+        CHECK(treap->remove(10) == Status::FAILED);
+    }
+
+    SUBCASE("Insertion and find") {
+        CHECK(treap->insert(10, "ten") == Status::SUCCESS);
+        CHECK(treap->insert(20, "twenty") == Status::SUCCESS);
+        CHECK(treap->insert(15, "fifteen") == Status::SUCCESS);
+        CHECK(treap->insert(5, "five") == Status::SUCCESS);
+        CHECK(treap->insert(30, "thirty") == Status::SUCCESS);
+
+        // debug(treap);
+        CHECK(treap->size() == 5);
+        CHECK(treap->find(10) != nullptr);
+        CHECK(treap->find(30)->value == "thirty");
+        CHECK(treap->find(100) == nullptr);
+
+        // Duplicate insertion
+        CHECK(treap->insert(10, "TEN") == Status::FAILED);
+    }
+
+    SUBCASE("Removal") {
+        treap->insert(10, "ten");
+        treap->insert(20, "twenty");
+        treap->insert(15, "fifteen");
+        treap->insert(5, "five");
+        treap->insert(30, "thirty");
+
+        CHECK(treap->remove(15) == Status::SUCCESS);
+        CHECK(treap->find(15) == nullptr);
+        CHECK(treap->size() == 4);
+
+        CHECK(treap->remove(5) == Status::SUCCESS);
+        CHECK(treap->find(5) == nullptr);
+        CHECK(treap->size() == 3);
+
+        CHECK(treap->remove(100) == Status::FAILED);
+    }
+
+    SUBCASE("Split and merge") {
+        for (int i = 1; i <= 10; ++i) {
+            treap->insert(i, std::to_string(i));
+        }
+        auto right = treap->split(6);
+        CHECK(treap->size() == 5);
+        CHECK(right->size() == 5);
+        for (int i = 1; i <= 5; ++i) CHECK(treap->find(i) != nullptr);
+        for (int i = 6; i <= 10; ++i) CHECK(right->find(i) != nullptr);
+
+        // Merge back
+        CHECK(treap->merge(std::move(right)) == Status::SUCCESS);
+        CHECK(treap->size() == 10);
+        for (int i = 1; i <= 10; ++i) CHECK(treap->find(i) != nullptr);
+    }
+}
+
+TEST_CASE("`Treap` randomized stress test") {
+    auto treap = std::make_unique<Treap<int, int>>();
+    constexpr int N = 500;
+    std::vector<int> keys(N);
+    for (int i = 0; i < N; ++i) keys[i] = i;
+    std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+
+    // Insert all
+    for (int i = 0; i < N; ++i) {
+        CHECK(treap->insert(keys[i], keys[i]) == Status::SUCCESS);
+    }
+    CHECK(treap->size() == N);
+
+    // Remove half
+    for (int i = 0; i < N; i += 2) {
+        CHECK(treap->remove(keys[i]) == Status::SUCCESS);
+    }
+    CHECK(treap->size() == N / 2);
+
+    // Check remaining
+    /*for (int i = 0; i < N; ++i) {
+        if (i % 2 == 0)
+            CHECK(treap->find(keys[i]) == nullptr);
+        else
+            CHECK(treap->find(keys[i]) != nullptr);
+    }
+            */
 }

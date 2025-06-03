@@ -21,7 +21,7 @@ template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     auto stringify() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
     auto remove(const Key& key) -> Status override;
-    auto split(const Key& key) -> std::unique_ptr<Tree> override;  // O(log^2 n)
+    auto split(const Key& key) -> std::unique_ptr<Tree> override;  // O(log n)
     auto merge(std::unique_ptr<Tree> other) -> Status override;
 
     auto height() const -> int;
@@ -35,8 +35,8 @@ private:
     static auto avl(Node*) -> AVLNode*;
     void balance(Node* node);
     auto balanceNode(std::unique_ptr<Node>& node) -> bool;
-    auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(|h1 - h2|) = O(log n)
-    auto join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> right) -> Status;
+    auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(min(h1, h2))
+    auto join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> right) -> Status;  // O(|h1 - h2|)
 };
 
 /****************************** Implementation ********************************/

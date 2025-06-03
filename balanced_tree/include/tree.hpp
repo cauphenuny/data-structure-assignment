@@ -104,6 +104,7 @@ private:
 };
 
 template <typename K, typename V> struct AVLTree;
+template <typename K, typename V> struct Treap;
 
 /****************************** Implementation ********************************/
 
@@ -113,6 +114,7 @@ template <typename K, typename V> struct Tree<K, V>::Node {
     friend struct Test;  // let `Test` class have access to non-public members
     friend struct Tree<K, V>;
     friend struct AVLTree<K, V>;
+    friend struct Treap<K, V>;
 
     Key key;
     Value value;
