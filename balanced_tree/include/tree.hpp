@@ -417,15 +417,6 @@ template <typename K, typename V> Status Tree<K, V>::join(std::unique_ptr<Tree> 
         this->root = std::move(other->root);
         return Status::SUCCESS;
     }
-    if (this->size() && other->size()) {
-        if ((this->minimum()->key <= other->maximum()->key) &&
-            (other->minimum()->key <= this->maximum()->key)) {
-            return Status::FAILED;  // Overlapping keys
-        }
-        if (this->minimum()->key > other->maximum()->key) {
-            std::swap(this->root, other->root);
-        }
-    }
     auto& max_node = Tree::max(this->root);
     max_node->bindR(std::move(other->root));
     maintain(max_node.get());

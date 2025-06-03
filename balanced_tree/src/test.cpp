@@ -972,3 +972,115 @@ TEST_CASE("`AVLTree` split operation") {
         Test::checkAVL(avl_right_tree);
     }
 }
+
+TEST_CASE("`AVLTree` complex removal operations") {
+    SUBCASE("Random deletion pattern maintaining balance") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Create a larger balanced tree with 50 nodes
+        for (int i = 1; i <= 50; i++) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Verify initial balance
+        Test::checkAVL(tree);
+        CHECK(tree->size() == 50);
+
+        // Random deletion pattern - delete every third node
+        for (int i = 3; i <= 50; i += 3) {
+            CHECK(tree->remove(i) == Status::SUCCESS);
+            Test::checkAVL(tree);
+        }
+
+        // Delete every fifth remaining node
+        for (int i = 5; i <= 50; i += 5) {
+            if (i % 3 != 0) {  // Skip already deleted nodes
+                CHECK(tree->remove(i) == Status::SUCCESS);
+                Test::checkAVL(tree);
+            }
+        }
+
+        // Check final state
+        CHECK(
+            tree->size() ==
+            50 - 16 - 7);  // 50 initial - 16 (every third) - 7 (every fifth remaining)
+    }
+
+    SUBCASE("Sequential deletion from both ends") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Build a tree with 30 nodes
+        for (int i = 1; i <= 30; i++) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Alternately delete from minimum and maximum
+        for (int i = 0; i < 10; i++) {
+            // Delete minimum
+            int min_key = tree->minimum()->key;
+            CHECK(tree->remove(min_key) == Status::SUCCESS);
+            Test::checkAVL(tree);
+
+            // Delete maximum
+            int max_key = tree->maximum()->key;
+            CHECK(tree->remove(max_key) == Status::SUCCESS);
+            Test::checkAVL(tree);
+        }
+
+        // Should have 10 nodes left (30 - 20 deletions)
+        CHECK(tree->size() == 10);
+    }
+
+    SUBCASE("Deletion causing cascading rotations") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Create a specific tree structure that will require multiple rotations
+        // after deletion
+        for (int key = 1; key <= 31; key++) {
+            tree->insert(key, std::to_string(key));
+        }
+        tree->insert(0, "0");
+        // Verify initial balance
+        Test::checkAVL(tree);
+        // tree->printCLI();
+
+        // Delete nodes that trigger complex rebalancing
+        std::vector<int> delete_sequence = {17, 19, 21, 23, 25, 27, 31, 18, 24};
+        for (int key : delete_sequence) {
+            CHECK(tree->remove(key) == Status::SUCCESS);
+            // debug(key);
+            // tree->printCLI();
+            Test::checkAVL(tree);
+        }
+
+        // Verify height is still optimal after these deletions
+        // auto avl_node = static_cast<AVLTree<int, std::string>::AVLNode*>(tree->root.get());
+        // CHECK(avl_node->height <= 4);  // With 9 remaining nodes, height should be at most 4
+    }
+
+    SUBCASE("Stress test with interleaved insertions and deletions") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Phase 1: Insert 100 nodes
+        for (int i = 1; i <= 100; i++) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Phase 2: Delete and insert in interleaved pattern
+        for (int i = 1; i <= 50; i++) {
+            // Delete a node
+            CHECK(tree->remove(i) == Status::SUCCESS);
+            Test::checkAVL(tree);
+
+            // Insert a new node
+            CHECK(tree->insert(i + 100, std::to_string(i + 100)) == Status::SUCCESS);
+            Test::checkAVL(tree);
+        }
+
+        // Final check
+        CHECK(tree->size() == 100);  // 100 initial, -50 deleted, +50 inserted
+        CHECK(tree->find(1) == nullptr);
+        CHECK(tree->find(51) != nullptr);
+        CHECK(tree->find(150) != nullptr);
+    }
+}

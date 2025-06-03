@@ -34,7 +34,7 @@ private:
     static auto avl(const std::unique_ptr<Node>& node) -> AVLNode*;
     static auto avl(Node*) -> AVLNode*;
     void balance(Node* node);
-    void balanceNode(std::unique_ptr<Node>& node);
+    auto balanceNode(std::unique_ptr<Node>& node) -> bool;
     auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(|h1 - h2|) = O(log n)
 };
 
@@ -118,9 +118,9 @@ template <typename K, typename V> void AVLTree<K, V>::rotateRL(std::unique_ptr<N
     rotateL(root);
 }
 
-template <typename K, typename V> void AVLTree<K, V>::balanceNode(std::unique_ptr<Node>& node) {
-    if (!node) return;
+template <typename K, typename V> bool AVLTree<K, V>::balanceNode(std::unique_ptr<Node>& node) {
     auto avl_node = avl(node);
+    auto prev = avl_node->height;
     if (avl_node->factor() > 1) {
         if (avl_node->avlLeft()->factor() >= 0) {
             rotateR(node);
@@ -134,14 +134,14 @@ template <typename K, typename V> void AVLTree<K, V>::balanceNode(std::unique_pt
             rotateRL(node);
         }
     }
+    return prev != avl(node)->height;
 }
 
 template <typename K, typename V> void AVLTree<K, V>::balance(Node* node) {
     while (node) {
         auto avl_node = avl(node);
         if (avl_node->factor() > 1 || avl_node->factor() < -1) {
-            this->balanceNode(this->box(node));
-            return;
+            if (!this->balanceNode(this->box(node))) return;
         }
         node = node->parent;
     }
