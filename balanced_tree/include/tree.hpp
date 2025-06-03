@@ -145,11 +145,19 @@ protected:
         rchild = std::move(node);
         if (rchild) rchild->parent = this;
     }
+    auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
+        auto l = std::move(lchild);
+        auto r = std::move(rchild);
+        if (l) l->parent = nullptr;
+        if (r) r->parent = nullptr;
+        this->maintain();
+        return {std::move(l), std::move(r)};
+    }
 };
 
 template <typename K, typename V>
 Tree<K, V>::Tree(std::unique_ptr<Node> root) : root(std::move(root)) {
-    root->parent = nullptr;
+    if (root) root->parent = nullptr;
 }
 
 template <typename K, typename V>
@@ -318,18 +326,28 @@ template <typename K, typename V> Status Tree<K, V>::remove(const K& key) {
 }
 
 template <typename K, typename V> auto Tree<K, V>::split(const K& key) -> std::unique_ptr<Tree> {
-    auto new_tree = std::make_unique<Tree>();
-    auto dfs = [&](auto self, std::unique_ptr<Node>& node) {
-        if (!node) return;
-        if (node->rchild) self(self, node->rchild);
-        if (node->lchild) self(self, node->lchild);
-        if (node->key >= key) {
-            new_tree->insert(node->key, node->value);
-            remove(node->key);
+    auto divide = [&key](auto self, std::unique_ptr<Node> node)
+        -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
+        if (!node) return {nullptr, nullptr};
+        if (key <= node->key) {
+            auto [lchild, rchild] = node->unbind();
+            auto [lchild_l, lchild_r] = self(self, std::move(lchild));
+            node->bindL(std::move(lchild_r));
+            node->bindR(std::move(rchild));
+            node->maintain();
+            return {std::move(lchild_l), std::move(node)};
+        } else {
+            auto [lchild, rchild] = node->unbind();
+            auto [rchild_l, rchild_r] = self(self, std::move(rchild));
+            node->bindL(std::move(lchild));
+            node->bindR(std::move(rchild_l));
+            node->maintain();
+            return {std::move(node), std::move(rchild_r)};
         }
     };
-    dfs(dfs, root);
-    return new_tree;
+    auto [left, right] = divide(divide, std::move(this->root));
+    this->root = std::move(left);
+    return std::make_unique<Tree>(std::move(right));
 }
 
 template <typename K, typename V> auto Tree<K, V>::conflict(Tree* other) -> bool {

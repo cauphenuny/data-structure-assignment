@@ -83,6 +83,11 @@ struct Test {  // extract private/protected members from class
         CHECK(traverse(avl_tree->root, check_balance));
     }
 
+    template <typename K, typename V> static auto toAVL(std::unique_ptr<Tree<K, V>> tree) {
+        CHECK(dynamic_cast<AVLTree<K, V>*>(tree.get()) != nullptr);
+        return std::make_unique<AVLTree<K, V>>(std::move(tree->root));
+    }
+
     constexpr static auto join = [](auto& tree1, auto tree2) {
         return tree1->join(std::move(tree2));
     };
@@ -846,5 +851,124 @@ TEST_CASE("`AVLTree` join operation") {
             CHECK(large_large->find(120) != nullptr);
             Test::checkAVL(large_large);
         }
+    }
+}
+
+TEST_CASE("`AVLTree` split operation") {
+    SUBCASE("Basic split functionality") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Create a balanced tree
+        tree->insert(50, "fifty");
+        tree->insert(30, "thirty");
+        tree->insert(70, "seventy");
+        tree->insert(20, "twenty");
+        tree->insert(40, "forty");
+        tree->insert(60, "sixty");
+        tree->insert(80, "eighty");
+
+        // Split at key 50
+        auto right_tree = tree->split(50);
+
+        // Verify left tree (original)
+        CHECK(tree->size() == 3);
+        CHECK(tree->find(20) != nullptr);
+        CHECK(tree->find(30) != nullptr);
+        CHECK(tree->find(40) != nullptr);
+        CHECK(tree->find(50) == nullptr);
+        Test::checkAVL(tree);
+
+        // Verify right tree
+        CHECK(right_tree->size() == 4);
+        CHECK(right_tree->find(50) != nullptr);
+        CHECK(right_tree->find(60) != nullptr);
+        CHECK(right_tree->find(70) != nullptr);
+        CHECK(right_tree->find(80) != nullptr);
+        auto avl_right_tree = Test::toAVL(std::move(right_tree));
+        Test::checkAVL(avl_right_tree);
+    }
+
+    SUBCASE("Split with empty tree") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Split empty tree
+        auto right_tree = tree->split(50);
+
+        // Both trees should be empty
+        CHECK(tree->size() == 0);
+        CHECK(right_tree->size() == 0);
+    }
+
+    SUBCASE("Split at minimum key") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Insert keys 10-50
+        for (int i = 10; i <= 50; i += 10) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Split at minimum key
+        auto right_tree = tree->split(10);
+
+        // Verify left tree is empty
+        CHECK(tree->size() == 0);
+
+        // Verify right tree has all elements
+        CHECK(right_tree->size() == 5);
+        CHECK(right_tree->find(10) != nullptr);
+        CHECK(right_tree->find(50) != nullptr);
+        auto avl_right_tree = Test::toAVL(std::move(right_tree));
+        Test::checkAVL(avl_right_tree);
+    }
+
+    SUBCASE("Split at maximum key") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Insert keys 10-50
+        for (int i = 10; i <= 50; i += 10) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Split at maximum key
+        auto right_tree = tree->split(50);
+
+        // Verify left tree has all elements except maximum
+        CHECK(tree->size() == 4);
+        CHECK(tree->find(10) != nullptr);
+        CHECK(tree->find(40) != nullptr);
+        CHECK(tree->find(50) == nullptr);
+        Test::checkAVL(tree);
+
+        // Verify right tree has only maximum element
+        CHECK(right_tree->size() == 1);
+        CHECK(right_tree->find(50) != nullptr);
+        auto avl_right_tree = Test::toAVL(std::move(right_tree));
+        Test::checkAVL(avl_right_tree);
+    }
+
+    SUBCASE("Split larger tree") {
+        auto tree = std::make_unique<AVLTree<int, std::string>>();
+
+        // Insert 100 elements
+        for (int i = 1; i <= 100; i++) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Split at middle
+        auto right_tree = tree->split(50);
+
+        // Verify left tree
+        CHECK(tree->size() == 49);  // 1-49
+        CHECK(tree->find(1) != nullptr);
+        CHECK(tree->find(49) != nullptr);
+        CHECK(tree->find(50) == nullptr);
+        Test::checkAVL(tree);
+
+        // Verify right tree
+        CHECK(right_tree->size() == 51);  // 50-100
+        CHECK(right_tree->find(50) != nullptr);
+        CHECK(right_tree->find(100) != nullptr);
+        auto avl_right_tree = Test::toAVL(std::move(right_tree));
+        Test::checkAVL(avl_right_tree);
     }
 }

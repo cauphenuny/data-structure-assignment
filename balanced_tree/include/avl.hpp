@@ -5,6 +5,7 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <memory>
 
 /****************************** Definition ********************************/
 
@@ -20,7 +21,7 @@ template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     auto stringify() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
     auto remove(const Key& key) -> Status override;
-    auto split(const Key& key) -> std::unique_ptr<Tree> override;
+    auto split(const Key& key) -> std::unique_ptr<Tree> override;  // O(log^2 n)
     auto merge(std::unique_ptr<Tree> other) -> Status override;
 
     auto height() const -> int;
@@ -34,7 +35,7 @@ private:
     static auto avl(Node*) -> AVLNode*;
     void balance(Node* node);
     void balanceNode(std::unique_ptr<Node>& node);
-    auto join(std::unique_ptr<AVLTree> other) -> Status;
+    auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(|h1 - h2|) = O(log n)
 };
 
 /****************************** Implementation ********************************/
@@ -72,6 +73,7 @@ template <typename K, typename V> auto AVLTree<K, V>::stringify() const -> std::
 }
 
 template <typename K, typename V> auto AVLTree<K, V>::height() const -> int {
+    if (!this->root) return 0;
     return static_cast<AVLNode*>(this->root.get())->height;
 }
 
@@ -173,9 +175,30 @@ template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
     return Status::SUCCESS;
 }
 
-template <typename K, typename V> auto AVLTree<K, V>::split(const K&) -> std::unique_ptr<Tree> {
-    // TODO:
-    return nullptr;
+template <typename K, typename V> auto AVLTree<K, V>::split(const K& key) -> std::unique_ptr<Tree> {
+    auto tree = [](std::unique_ptr<Node> node) {
+        return std::make_unique<AVLTree>(std::move(node));
+    };
+    auto devide = [&](auto self,
+                      auto node) -> std::tuple<std::unique_ptr<AVLTree>, std::unique_ptr<AVLTree>> {
+        if (!node) return {tree(nullptr), tree(nullptr)};
+        auto [lchild, rchild] = node->unbind();
+        if (key <= node->key) {
+            auto [left, right] = self(self, std::move(lchild));
+            right->join(tree(std::move(node)));
+            right->join(tree(std::move(rchild)));
+            return {std::move(left), std::move(right)};
+        } else {
+            auto [mid, right] = self(self, std::move(rchild));
+            auto left = tree(std::move(lchild));
+            left->join(tree(std::move(node)));
+            left->join(std::move(mid));
+            return {std::move(left), std::move(right)};
+        }
+    };
+    auto [left, right] = devide(devide, std::move(this->root));
+    this->root = std::move(left->root);
+    return std::move(right);
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVLTree> other) {
@@ -184,26 +207,24 @@ template <typename K, typename V> Status AVLTree<K, V>::join(std::unique_ptr<AVL
         this->root = std::move(other->root ? other->root : this->root);
         return Status::SUCCESS;
     }
-    auto find = [](auto self, bool is_right, auto height, AVLNode* node) -> Node* {
-        if (!node) return nullptr;
-        auto next = is_right ? node->avlRight() : node->avlLeft();
-        if (node->height <= height) return next ? next : node;
-        return self(self, is_right, height, next);
+    auto find = [](auto self, bool is_right, auto height, Node* parent,
+                   std::unique_ptr<Node>& node) -> std::tuple<Node*, std::unique_ptr<Node>&> {
+        if (!node) return {parent, node};
+        if (avl(node)->height <= height) return {parent, node};
+        return self(self, is_right, height, node.get(), is_right ? node->rchild : node->lchild);
     };
     Node* insert_pos = nullptr;
     if (this->height() >= other->height()) {
-        auto mid = other->detach(Tree::min(other->root));
-        auto& cut = this->box(find(find, true, other->height() + 1, avl(this->root)));
-        auto parent = cut->parent;
+        auto mid = Tree::detach(Tree::min(other->root));
+        auto [parent, cut] = find(find, true, other->height() + 1, nullptr, this->root);
         mid->bindL(std::move(cut));
         mid->bindR(std::move(other->root));
         cut = std::move(mid);
         cut->parent = parent;
         insert_pos = cut.get();
     } else {
-        auto mid = this->detach(Tree::max(this->root));
-        auto& cut = other->box(find(find, false, this->height() + 1, avl(other->root)));
-        auto parent = cut->parent;
+        auto mid = Tree::detach(Tree::max(this->root));
+        auto [parent, cut] = find(find, false, this->height() + 1, nullptr, other->root);
         mid->bindL(std::move(this->root));
         mid->bindR(std::move(cut));
         cut = std::move(mid);
