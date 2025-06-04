@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <tuple>
 
 namespace tree_trait {
 
@@ -63,40 +64,50 @@ template <typename Node> struct Rotate {
 };
 
 template <typename Tree> struct Search {
-    auto find(this auto&& self, auto& key) { return self.root ? self.root->find(key) : nullptr; }
-    auto minimum(this auto&& self) { return self.root ? self.root->minimum() : nullptr; }
-    auto maximum(this auto&& self) { return self.root ? self.root->maximum() : nullptr; }
+    auto find(auto& key) {
+        auto& self = *(static_cast<Tree*>(this));
+        return self.root ? self.root->find(key) : nullptr;
+    }
+    auto minimum() {
+        auto& self = *(static_cast<Tree*>(this));
+        return self.root ? self.root->minimum() : nullptr;
+    }
+    auto maximum() {
+        auto& self = *(static_cast<Tree*>(this));
+        return self.root ? self.root->maximum() : nullptr;
+    }
 };
 
 template <typename Tree> struct Box {
-    auto findBox(this auto& self, auto& key) {
+    auto findBox(auto& node, auto& key) {
         auto find = [&key](
-                        this auto& self, auto parent,
+                        auto& self, auto parent,
                         auto& node) -> std::tuple<decltype(parent), decltype(node)> {
             if (!node || key == node->key) return {parent, node};
             if (key < node->key) {
-                return self(node.get(), node->lchild);
+                return self(self, node.get(), node->lchild);
             } else {
-                return self(node.get(), node->rchild);
+                return self(self, node.get(), node->rchild);
             }
         };
-        return find(self.root ? self.root->parent : nullptr, self.root);
+        return find(find, node ? node->parent : nullptr, node);
     }
-    auto minBox(this auto& self) {
-        auto find = [](this auto& self, auto& node) -> decltype(node) {
+    auto minBox(auto& node) {
+        auto find = [](auto& self, auto& node) -> decltype(node) {
             if (!node || !node->lchild) return node;
-            return self(node->lchild);
+            return self(self, node->lchild);
         };
-        return find(self.root);
+        return find(find, node);
     }
-    auto maxBox(this auto& self) {
-        auto find = [](this auto& self, auto& node) -> decltype(node) {
+    auto maxBox(auto& node) {
+        auto find = [](auto& self, auto& node) -> decltype(node) {
             if (!node || !node->rchild) return node;
             return self(node->rchild);
         };
-        return find(self.root);
+        return find(find, node);
     }
-    auto& box(this auto& self, auto node_ptr) {
+    auto& box(auto node_ptr) {
+        auto& self = *(static_cast<Tree*>(this));
         if (!node_ptr->parent) return self.root;
         if (node_ptr->parent->lchild.get() == node_ptr) return node_ptr->parent->lchild;
         return node_ptr->parent->rchild;

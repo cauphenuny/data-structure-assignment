@@ -32,6 +32,7 @@ struct AVLTree : TypeTraits<K, V>,
                  private tree_trait::Maintain<AVLNode<K, V>>,
                  private tree_trait::Rotate<AVLNode<K, V>>,
                  private tree_trait::Detach<AVLTree<K, V>> {
+    friend struct tree_trait::Box<AVLTree<K, V>>;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
 
@@ -64,7 +65,7 @@ struct AVLTree : TypeTraits<K, V>,
     }
 
     Status insert(const K& key, const V& value) {
-        auto [parent, node] = this->findBox(key);
+        auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // key already exists
         node = std::make_unique<AVLNode<K, V>>(key, value, parent);
         this->maintain(parent);
@@ -73,7 +74,7 @@ struct AVLTree : TypeTraits<K, V>,
     }
 
     Status remove(const K& key) {
-        auto [parent, node] = this->findBox(key);
+        auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
         if (!node->lchild || !node->rchild) {
             this->detach(node);

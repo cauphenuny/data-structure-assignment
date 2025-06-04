@@ -37,11 +37,12 @@ struct BasicTree : TypeTraits<K, V>,
                    private tree_trait::Box<BasicTree<K, V>>,
                    private tree_trait::Maintain<BasicNode<K, V>>,
                    private tree_trait::Detach<BasicTree<K, V>> {
+    friend struct tree_trait::Box<BasicTree<K, V>>;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
 
     auto insert(const K& key, const V& value) -> Status {
-        auto [parent, node] = this->findBox(key);
+        auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;
         node = std::make_unique<BasicNode<K, V>>(key, value, parent);
         this->maintain(parent);
@@ -49,7 +50,7 @@ struct BasicTree : TypeTraits<K, V>,
     }
 
     auto remove(const K& key) -> Status {
-        auto [parent, node] = this->findBox(key);
+        auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
         if (!node->lchild || !node->rchild) {
             this->detach(node);

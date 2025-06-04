@@ -11,27 +11,32 @@ template <typename K, typename V> struct TypeTraits {
 namespace trait {
 
 template <typename Node> struct Edit {
-    void bindL(this auto& self, std::unique_ptr<Node> node) {
+    void bindL(std::unique_ptr<Node> node) {
+        auto& self = *(static_cast<Node*>(this));
         self.lchild = std::move(node);
         if (self.lchild) self.lchild->parent = &self;
     }
-    void bindR(this auto& self, std::unique_ptr<Node> node) {
+    void bindR(std::unique_ptr<Node> node) {
+        auto& self = *(static_cast<Node*>(this));
         self.rchild = std::move(node);
         if (self.rchild) self.rchild->parent = &self;
     }
-    auto unbindL(this auto&& self) -> std::unique_ptr<Node> {
+    auto unbindL() -> std::unique_ptr<Node> {
+        auto& self = *(static_cast<Node*>(this));
         auto l = std::move(self.lchild);
         if (l) l->parent = nullptr;
         self.maintain();
         return l;
     }
-    auto unbindR(this auto&& self) -> std::unique_ptr<Node> {
+    auto unbindR() -> std::unique_ptr<Node> {
+        auto& self = *(static_cast<Node*>(this));
         auto r = std::move(self.rchild);
         if (r) r->parent = nullptr;
         self.maintain();
         return r;
     }
-    auto unbind(this auto&& self) -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
+    auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
+        auto& self = *(static_cast<Node*>(this));
         auto l = std::move(self.lchild);
         auto r = std::move(self.rchild);
         if (l) l->parent = nullptr;
@@ -72,8 +77,8 @@ template <typename Node> struct Size {
 };
 
 template <typename Node> struct Search {
-    auto find(this auto&& self, auto& key) {
-        auto node = &self;
+    auto find(auto& key) {
+        auto node = static_cast<Node*>(this);
         while (node) {
             if (key == node->key) break;
             if (key < node->key)
@@ -83,13 +88,13 @@ template <typename Node> struct Search {
         }
         return node;
     }
-    auto minimum(this auto&& self) {
-        auto node = &self;
+    auto minimum() {
+        auto node = static_cast<Node*>(this);
         while (node && node->lchild) node = node->lchild.get();
         return node.get();
     }
-    auto maximum(this auto&& self) {
-        auto node = &self;
+    auto maximum() {
+        auto node = static_cast<Node*>(this);
         while (node && node->rchild) node = node->rchild.get();
         return node.get();
     }
