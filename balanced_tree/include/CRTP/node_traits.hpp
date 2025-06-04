@@ -3,9 +3,15 @@
 #include <algorithm>
 #include <memory>
 
+template <typename K, typename V> struct Pair {
+    K key;
+    V value;
+};
+
 template <typename K, typename V> struct TypeTraits {
-    using Key = K;
-    using Value = V;
+    using KeyType = K;
+    using ValueType = V;
+    using PairType = Pair<const K, V>;
 };
 
 namespace trait {
@@ -86,17 +92,17 @@ template <typename Node> struct Search {
             else
                 node = node->rchild.get();
         }
-        return node;
+        return static_cast<Node::PairType*>(node);
     }
-    auto minimum() {
+    auto min() {
         auto node = static_cast<Node*>(this);
         while (node && node->lchild) node = node->lchild.get();
-        return node.get();
+        return static_cast<Node::PairType*>(node);
     }
-    auto maximum() {
+    auto max() {
         auto node = static_cast<Node*>(this);
         while (node && node->rchild) node = node->rchild.get();
-        return node.get();
+        return static_cast<Node::PairType*>(node);
     }
 };
 

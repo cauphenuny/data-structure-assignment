@@ -74,6 +74,46 @@ inline void benchmark() {
     end = std::chrono::high_resolution_clock::now();
     auto std_find_time = std::chrono::duration<double, std::milli>(end - start).count();
 
+    // Prepare new trees for split benchmark
+    auto old_tree_split = std::make_unique<::AVLTree<int, int>>();
+    auto new_tree_split = std::make_unique<crtp::AVLTree<int, int>>();
+    std::map<int, int> std_map_split;
+
+    // Insert same elements for split test
+    for (int key : keys) {
+        old_tree_split->insert(key, key);
+        new_tree_split->insert(key, key);
+        std_map_split[key] = key;
+    }
+
+    // Use middle value as split point
+    int split_point = N / 2;
+
+    // Measure traditional AVLTree split time
+    start = std::chrono::high_resolution_clock::now();
+    auto old_split_result = old_tree_split->split(split_point);
+    end = std::chrono::high_resolution_clock::now();
+    auto old_split_time = std::chrono::duration<double, std::micro>(end - start).count();
+
+    // Measure CRTP AVLTree split time
+    start = std::chrono::high_resolution_clock::now();
+    auto new_split_result = new_tree_split->split(split_point);
+    end = std::chrono::high_resolution_clock::now();
+    auto new_split_time = std::chrono::duration<double, std::micro>(end - start).count();
+
+    // Measure std::map split simulation time (using lower_bound and extract)
+    start = std::chrono::high_resolution_clock::now();
+    std::map<int, int> std_map_split_result;
+    auto split_iter = std_map_split.lower_bound(split_point);
+    while (split_iter != std_map_split.end()) {
+        std_map_split_result.insert(*split_iter);
+        auto next = std::next(split_iter);
+        std_map_split.erase(split_iter);
+        split_iter = next;
+    }
+    end = std::chrono::high_resolution_clock::now();
+    auto std_split_time = std::chrono::duration<double, std::micro>(end - start).count();
+
     // Print results using std::format
     std::cout << std::format(
         "{:<12} {:<15} {:<15} {:<15} {:<15}\n", "Operation", "Traditional", "CRTP-based",
@@ -91,6 +131,10 @@ inline void benchmark() {
         "{:<12} {:<15.2f} {:<15.2f} {:<15.2f} {:<15.2f}%\n", "Find (ms)", old_find_time,
         new_find_time, std_find_time, improvement(old_find_time, new_find_time));
 
+    std::cout << std::format(
+        "{:<12} {:<15.2f} {:<15.2f} {:<15.2f} {:<15.2f}%\n", "Split (μs)", old_split_time,
+        new_split_time, std_split_time, improvement(old_split_time, new_split_time));
+
     // Add comparison with std::map
     std::cout << std::format(
         "\n{:<12} {:<20} {:<20}\n", "Operation", "CRTP vs std::map", "Traditional vs std::map");
@@ -102,5 +146,9 @@ inline void benchmark() {
     std::cout << std::format(
         "{:<12} {:<20.2f}% {:<20.2f}%\n", "Find", improvement(std_find_time, new_find_time),
         improvement(std_find_time, old_find_time));
+
+    std::cout << std::format(
+        "{:<12} {:<20.2f}% {:<20.2f}%\n", "Split", improvement(std_split_time, new_split_time),
+        improvement(std_split_time, old_split_time));
 }
 }  // namespace crtp

@@ -1,7 +1,9 @@
 #pragma once
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
+#include <ostream>
 #include <tuple>
 
 namespace tree_trait {
@@ -27,6 +29,7 @@ template <typename Tree> struct Detach {
         else
             node = std::move(raw->lchild);
         Tree::maintain(parent);
+        return std::move(node);
     }
 };
 
@@ -65,16 +68,16 @@ template <typename Node> struct Rotate {
 
 template <typename Tree> struct Search {
     auto find(auto& key) {
-        auto& self = *(static_cast<Tree*>(this));
+        auto& self = *(static_cast<const Tree*>(this));
         return self.root ? self.root->find(key) : nullptr;
     }
-    auto minimum() {
+    auto min() {
         auto& self = *(static_cast<Tree*>(this));
-        return self.root ? self.root->minimum() : nullptr;
+        return self.root ? self.root->min() : nullptr;
     }
-    auto maximum() {
+    auto max() {
         auto& self = *(static_cast<Tree*>(this));
-        return self.root ? self.root->maximum() : nullptr;
+        return self.root ? self.root->max() : nullptr;
     }
 };
 
@@ -92,17 +95,17 @@ template <typename Tree> struct Box {
         };
         return find(find, node ? node->parent : nullptr, node);
     }
-    auto minBox(auto& node) {
+    auto& minBox(auto& node) {
         auto find = [](auto& self, auto& node) -> decltype(node) {
             if (!node || !node->lchild) return node;
             return self(self, node->lchild);
         };
         return find(find, node);
     }
-    auto maxBox(auto& node) {
+    auto& maxBox(auto& node) {
         auto find = [](auto& self, auto& node) -> decltype(node) {
             if (!node || !node->rchild) return node;
-            return self(node->rchild);
+            return self(self, node->rchild);
         };
         return find(find, node);
     }
@@ -111,6 +114,44 @@ template <typename Tree> struct Box {
         if (!node_ptr->parent) return self.root;
         if (node_ptr->parent->lchild.get() == node_ptr) return node_ptr->parent->lchild;
         return node_ptr->parent->rchild;
+    }
+};
+
+template <typename Tree> struct Clear {
+    void clear() {
+        auto& self = *(static_cast<Tree*>(this));
+        self.root.reset();
+    }
+};
+
+template <typename Tree> struct Size {
+    auto size() const {
+        auto& self = *(static_cast<const Tree*>(this));
+        return self.root ? self.root->size : 0;
+    }
+};
+
+template <typename Tree> struct Height {
+    auto height() const {
+        auto& self = *(static_cast<const Tree*>(this));
+        return self.root ? self.root->height : 0;
+    }
+};
+
+template <typename Tree> struct PrintCLI {
+    void printCLI() const {
+        auto& self = *(static_cast<const Tree*>(this));
+        if (!self.root) {
+            std::cout << "Tree is empty." << std::endl;
+            return;
+        }
+        auto print_node = [&](auto self, auto node, int depth) {
+            if (!node) return;
+            self(self, node->lchild.get(), depth + 1);
+            std::cout << std::string(depth * 4, ' ') << node->key << ": " << node->value << "\n";
+            self(self, node->rchild.get(), depth + 1);
+        };
+        print_node(print_node, self.root.get(), 0);
     }
 };
 }  // namespace tree_trait
