@@ -75,12 +75,12 @@ auto Treap<K, V>::split(std::unique_ptr<Node> node, const K& key)
         auto [lchild, rchild] = node->unbind();
         return {std::move(lchild), std::move(node), std::move(rchild)};
     } else if (key < node->key) {
-        auto [left, mid, right] = split(std::move(node->lchild), key);
+        auto [left, mid, right] = split(node->unbindL(), key);
         node->bindL(std::move(right));
         node->maintain();
         return {std::move(left), std::move(mid), std::move(node)};
     } else {
-        auto [left, mid, right] = split(std::move(node->rchild), key);
+        auto [left, mid, right] = split(node->unbindR(), key);
         node->bindR(std::move(left));
         node->maintain();
         return {std::move(node), std::move(mid), std::move(right)};

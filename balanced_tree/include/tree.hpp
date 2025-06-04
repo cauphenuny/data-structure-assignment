@@ -147,6 +147,18 @@ protected:
         rchild = std::move(node);
         if (rchild) rchild->parent = this;
     }
+    auto unbindL() -> std::unique_ptr<Node> {
+        auto l = std::move(lchild);
+        if (l) l->parent = nullptr;
+        this->maintain();
+        return l;
+    }
+    auto unbindR() -> std::unique_ptr<Node> {
+        auto r = std::move(rchild);
+        if (r) r->parent = nullptr;
+        this->maintain();
+        return r;
+    }
     auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
         auto l = std::move(lchild);
         auto r = std::move(rchild);
