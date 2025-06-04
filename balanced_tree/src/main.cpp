@@ -1,6 +1,7 @@
 /// @file main.cpp
 /// @brief main function for testing the tree implementations (temporarily)
 
+#include "CRTP/benchmark.hpp"
 #include "avl.hpp"
 #include "debug.hpp"
 #include "doctest/doctest.h"
@@ -69,5 +70,7 @@ int main(int argc, char* argv[]) {
     polymorphism_demo();
     cout << "====================" << endl;
     algorithm_demo();
+    cout << "====================" << endl;
+    crtp::benchmark();
     return ret;
 }
