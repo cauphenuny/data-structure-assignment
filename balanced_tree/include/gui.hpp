@@ -1,6 +1,7 @@
 /// @file gui.h
 /// @brief GUI functions
 
+#pragma once
 #include "tree.hpp"
 
 #include <string_view>

@@ -1,6 +1,7 @@
 /// @file treap.hpp
 /// @brief Treap implementation
 
+#pragma once
 #include "tree.hpp"
 #include "util.hpp"
 

@@ -1,6 +1,7 @@
 /// @file avl.hpp
 /// @brief AVL tree implementation
 
+#pragma once
 #include "tree.hpp"
 #include "util.hpp"
 
