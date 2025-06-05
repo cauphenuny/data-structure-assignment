@@ -2,6 +2,7 @@
 
 #include "util.hpp"
 
+#include <memory>
 #include <string>
 
 template <typename K, typename V> struct Pair {
@@ -63,7 +64,7 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     auto conflict(Impl* other) -> bool { return impl->conflict(other); }
 
     // NOTE:
-    // join: key-range not overlap, O(log n)
+    // join: key-range not overlap, and this's keys must lesser than other's, O(log n)
     // merge: allow key overlapping, O(n log n)
 
     static auto create() -> std::unique_ptr<Tree<K, V>> {
