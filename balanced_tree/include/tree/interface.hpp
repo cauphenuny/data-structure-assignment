@@ -1,6 +1,5 @@
 #pragma once
 
-#include "traits/node_traits.hpp"
 #include "util.hpp"
 
 #include <string>
@@ -25,13 +24,17 @@ template <typename K, typename V> struct Tree : TreeBase {
     virtual auto max() -> Pair<const K, V>* = 0;
     virtual auto insert(const K& key, const V& value) -> Status = 0;
     virtual auto remove(const K& key) -> Status = 0;
-    virtual auto split(const K& key) -> std::unique_ptr<Tree> = 0;
-    virtual auto join(std::unique_ptr<Tree> other) -> Status = 0;
-    virtual auto merge(std::unique_ptr<Tree> other) -> Status = 0;
     virtual auto operator[](const K& key) -> V& = 0;
     virtual auto operator[](const K& key) const -> const V& = 0;
 };
 
+// NOTE: example:
+// auto tree = AVLTree<int, std::string>::create(); // std::unique_ptr<Tree<int, std::string>>
+// tree.insert(1, "one");
+// tree = BasicTree<int, std::string>::create();
+// tree.insert(2, "two");
+
+// bind implementation to the interface
 template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     friend struct Test;
     auto size() const -> size_t override { return impl->size(); }
@@ -46,22 +49,23 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     auto max() -> Pair<const K, V>* override { return impl->max(); }
     auto operator[](const K& k) -> V& override { return impl->operator[](k); }
     auto operator[](const K& k) const -> const V& override { return impl->operator[](k); }
-    auto split(const K& k) -> std::unique_ptr<Tree<K, V>> override {
-        auto split_tree = impl->split(k);
-        return std::make_unique<TreeImpl>(std::move(split_tree));
-    }
-    auto merge(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto tree_impl = dynamic_cast<TreeImpl<K, V, Impl>*>(other.get())) {
-            return impl->merge(std::move(tree_impl->impl));
-        }
-        return Status::FAILED;  // cannot merge with non-compatible tree
-    }
-    auto join(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto tree_impl = dynamic_cast<TreeImpl<K, V, Impl>*>(other.get())) {
-            return impl->join(std::move(tree_impl->impl));
-        }
-        return Status::FAILED;  // cannot join with non-compatible tree
-    }
+
+    // NOTE: no unified split/join/merge interface
+    // example:
+    // auto avl = make_unique<AVLTree<int, std::string>>(); // retains original type AVLTree
+    // avl.insert(...);
+    // auto splited = avl->split(10); // returns
+    // avl->join(std::move(splited)); // joins the splited tree back
+
+    auto split(const K& k) -> std::unique_ptr<Impl> { return impl->split(k); }
+    auto join(std::unique_ptr<Impl> other) -> Status { return impl->join(std::move(other)); }
+    auto merge(std::unique_ptr<Impl> other) -> Status { return impl->merge(std::move(other)); }
+    auto conflict(Impl* other) -> bool { return impl->conflict(other); }
+
+    // NOTE:
+    // join: key-range not overlap, O(log n)
+    // merge: allow key overlapping, O(n log n)
+
     static auto create() -> std::unique_ptr<Tree<K, V>> {
         return std::make_unique<TreeImpl>(std::make_unique<Impl>());
     }
@@ -72,9 +76,3 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
 private:
     std::unique_ptr<Impl> impl;
 };
-
-// example:
-// auto tree = AVLTree<int, std::string>::create(); // std::unique_ptr<Tree<int, std::string>>
-// tree.insert(1, "one");
-// tree = BasicTree<int, std::string>::create();
-// tree.insert(2, "two");

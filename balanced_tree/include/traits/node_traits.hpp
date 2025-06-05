@@ -1,46 +1,36 @@
 #pragma once
 
+#include "tree/interface.hpp"
+
 #include <algorithm>
 #include <memory>
 
-template <typename K, typename> struct Pair;
+namespace trait {
 
 template <typename K, typename V> struct TypeTraits {
     using KeyType = K;
     using ValueType = V;
     using PairType = Pair<const K, V>;
+    enum Dir { L, R };
 };
-
-namespace trait {
 
 template <typename Node> struct Link {
     Node* parent{nullptr};
     std::unique_ptr<Node> lchild{nullptr}, rchild{nullptr};
     Link(Node* parent = nullptr) : parent(parent) {}
 
-    void bindL(std::unique_ptr<Node> node) {
+    void bind(int direction, std::unique_ptr<Node> node) {
         auto& self = *(static_cast<Node*>(this));
-        self.lchild = std::move(node);
-        if (self.lchild) self.lchild->parent = &self;
+        auto& child = (direction == Node::R) ? self.rchild : self.lchild;
+        child = std::move(node);
+        if (child) child->parent = &self;
     }
-    void bindR(std::unique_ptr<Node> node) {
+    auto unbind(int direction) -> std::unique_ptr<Node> {
         auto& self = *(static_cast<Node*>(this));
-        self.rchild = std::move(node);
-        if (self.rchild) self.rchild->parent = &self;
-    }
-    auto unbindL() -> std::unique_ptr<Node> {
-        auto& self = *(static_cast<Node*>(this));
-        auto l = std::move(self.lchild);
-        if (l) l->parent = nullptr;
+        auto child = std::move(direction == Node::R ? self.rchild : self.lchild);
+        if (child) child->parent = nullptr;
         self.maintain();
-        return l;
-    }
-    auto unbindR() -> std::unique_ptr<Node> {
-        auto& self = *(static_cast<Node*>(this));
-        auto r = std::move(self.rchild);
-        if (r) r->parent = nullptr;
-        self.maintain();
-        return r;
+        return child;
     }
     auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
         auto& self = *(static_cast<Node*>(this));

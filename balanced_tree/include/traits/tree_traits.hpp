@@ -10,6 +10,14 @@
 
 namespace tree_trait {
 
+template <typename N> struct TypeTraits {
+    using KeyType = typename N::KeyType;
+    using ValueType = typename N::ValueType;
+    using PairType = typename N::PairType;
+    using Dir = typename N::Dir;
+    using NodeType = N;
+};
+
 template <typename Node> struct Maintain {
     static void maintain(Node* node) {
         while (node) {
@@ -23,10 +31,10 @@ template <typename Node> struct Rotate {
     static void rotateR(std::unique_ptr<Node>& root) {
         auto new_root = root->lchild.release();
         if (new_root->rchild) {
-            root->bindL(std::move(new_root->rchild));
+            root->bind(Node::L, std::move(new_root->rchild));
         }
         new_root->parent = root->parent;
-        new_root->bindR(std::move(root));
+        new_root->bind(Node::R, std::move(root));
         root.reset(new_root);
         root->rchild->maintain();
         root->maintain();
@@ -34,10 +42,10 @@ template <typename Node> struct Rotate {
     static void rotateL(std::unique_ptr<Node>& root) {
         auto new_root = root->rchild.release();
         if (new_root->lchild) {
-            root->bindR(std::move(new_root->lchild));
+            root->bind(Node::R, std::move(new_root->lchild));
         }
         new_root->parent = root->parent;
-        new_root->bindL(std::move(root));
+        new_root->bind(Node::L, std::move(root));
         root.reset(new_root);
         root->lchild->maintain();
         root->maintain();
@@ -143,15 +151,45 @@ template <typename Tree> struct Height {
 template <typename Tree> struct Traverse {
     void traverse(auto&& func) {
         auto& self = *(static_cast<Tree*>(this));
-        traverse(self.root, func);
+        void_traverse(self.root, func);
+    }
+    auto traverse(auto&& func, auto&& reduction) {
+        auto& self = *(static_cast<Tree*>(this));
+        return typed_traverse(self.root, func, reduction);
     }
 
 private:
-    void traverse(auto& node, auto&& func) {
+    void void_traverse(auto& node, auto&& func) {
         if (!node) return;
-        traverse(node->lchild, func);
+        void_traverse(node->lchild, func);
         func(node);
-        traverse(node->rchild, func);
+        void_traverse(node->rchild, func);
+    }
+    auto typed_traverse(auto& node, auto&& func, auto&& reduction) {
+        if (!node) return;
+        auto ret = typed_traverse(node->lchild, func);
+        ret = reduction(ret, func(node));
+        ret = reduction(ret, typed_traverse(node->rchild, func));
+        return ret;
+    }
+};
+
+template <typename Tree> struct Conflict {
+    bool conflict(Tree* other) {
+        std::vector<typename Tree::NodeType*> vec1, vec2;
+        auto& self = *(static_cast<Tree*>(this));
+        self.traverse([&](auto& node) { vec1.push_back(node); });
+        other->traverse([&](auto& node) { vec2.push_back(node); });
+        for (auto it1 = vec1.begin(), it2 = vec2.begin(); it1 != vec1.end() && it2 != vec2.end();) {
+            if ((*it1)->key < (*it2)->key) {
+                ++it1;
+            } else if ((*it1)->key > (*it2)->key) {
+                ++it2;
+            } else {
+                return true;
+            }
+        }
+        return false;
     }
 };
 

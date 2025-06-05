@@ -20,8 +20,8 @@ template <typename K, typename V> using BasicTree = TreeImpl<K, V, BasicTreeImpl
 // ============================== Implementation ================================
 
 template <typename K, typename V>
-struct BasicNode : TypeTraits<K, V>,
-                   Pair<const K, V>,
+struct BasicNode : Pair<const K, V>,
+                   trait::TypeTraits<K, V>,
                    trait::Link<BasicNode<K, V>>,
                    trait::Maintain<trait::Size<BasicNode<K, V>>>,
                    trait::Search<BasicNode<K, V>> {
@@ -37,7 +37,7 @@ struct BasicNode : TypeTraits<K, V>,
 };
 
 template <typename K, typename V>
-struct BasicTreeImpl : TypeTraits<K, V>,
+struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
                        tree_trait::Search<BasicTreeImpl<K, V>>,
                        tree_trait::Clear<BasicTreeImpl<K, V>>,
                        tree_trait::Size<BasicTreeImpl<K, V>>,
@@ -45,6 +45,7 @@ struct BasicTreeImpl : TypeTraits<K, V>,
                        tree_trait::Traverse<BasicTreeImpl<K, V>>,
                        tree_trait::Merge<BasicTreeImpl<K, V>>,
                        tree_trait::Subscript<BasicTreeImpl<K, V>>,
+                       tree_trait::Conflict<BasicTreeImpl<K, V>>,
                        private tree_trait::Box<BasicTreeImpl<K, V>>,
                        private tree_trait::Maintain<BasicNode<K, V>>,
                        private tree_trait::Detach<BasicTreeImpl<K, V>> {
@@ -52,6 +53,7 @@ struct BasicTreeImpl : TypeTraits<K, V>,
     friend struct tree_trait::Detach<BasicTreeImpl<K, V>>;
     friend struct tree_trait::Subscript<BasicTreeImpl<K, V>>;
     friend struct Test;
+    using Dir = tree_trait::TypeTraits<BasicNode<K, V>>::Dir;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
     BasicTreeImpl() = default;
@@ -76,8 +78,8 @@ struct BasicTreeImpl : TypeTraits<K, V>,
             return Status::SUCCESS;
         }
         auto detached = this->detach(this->maxBox(node->lchild));
-        detached->bindL(std::move(node->lchild));
-        detached->bindR(std::move(node->rchild));
+        detached->bind(Dir::L, std::move(node->lchild));
+        detached->bind(Dir::R, std::move(node->rchild));
         node = std::move(detached);
         node->parent = parent;
         this->maintain(node.get());
@@ -91,15 +93,15 @@ struct BasicTreeImpl : TypeTraits<K, V>,
             if (key <= node->key) {
                 auto [lchild, rchild] = node->unbind();
                 auto [lchild_l, lchild_r] = self(self, std::move(lchild));
-                node->bindL(std::move(lchild_r));
-                node->bindR(std::move(rchild));
+                node->bind(Dir::L, std::move(lchild_r));
+                node->bind(Dir::R, std::move(rchild));
                 node->maintain();
                 return {std::move(lchild_l), std::move(node)};
             } else {
                 auto [lchild, rchild] = node->unbind();
                 auto [rchild_l, rchild_r] = self(self, std::move(rchild));
-                node->bindL(std::move(lchild));
-                node->bindR(std::move(rchild_l));
+                node->bind(Dir::L, std::move(lchild));
+                node->bind(Dir::R, std::move(rchild_l));
                 node->maintain();
                 return {std::move(node), std::move(rchild_r)};
             }
@@ -116,7 +118,7 @@ struct BasicTreeImpl : TypeTraits<K, V>,
             return Status::SUCCESS;
         }
         auto& max_node = this->maxBox(this->root);
-        max_node->bindR(std::move(other->root));
+        max_node->bind(Dir::R, std::move(other->root));
         this->maintain(max_node.get());
         return Status::SUCCESS;
     }

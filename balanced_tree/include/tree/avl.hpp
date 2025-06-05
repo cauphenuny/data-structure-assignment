@@ -17,8 +17,8 @@ template <typename K, typename V> using AVLTree = TreeImpl<K, V, AVLTreeImpl<K, 
 // ============================== Implementation ================================
 
 template <typename K, typename V>
-struct AVLNode : TypeTraits<K, V>,
-                 Pair<const K, V>,
+struct AVLNode : Pair<const K, V>,
+                 trait::TypeTraits<K, V>,
                  trait::Link<AVLNode<K, V>>,
                  trait::Maintain<trait::Size<AVLNode<K, V>>, trait::Height<AVLNode<K, V>>>,
                  trait::Search<AVLNode<K, V>> {
@@ -36,7 +36,7 @@ struct AVLNode : TypeTraits<K, V>,
 };
 
 template <typename K, typename V>
-struct AVLTreeImpl : TypeTraits<K, V>,
+struct AVLTreeImpl : tree_trait::TypeTraits<AVLNode<K, V>>,
                      tree_trait::Search<AVLTreeImpl<K, V>>,
                      tree_trait::Clear<AVLTreeImpl<K, V>>,
                      tree_trait::Size<AVLTreeImpl<K, V>>,
@@ -45,6 +45,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
                      tree_trait::Traverse<AVLTreeImpl<K, V>>,
                      tree_trait::Merge<AVLTreeImpl<K, V>>,
                      tree_trait::Subscript<AVLTreeImpl<K, V>>,
+                     tree_trait::Conflict<AVLTreeImpl<K, V>>,
                      private tree_trait::Box<AVLTreeImpl<K, V>>,
                      private tree_trait::Maintain<AVLNode<K, V>>,
                      private tree_trait::Rotate<AVLNode<K, V>>,
@@ -53,6 +54,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
     friend struct tree_trait::Detach<AVLTreeImpl<K, V>>;
     friend struct tree_trait::Subscript<AVLTreeImpl<K, V>>;
     friend struct Test;
+    using Dir = tree_trait::TypeTraits<AVLNode<K, V>>::Dir;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
 
@@ -106,8 +108,8 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->lchild));
-            detached->bindL(std::move(node->lchild));
-            detached->bindR(std::move(node->rchild));
+            detached->bind(Dir::L, std::move(node->lchild));
+            detached->bind(Dir::R, std::move(node->rchild));
             node = std::move(detached);
             node->parent = parent;
             this->checkBalance(node.get());
@@ -150,15 +152,15 @@ struct AVLTreeImpl : TypeTraits<K, V>,
         AVLNode<K, V>* insert_pos = nullptr;
         if (this->height() >= right->height()) {
             auto [parent, cut] = find(find, true, right->height() + 1, nullptr, this->root);
-            mid->bindL(std::move(cut));
-            mid->bindR(std::move(right->root));
+            mid->bind(Dir::L, std::move(cut));
+            mid->bind(Dir::R, std::move(right->root));
             cut = std::move(mid);
             cut->parent = parent;
             insert_pos = cut.get();
         } else {
             auto [parent, cut] = find(find, false, this->height() + 1, nullptr, right->root);
-            mid->bindL(std::move(this->root));
-            mid->bindR(std::move(cut));
+            mid->bind(Dir::L, std::move(this->root));
+            mid->bind(Dir::R, std::move(cut));
             cut = std::move(mid);
             cut->parent = parent;
             insert_pos = cut.get();

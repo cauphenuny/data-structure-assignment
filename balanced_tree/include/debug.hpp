@@ -112,6 +112,7 @@ std::string serializeVar(const char* names, const auto& var, const auto&... rest
     std::ostringstream oss;
     const char* comma = strchr(names, ',');
     while (names[0] == ' ') names++;
+    if (strncmp(names, "this->", 6) == 0) names += 6;
     if (comma != nullptr) {
         oss.write(names, comma - names) << ": " << serialize(var) << ","
                                         << "\n";
