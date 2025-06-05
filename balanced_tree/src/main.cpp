@@ -1,11 +1,12 @@
 /// @file main.cpp
 /// @brief main function for testing the tree implementations (temporarily)
 
-#include "CRTP/benchmark.hpp"
-#include "avl.hpp"
+#include "benchmark.hpp"
 #include "debug.hpp"
 #include "doctest/doctest.h"
-#include "tree.hpp"
+#include "tree/avl.hpp"
+#include "tree/basic.hpp"
+#include "tree/interface.hpp"
 
 #include <string>
 #include <vector>
@@ -14,13 +15,13 @@ using namespace std;
 void polymorphism_demo() {
     auto forest = vector<unique_ptr<TreeBase>>();
 
-    auto tree0 = make_unique<Tree<int, string>>();
+    auto tree0 = BasicTree<int, string>::create();
     tree0->insert(11, "tree");
     tree0->insert(45, "insert");
     tree0->insert(14, "demo");
     forest.push_back(std::move(tree0));
 
-    auto tree1 = make_unique<Tree<int, double>>();
+    auto tree1 = BasicTree<int, double>::create();
     tree1->insert(1, 2.34);
     tree1->insert(2, 3.45);
     tree1->insert(3, 4.56);
@@ -31,7 +32,7 @@ void polymorphism_demo() {
 }
 
 void algorithm_demo() {
-    auto tree = make_unique<Tree<int, string>>();
+    auto tree = BasicTree<int, string>::create();
 
     const int N = 16;
     vector<int> values(N);
@@ -44,7 +45,7 @@ void algorithm_demo() {
     cout << "(basic)" << endl;
     tree->printCLI();
 
-    tree = make_unique<AVLTree<int, string>>();
+    tree = AVLTree<int, string>::create();
     for (int i = 1; i <= N; i++) {
         tree->insert(values[i - 1], "inserted on #" + to_string(i));
     }
@@ -71,6 +72,6 @@ int main(int argc, char* argv[]) {
     cout << "====================" << endl;
     algorithm_demo();
     cout << "====================" << endl;
-    crtp::benchmark();
+    benchmark();
     return ret;
 }

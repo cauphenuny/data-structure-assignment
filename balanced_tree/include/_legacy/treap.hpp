@@ -8,6 +8,8 @@
 #include <memory>
 #include <random>
 
+namespace legacy {
+
 /****************************** Definition ********************************/
 
 template <typename Key, typename Value> struct Treap : Tree<Key, Value> {
@@ -146,3 +148,5 @@ template <typename K, typename V> auto Treap<K, V>::remove(const K& key) -> Stat
     this->root = join(std::move(left), std::move(right));
     return ret;
 }
+
+}  // namespace legacy

@@ -1,10 +1,23 @@
 #pragma once
 
-#include "node_traits.hpp"
-#include "tree.hpp"
+#include "traits/node_traits.hpp"
 #include "util.hpp"
 
-namespace crtp {
+#include <string>
+
+template <typename K, typename V> struct Pair {
+    K key;
+    V value;
+};
+
+struct TreeBase {
+    virtual ~TreeBase() = default;
+    virtual auto size() const -> size_t = 0;
+    virtual void clear() = 0;
+    virtual void print() const = 0;
+    virtual void printCLI() const = 0;
+    virtual auto stringify() const -> std::string = 0;
+};
 
 template <typename K, typename V> struct Tree : TreeBase {
     virtual auto find(const K& key) -> Pair<const K, V>* = 0;
@@ -20,6 +33,7 @@ template <typename K, typename V> struct Tree : TreeBase {
 };
 
 template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
+    friend struct Test;
     auto size() const -> size_t override { return impl->size(); }
     void clear() override { impl->clear(); }
     void print() const override { impl->print(); }
@@ -34,7 +48,7 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     auto operator[](const K& k) const -> const V& override { return impl->operator[](k); }
     auto split(const K& k) -> std::unique_ptr<Tree<K, V>> override {
         auto split_tree = impl->split(k);
-        return std::make_unique<TreeImpl<K, V, Impl>>(std::move(split_tree));
+        return std::make_unique<TreeImpl>(std::move(split_tree));
     }
     auto merge(std::unique_ptr<Tree<K, V>> other) -> Status override {
         if (auto tree_impl = dynamic_cast<TreeImpl<K, V, Impl>*>(other.get())) {
@@ -48,13 +62,19 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
         }
         return Status::FAILED;  // cannot join with non-compatible tree
     }
-    auto create() -> std::unique_ptr<Tree<K, V>> {
+    static auto create() -> std::unique_ptr<Tree<K, V>> {
         return std::make_unique<TreeImpl>(std::make_unique<Impl>());
     }
 
     TreeImpl() : impl(std::make_unique<Impl>()) {}
     TreeImpl(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
+
+private:
     std::unique_ptr<Impl> impl;
 };
 
-}  // namespace crtp
+// example:
+// auto tree = AVLTree<int, std::string>::create(); // std::unique_ptr<Tree<int, std::string>>
+// tree.insert(1, "one");
+// tree = BasicTree<int, std::string>::create();
+// tree.insert(2, "two");

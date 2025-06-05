@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <memory>
 
+namespace legacy {
+
 /****************************** Definition ********************************/
 
 template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
@@ -263,3 +265,4 @@ template <typename K, typename V> Status AVLTree<K, V>::merge(std::unique_ptr<Tr
     other.release();
     return this->join(std::unique_ptr<AVLTree>(avl_other));
 }
+}  // namespace legacy

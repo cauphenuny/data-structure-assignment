@@ -2,16 +2,14 @@
 
 #include "debug.hpp"
 #include "interface.hpp"
-#include "node_traits.hpp"
-#include "tree_traits.hpp"
+#include "traits/node_traits.hpp"
+#include "traits/tree_traits.hpp"
 #include "util.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <memory>
 #include <string>
-
-namespace crtp {  // test
 
 // ============================== Definition ================================
 
@@ -46,13 +44,20 @@ struct BasicTreeImpl : TypeTraits<K, V>,
                        tree_trait::Print<BasicTreeImpl<K, V>>,
                        tree_trait::Traverse<BasicTreeImpl<K, V>>,
                        tree_trait::Merge<BasicTreeImpl<K, V>>,
+                       tree_trait::Subscript<BasicTreeImpl<K, V>>,
                        private tree_trait::Box<BasicTreeImpl<K, V>>,
                        private tree_trait::Maintain<BasicNode<K, V>>,
                        private tree_trait::Detach<BasicTreeImpl<K, V>> {
     friend struct tree_trait::Box<BasicTreeImpl<K, V>>;
+    friend struct tree_trait::Detach<BasicTreeImpl<K, V>>;
     friend struct tree_trait::Subscript<BasicTreeImpl<K, V>>;
+    friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
+    BasicTreeImpl() = default;
+    BasicTreeImpl(std::unique_ptr<BasicNode<K, V>> root) : root(std::move(root)) {
+        if (this->root) this->root->parent = nullptr;
+    }
 
     auto insert(const K& key, const V& value) -> Status {
         auto [parent, node] = this->findBox(this->root, key);
@@ -118,5 +123,3 @@ struct BasicTreeImpl : TypeTraits<K, V>,
 
     auto stringify() const -> std::string { return serializeClass("BasicTree", root); }
 };
-
-}  // namespace crtp

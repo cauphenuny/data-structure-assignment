@@ -2,7 +2,7 @@
 /// @brief GUI functions
 
 #pragma once
-#include "tree.hpp"
+#include "tree/interface.hpp"
 
 #include <string_view>
 

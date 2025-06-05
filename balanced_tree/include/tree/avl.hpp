@@ -1,13 +1,12 @@
 #pragma once
+
 #include "interface.hpp"
-#include "node_traits.hpp"
-#include "tree_traits.hpp"
+#include "traits/node_traits.hpp"
+#include "traits/tree_traits.hpp"
 #include "util.hpp"
 
 #include <cassert>
 #include <string>
-
-namespace crtp {
 
 // ============================== Definition ================================
 
@@ -53,6 +52,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
     friend struct tree_trait::Box<AVLTreeImpl<K, V>>;
     friend struct tree_trait::Detach<AVLTreeImpl<K, V>>;
     friend struct tree_trait::Subscript<AVLTreeImpl<K, V>>;
+    friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
 
@@ -76,15 +76,14 @@ struct AVLTreeImpl : TypeTraits<K, V>,
                 this->rotateRL(node);
             }
         }
-        // this->maintain(node.get());
-        return prev != node->height;
+        return prev == node->height;
     }
 
     void checkBalance(AVLNode<K, V>* node) {
         while (node) {
             node->maintain();
             if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
-                if (!this->balance(this->box(node))) break;
+                if (this->balance(this->box(node))) break;
             }
             node = node->parent;
         }
@@ -95,7 +94,6 @@ struct AVLTreeImpl : TypeTraits<K, V>,
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // key already exists
         node = std::make_unique<AVLNode<K, V>>(key, value, parent);
-        // this->maintain(parent);
         this->checkBalance(parent);
         return Status::SUCCESS;
     }
@@ -105,7 +103,6 @@ struct AVLTreeImpl : TypeTraits<K, V>,
         if (!node) return Status::FAILED;
         if (!node->lchild || !node->rchild) {
             this->detach(node);
-            // this->maintain(parent);
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->lchild));
@@ -113,8 +110,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             detached->bindR(std::move(node->rchild));
             node = std::move(detached);
             node->parent = parent;
-            // this->maintain(node.get());
-            this->checkBalance(parent);
+            this->checkBalance(node.get());
         }
         return Status::SUCCESS;
     }
@@ -128,9 +124,9 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             if (!node) return {tree(nullptr), tree(nullptr)};
             auto [lchild, rchild] = node->unbind();
             if (key <= node->key) {
-                auto [left, right] = self(self, std::move(lchild));
-                right->join(std::move(node), tree(std::move(rchild)));
-                return {std::move(left), std::move(right)};
+                auto [left, mid] = self(self, std::move(lchild));
+                mid->join(std::move(node), tree(std::move(rchild)));
+                return {std::move(left), std::move(mid)};
             } else {
                 auto [mid, right] = self(self, std::move(rchild));
                 auto left = tree(std::move(lchild));
@@ -168,7 +164,6 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             insert_pos = cut.get();
             this->root = std::move(right->root);
         }
-        // this->maintain(insert_pos);
         this->checkBalance(insert_pos);
         return Status::SUCCESS;
     }
@@ -191,5 +186,3 @@ struct AVLTreeImpl : TypeTraits<K, V>,
 
     auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 };
-
-}  // namespace crtp

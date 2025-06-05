@@ -3,10 +3,7 @@
 #include <algorithm>
 #include <memory>
 
-template <typename K, typename V> struct Pair {
-    K key;
-    V value;
-};
+template <typename K, typename> struct Pair;
 
 template <typename K, typename V> struct TypeTraits {
     using KeyType = K;

@@ -1,17 +1,15 @@
 #pragma once
-#include "avl.hpp"
-#include "crtp_avl.hpp"
-#include "tree.hpp"
+#include "_legacy/avl.hpp"
+#include "_legacy/tree.hpp"
+#include "tree/avl.hpp"
 
 #include <cassert>
 #include <memory>
 #include <random>
 
-namespace crtp {
-
 inline void benchmark() {
-    auto old_tree = std::make_unique<::AVLTree<int, int>>();
-    auto new_tree = std::make_unique<crtp::AVLTree<int, int>>();
+    auto old_tree = std::make_unique<legacy::AVLTree<int, int>>();
+    auto new_tree = std::make_unique<AVLTree<int, int>>();
     std::map<int, int> std_map;
 
     constexpr int N = 500000;
@@ -75,8 +73,8 @@ inline void benchmark() {
     auto std_find_time = std::chrono::duration<double, std::milli>(end - start).count();
 
     // Prepare new trees for split benchmark
-    auto old_tree_split = std::make_unique<::AVLTree<int, int>>();
-    auto new_tree_split = std::make_unique<crtp::AVLTree<int, int>>();
+    auto old_tree_split = std::make_unique<legacy::AVLTree<int, int>>();
+    auto new_tree_split = std::make_unique<AVLTree<int, int>>();
     std::map<int, int> std_map_split;
 
     // Insert same elements for split test
@@ -162,4 +160,3 @@ inline void benchmark() {
         "{:<12} {:<20.2f}% {:<20.2f}%\n", "Split", improvement(std_split_time, new_split_time),
         improvement(std_split_time, old_split_time));
 }
-}  // namespace crtp

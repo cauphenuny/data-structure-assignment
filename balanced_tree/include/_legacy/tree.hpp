@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 
+namespace legacy {
+
 /****************************** Definition ********************************/
 
 struct TreeBase {
@@ -436,3 +438,5 @@ template <typename K, typename V> Status Tree<K, V>::join(std::unique_ptr<Tree> 
     maintain(max_node.get());
     return Status::SUCCESS;
 }
+
+}  // namespace legacy

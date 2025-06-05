@@ -1,16 +1,14 @@
-#include "CRTP/crtp_avl.hpp"
-#include "CRTP/crtp_tree.hpp"
-#include "avl.hpp"
-#include "treap.hpp"
-#include "tree.hpp"
+#include "_legacy/avl.hpp"
+#include "_legacy/treap.hpp"
+#include "_legacy/tree.hpp"
+#include "doctest/doctest.h"
 
 #include <chrono>
 #include <iomanip>
 #include <map>
 #include <random>
 
-#define DOCTEST_CONFIG_IMPLEMENT
-#include "doctest/doctest.h"
+namespace legacy {
 
 struct Test {  // extract private/protected members from class
     static bool traverse(auto& node, auto func) {
@@ -104,7 +102,7 @@ struct Test {  // extract private/protected members from class
     };
 };
 
-TEST_CASE("`Tree` insertion, find") {
+TEST_CASE("(legacy) `Tree` insertion, find") {
     auto tree = std::make_unique<Tree<int, std::string>>();
 
     SUBCASE("Empty tree operations") {
@@ -150,7 +148,7 @@ TEST_CASE("`Tree` insertion, find") {
     }
 }
 
-TEST_CASE("`Tree` removal, split, merge") {
+TEST_CASE("(legacy) `Tree` removal, split, merge") {
     auto tree = std::make_unique<Tree<int, std::string>>();
     // Setup tree
     tree->insert(50, "fifty");
@@ -235,7 +233,7 @@ TEST_CASE("`Tree` removal, split, merge") {
     }
 }
 
-TEST_CASE("`Tree` conflict, join, mix, merge") {
+TEST_CASE("(legacy) `Tree` conflict, join, mix, merge") {
     SUBCASE("Basic non-overlapping merge (join)") {
         auto tree1 = std::make_unique<Tree<int, std::string>>();
         auto tree2 = std::make_unique<Tree<int, std::string>>();
@@ -330,7 +328,7 @@ TEST_CASE("`Tree` conflict, join, mix, merge") {
     }
 }
 
-TEST_CASE("`Tree` operator[]") {
+TEST_CASE("(legacy) `Tree` operator[]") {
     auto tree = std::make_unique<Tree<int, std::string>>();
 
     // Setup tree with some initial values
@@ -376,7 +374,7 @@ TEST_CASE("`Tree` operator[]") {
     }
 }
 
-TEST_CASE("`AVLTree` insertion") {
+TEST_CASE("(legacy) `AVLTree` insertion") {
     auto tree = std::make_unique<AVLTree<int, std::string>>();
 
     SUBCASE("Empty tree operations") {
@@ -502,7 +500,7 @@ TEST_CASE("`AVLTree` insertion") {
     }
 }
 
-TEST_CASE("`AVLTree` removal") {
+TEST_CASE("(legacy) `AVLTree` removal") {
     auto tree = std::make_unique<AVLTree<int, std::string>>();
 
     SUBCASE("Empty tree removal") {
@@ -619,7 +617,7 @@ TEST_CASE("`AVLTree` removal") {
     }
 }
 
-TEST_CASE("`AVLTree` join operation") {
+TEST_CASE("(legacy) `AVLTree` join operation") {
     SUBCASE("Basic join with non-overlapping trees") {
         // Create two trees with non-overlapping keys
         auto tree1 = std::make_unique<AVLTree<int, std::string>>();
@@ -862,7 +860,7 @@ TEST_CASE("`AVLTree` join operation") {
     }
 }
 
-TEST_CASE("`AVLTree` split operation") {
+TEST_CASE("(legacy) `AVLTree` split operation") {
     SUBCASE("Basic split functionality") {
         auto tree = std::make_unique<AVLTree<int, std::string>>();
 
@@ -981,7 +979,7 @@ TEST_CASE("`AVLTree` split operation") {
     }
 }
 
-TEST_CASE("`AVLTree` complex removal operations") {
+TEST_CASE("(legacy) `AVLTree` complex removal operations") {
     SUBCASE("Random deletion pattern maintaining balance") {
         auto tree = std::make_unique<AVLTree<int, std::string>>();
 
@@ -1093,7 +1091,7 @@ TEST_CASE("`AVLTree` complex removal operations") {
     }
 }
 
-TEST_CASE("Performance Comparison") {
+TEST_CASE("(legacy) Performance Comparison") {
     constexpr int NUM_OPERATIONS = 100000;
     constexpr int NUM_OPERATIONS_SEQUENTIAL = 2000;  // Smaller size for sequential test
     constexpr int NUM_LOOKUPS = 10000;
@@ -1304,7 +1302,7 @@ TEST_CASE("Performance Comparison") {
     run_timed_test("RANDOM ACCESS", random_keys, lookup_keys);
 }
 
-TEST_CASE("Split/Merge Performance") {
+TEST_CASE("(legacy) Split/Merge Performance") {
     constexpr int SMALL_SIZE = 1000;
     constexpr int MEDIUM_SIZE = 10000;
     constexpr int LARGE_SIZE = 100000;
@@ -1412,9 +1410,9 @@ TEST_CASE("Split/Merge Performance") {
                 avl_end += std::chrono::duration<double, std::milli>(end - start).count();
             }
 
-            // Test crtp AVL Tree split
+            // Test Treap Tree split
             {
-                auto avl_tree = std::make_unique<crtp::AVLTree<int, std::string>>();
+                auto avl_tree = std::make_unique<Treap<int, std::string>>();
                 insert_keys(avl_tree, size);
 
                 // Split at beginning (25%)
@@ -1459,7 +1457,7 @@ TEST_CASE("Split/Merge Performance") {
 
         // Print results
         std::cout << std::left << std::setw(12) << "Split Point" << std::setw(15) << "Tree"
-                  << std::setw(15) << "AVLTree" << std::setw(15) << "AVLTree(CRTP)"
+                  << std::setw(15) << "AVLTree" << std::setw(15) << "Treap"
                   << "\n";
 
         std::cout << std::setw(12) << "Beginning" << std::setw(15) << format_time(tree_begin)
@@ -1527,22 +1525,22 @@ TEST_CASE("Split/Merge Performance") {
         avl_end += std::chrono::duration<double, std::milli>(end - start).count();
 
         // Treap large split
-        auto crtp_avl_tree = std::make_unique<crtp::AVLTree<int, std::string>>();
-        insert_keys(crtp_avl_tree, LARGE_SIZE);
+        auto treap = std::make_unique<Treap<int, std::string>>();
+        insert_keys(treap, LARGE_SIZE);
         start = std::chrono::high_resolution_clock::now();
-        auto crtp_right_tree = crtp_avl_tree->split(LARGE_SIZE / 4);
+        auto crtp_right_tree = treap->split(LARGE_SIZE / 4);
         end = std::chrono::high_resolution_clock::now();
         treap_begin += std::chrono::duration<double, std::milli>(end - start).count();
 
-        insert_keys(crtp_avl_tree, LARGE_SIZE);
+        insert_keys(treap, LARGE_SIZE);
         start = std::chrono::high_resolution_clock::now();
-        crtp_right_tree = crtp_avl_tree->split(LARGE_SIZE / 2);
+        crtp_right_tree = treap->split(LARGE_SIZE / 2);
         end = std::chrono::high_resolution_clock::now();
         treap_middle += std::chrono::duration<double, std::milli>(end - start).count();
 
-        insert_keys(crtp_avl_tree, LARGE_SIZE);
+        insert_keys(treap, LARGE_SIZE);
         start = std::chrono::high_resolution_clock::now();
-        crtp_right_tree = crtp_avl_tree->split(LARGE_SIZE * 3 / 4);
+        crtp_right_tree = treap->split(LARGE_SIZE * 3 / 4);
         end = std::chrono::high_resolution_clock::now();
         treap_end += std::chrono::duration<double, std::milli>(end - start).count();
     }
@@ -1559,7 +1557,7 @@ TEST_CASE("Split/Merge Performance") {
     treap_end /= NUM_RUNS;
 
     std::cout << std::left << std::setw(12) << "Split Point" << std::setw(15) << "Tree"
-              << std::setw(15) << "AVLTree" << std::setw(15) << "AVLTree(CRTP)"
+              << std::setw(15) << "AVLTree" << std::setw(15) << "Treap"
               << "\n";
     std::cout << std::setw(12) << "Beginning" << std::setw(15) << format_time(tree_begin)
               << std::setw(15) << format_time(avl_begin) << std::setw(15)
@@ -1571,7 +1569,7 @@ TEST_CASE("Split/Merge Performance") {
               << format_time(avl_end) << std::setw(15) << format_time(treap_end) << "\n\n";
 }
 
-TEST_CASE("`Treap` basic operations") {
+TEST_CASE("(legacy) `Treap` basic operations") {
     auto treap = std::make_unique<Treap<int, std::string>>();
 
     SUBCASE("Empty treap operations") {
@@ -1632,7 +1630,7 @@ TEST_CASE("`Treap` basic operations") {
     }
 }
 
-TEST_CASE("`Treap` randomized stress test") {
+TEST_CASE("(legacy) `Treap` randomized stress test") {
     auto treap = std::make_unique<Treap<int, int>>();
     constexpr int N = 500;
     std::vector<int> keys(N);
@@ -1660,3 +1658,4 @@ TEST_CASE("`Treap` randomized stress test") {
     }
             */
 }
+}  // namespace legacy

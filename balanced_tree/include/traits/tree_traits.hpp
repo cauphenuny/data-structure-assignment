@@ -53,16 +53,16 @@ template <typename Node> struct Rotate {
 };
 
 template <typename Tree> struct Search {
-    auto find(auto& key) {
-        auto& self = *(static_cast<const Tree*>(this));
+    auto find(auto&& key) {
+        auto&& self = *(static_cast<const Tree*>(this));
         return self.root ? self.root->find(key) : nullptr;
     }
     auto min() {
-        auto& self = *(static_cast<Tree*>(this));
+        auto&& self = *(static_cast<Tree*>(this));
         return self.root ? self.root->findMin() : nullptr;
     }
     auto max() {
-        auto& self = *(static_cast<Tree*>(this));
+        auto&& self = *(static_cast<Tree*>(this));
         return self.root ? self.root->findMax() : nullptr;
     }
 };
@@ -84,7 +84,7 @@ template <typename Tree> struct Detach {
 };
 
 template <typename Tree> struct Box {
-    auto findBox(auto& node, auto& key) {
+    auto findBox(auto&& node, auto&& key) {
         auto find = [&key](
                         auto& self, auto parent,
                         auto& node) -> std::tuple<decltype(parent), decltype(node)> {
@@ -179,6 +179,7 @@ template <typename Tree> struct Merge {
         if (this_min <= other_max && other_min <= this_max) {
             return self.mixin(std::move(other));
         } else {
+            if (this_min > other_max) std::swap(self.root, other->root);
             return self.join(std::move(other));
         }
     }
