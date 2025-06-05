@@ -4,45 +4,50 @@
 #include "tree_traits.hpp"
 #include "util.hpp"
 
+#include <cassert>
 #include <string>
 
 namespace crtp {
 
-namespace _avl_impl {
-template <typename K, typename V> struct AVLTree;
-}
+// ============================== Definition ================================
+
+template <typename K, typename V> struct AVLTreeImpl;
 
 template <typename K, typename V> struct AVLTree : Tree<K, V> {
     auto size() const -> size_t override { return tree->size(); }
     void clear() override { tree->clear(); }
-    void print() const override { tree->printCLI(); }
+    void print() const override { tree->print(); }
     void printCLI() const override { tree->printCLI(); }
     auto stringify() const -> std::string override { return tree->stringify(); }
-    auto insert(const K& key, const V& value) -> Status override {
-        return tree->insert(key, value);
-    }
-    auto remove(const K& key) -> Status override { return tree->remove(key); }
-    auto find(const K& key) -> typename Tree<K, V>::PairType* override { return tree->find(key); }
-    auto min() -> typename Tree<K, V>::PairType* override { return tree->min(); }
-    auto max() -> typename Tree<K, V>::PairType* override { return tree->max(); }
-    auto split(const K& key) -> std::unique_ptr<Tree<K, V>> override {
-        auto split_tree = tree->split(key);
+    auto insert(const K& k, const V& v) -> Status override { return tree->insert(k, v); }
+    auto remove(const K& k) -> Status override { return tree->remove(k); }
+    auto find(const K& k) -> Pair<const K, V>* override { return tree->find(k); }
+    auto min() -> Pair<const K, V>* override { return tree->min(); }
+    auto max() -> Pair<const K, V>* override { return tree->max(); }
+    auto split(const K& k) -> std::unique_ptr<Tree<K, V>> override {
+        auto split_tree = tree->split(k);
         return std::make_unique<AVLTree>(std::move(split_tree));
+    }
+    auto merge(std::unique_ptr<Tree<K, V>> other) -> Status override {
+        if (auto avl_tree = dynamic_cast<AVLTree<K, V>*>(other.get())) {
+            return tree->merge(std::move(avl_tree->tree));
+        }
+        return Status::FAILED;
     }
     auto join(std::unique_ptr<Tree<K, V>> other) -> Status override {
         if (auto avl_tree = dynamic_cast<AVLTree<K, V>*>(other.get())) {
             return tree->join(std::move(avl_tree->tree));
         }
-        return Status::FAILED;  // cannot join with non-AVL tree
+        return Status::FAILED;
     }
-    AVLTree() : tree(std::make_unique<_avl_impl::AVLTree<K, V>>()) {}
-    AVLTree(std::unique_ptr<_avl_impl::AVLTree<K, V>> tree) : tree(std::move(tree)) {}
+    AVLTree() : tree(std::make_unique<AVLTreeImpl<K, V>>()) {}
+    AVLTree(std::unique_ptr<AVLTreeImpl<K, V>> tree) : tree(std::move(tree)) {}
 
 private:
-    std::unique_ptr<_avl_impl::AVLTree<K, V>> tree;
+    std::unique_ptr<AVLTreeImpl<K, V>> tree;
 };
 
-namespace _avl_impl {
+// ============================== Implementation ================================
 
 template <typename K, typename V>
 struct AVLNode : TypeTraits<K, V>,
@@ -54,7 +59,9 @@ struct AVLNode : TypeTraits<K, V>,
     std::unique_ptr<AVLNode<K, V>> lchild{nullptr}, rchild{nullptr};
 
     AVLNode(const K& k, const V& v, AVLNode* parent = nullptr)
-        : Pair<const K, V>(k, v), parent(parent) {}
+        : Pair<const K, V>(k, v), parent(parent) {
+        this->maintain();
+    }
 
     auto stringify() const -> std::string {
         return serializeClass(
@@ -64,23 +71,25 @@ struct AVLNode : TypeTraits<K, V>,
 };
 
 template <typename K, typename V>
-struct AVLTree : TypeTraits<K, V>,
-                 tree_trait::Search<AVLTree<K, V>>,
-                 tree_trait::Clear<AVLTree<K, V>>,
-                 tree_trait::Size<AVLTree<K, V>>,
-                 tree_trait::Height<AVLTree<K, V>>,
-                 tree_trait::PrintCLI<AVLTree<K, V>>,
-                 private tree_trait::Box<AVLTree<K, V>>,
-                 private tree_trait::Maintain<AVLNode<K, V>>,
-                 private tree_trait::Rotate<AVLNode<K, V>>,
-                 private tree_trait::Detach<AVLTree<K, V>> {
-    friend struct tree_trait::Box<AVLTree<K, V>>;
-    friend struct tree_trait::Detach<AVLTree<K, V>>;
+struct AVLTreeImpl : TypeTraits<K, V>,
+                     tree_trait::Search<AVLTreeImpl<K, V>>,
+                     tree_trait::Clear<AVLTreeImpl<K, V>>,
+                     tree_trait::Size<AVLTreeImpl<K, V>>,
+                     tree_trait::Height<AVLTreeImpl<K, V>>,
+                     tree_trait::Print<AVLTreeImpl<K, V>>,
+                     tree_trait::Traverse<AVLTreeImpl<K, V>>,
+                     tree_trait::Merge<AVLTreeImpl<K, V>>,
+                     private tree_trait::Box<AVLTreeImpl<K, V>>,
+                     private tree_trait::Maintain<AVLNode<K, V>>,
+                     private tree_trait::Rotate<AVLNode<K, V>>,
+                     private tree_trait::Detach<AVLTreeImpl<K, V>> {
+    friend struct tree_trait::Box<AVLTreeImpl<K, V>>;
+    friend struct tree_trait::Detach<AVLTreeImpl<K, V>>;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
 
-    AVLTree() = default;
-    AVLTree(std::unique_ptr<AVLNode<K, V>> root) : root(std::move(root)) {
+    AVLTreeImpl() = default;
+    AVLTreeImpl(std::unique_ptr<AVLNode<K, V>> root) : root(std::move(root)) {
         if (this->root) this->root->parent = nullptr;
     }
 
@@ -140,12 +149,12 @@ struct AVLTree : TypeTraits<K, V>,
         return Status::SUCCESS;
     }
 
-    std::unique_ptr<AVLTree<K, V>> split(const K& key) {
+    std::unique_ptr<AVLTreeImpl<K, V>> split(const K& key) {
         auto tree = [](std::unique_ptr<AVLNode<K, V>> node) {
-            return std::make_unique<AVLTree<K, V>>(std::move(node));
+            return std::make_unique<AVLTreeImpl<K, V>>(std::move(node));
         };
         auto divide = [&](auto self, std::unique_ptr<AVLNode<K, V>> node)
-            -> std::tuple<std::unique_ptr<AVLTree<K, V>>, std::unique_ptr<AVLTree<K, V>>> {
+            -> std::tuple<std::unique_ptr<AVLTreeImpl<K, V>>, std::unique_ptr<AVLTreeImpl<K, V>>> {
             if (!node) return {tree(nullptr), tree(nullptr)};
             auto [lchild, rchild] = node->unbind();
             if (key <= node->key) {
@@ -164,7 +173,7 @@ struct AVLTree : TypeTraits<K, V>,
         return std::move(right);
     }
 
-    Status join(std::unique_ptr<AVLNode<K, V>> mid, std::unique_ptr<AVLTree> right) {
+    Status join(std::unique_ptr<AVLNode<K, V>> mid, std::unique_ptr<AVLTreeImpl> right) {
         auto find = [](auto self, bool is_right, int height, AVLNode<K, V>* parent,
                        std::unique_ptr<AVLNode<K, V>>& node)
             -> std::tuple<AVLNode<K, V>*, std::unique_ptr<AVLNode<K, V>>&> {
@@ -194,7 +203,7 @@ struct AVLTree : TypeTraits<K, V>,
         return Status::SUCCESS;
     }
 
-    Status join(std::unique_ptr<AVLTree> other) {
+    Status join(std::unique_ptr<AVLTreeImpl> other) {
         if (!other) return Status::FAILED;
         if (!other->root || !this->root) {
             this->root = std::move(other->root ? other->root : this->root);
@@ -204,7 +213,7 @@ struct AVLTree : TypeTraits<K, V>,
             auto mid = other->detach(other->minBox(other->root));
             this->join(std::move(mid), std::move(other));
         } else {
-            auto mid = this->detach(this->minBox(this->root));
+            auto mid = this->detach(this->maxBox(this->root));
             this->join(std::move(mid), std::move(other));
         }
         return Status::SUCCESS;
@@ -212,6 +221,5 @@ struct AVLTree : TypeTraits<K, V>,
 
     auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 };
-}  // namespace _avl_impl
 
 }  // namespace crtp

@@ -82,6 +82,22 @@ template <typename Node> struct Size {
     }
 };
 
+template <typename Node, typename Key> struct MinMax {
+    Key min_key, max_key;
+    void _maintain() {
+        auto& self = *(static_cast<Node*>(this));
+        min_key = self.key, max_key = self.key;
+        if (self.lchild) {
+            min_key = std::min(min_key, self.lchild->min_key);
+            max_key = std::max(max_key, self.lchild->max_key);
+        }
+        if (self.rchild) {
+            min_key = std::min(min_key, self.rchild->min_key);
+            max_key = std::max(max_key, self.rchild->max_key);
+        }
+    }
+};
+
 template <typename Node> struct Search {
     auto find(auto& key) {
         auto node = static_cast<Node*>(this);
@@ -94,12 +110,12 @@ template <typename Node> struct Search {
         }
         return static_cast<Node::PairType*>(node);
     }
-    auto min() {
+    auto findMin() {
         auto node = static_cast<Node*>(this);
         while (node && node->lchild) node = node->lchild.get();
         return static_cast<Node::PairType*>(node);
     }
-    auto max() {
+    auto findMax() {
         auto node = static_cast<Node*>(this);
         while (node && node->rchild) node = node->rchild.get();
         return static_cast<Node::PairType*>(node);

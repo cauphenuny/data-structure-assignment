@@ -1,5 +1,7 @@
 #pragma once
 
+#include "util.hpp"
+
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -14,22 +16,6 @@ template <typename Node> struct Maintain {
             node->maintain();
             node = node->parent;
         }
-    }
-};
-
-template <typename Tree> struct Detach {
-    template <typename Node> auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
-        if (node->lchild && node->rchild) return nullptr;
-        auto parent = node->parent;
-        if (node->lchild) node->lchild->parent = parent;
-        if (node->rchild) node->rchild->parent = parent;
-        auto raw = node.release();
-        if (!raw->lchild)
-            node = std::move(raw->rchild);
-        else
-            node = std::move(raw->lchild);
-        Tree::maintain(parent);
-        return std::move(node);
     }
 };
 
@@ -73,11 +59,27 @@ template <typename Tree> struct Search {
     }
     auto min() {
         auto& self = *(static_cast<Tree*>(this));
-        return self.root ? self.root->min() : nullptr;
+        return self.root ? self.root->findMin() : nullptr;
     }
     auto max() {
         auto& self = *(static_cast<Tree*>(this));
-        return self.root ? self.root->max() : nullptr;
+        return self.root ? self.root->findMax() : nullptr;
+    }
+};
+
+template <typename Tree> struct Detach {
+    template <typename Node> auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
+        if (node->lchild && node->rchild) return nullptr;
+        auto parent = node->parent;
+        if (node->lchild) node->lchild->parent = parent;
+        if (node->rchild) node->rchild->parent = parent;
+        auto raw = node.release();
+        if (!raw->lchild)
+            node = std::move(raw->rchild);
+        else
+            node = std::move(raw->lchild);
+        Tree::maintain(parent);
+        return std::unique_ptr<Node>(raw);
     }
 };
 
@@ -138,7 +140,58 @@ template <typename Tree> struct Height {
     }
 };
 
-template <typename Tree> struct PrintCLI {
+template <typename Tree> struct Traverse {
+    void traverse(auto&& func) {
+        auto& self = *(static_cast<Tree*>(this));
+        traverse(self.root, func);
+    }
+
+private:
+    void traverse(auto& node, auto&& func) {
+        if (!node) return;
+        traverse(node->lchild, func);
+        func(node);
+        traverse(node->rchild, func);
+    }
+};
+
+template <typename Tree> struct Merge {
+    Status merge(std::unique_ptr<Tree> other) {
+        if (!other) return Status::FAILED;
+        if (!other->root) return Status::SUCCESS;
+        auto& self = *(static_cast<Tree*>(this));
+        if (!self.root) {
+            self.root = std::move(other->root);
+            return Status::SUCCESS;
+        }
+        typename Tree::KeyType this_min, this_max, other_min, other_max;
+        if constexpr (requires { self.root->min_key, self.root->max_key; }) {
+            this_min = self.root->min_key;
+            this_max = self.root->max_key;
+            other_min = other->root->min_key;
+            other_max = other->root->max_key;
+        } else {
+            this_min = self.min()->key;
+            this_max = self.max()->key;
+            other_min = other->min()->key;
+            other_max = other->max()->key;
+        }
+        if (this_min <= other_max && other_min <= this_max) {
+            return self.mixin(std::move(other));
+        } else {
+            return self.join(std::move(other));
+        }
+    }
+
+private:
+    Status mixin(std::unique_ptr<Tree> other) {
+        auto& self = *(static_cast<Tree*>(this));
+        other->traverse([&self](auto& node) { self.insert(node->key, node->value); });
+        return Status::SUCCESS;
+    }
+};
+
+template <typename Tree> struct Print {
     void printCLI() const {
         auto& self = *(static_cast<const Tree*>(this));
         if (!self.root) {
@@ -153,5 +206,10 @@ template <typename Tree> struct PrintCLI {
         };
         print_node(print_node, self.root.get(), 0);
     }
+    void print() const {
+        // auto& self = *(static_cast<const Tree*>(this));
+        // TODO:
+    }
 };
+
 }  // namespace tree_trait

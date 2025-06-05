@@ -45,7 +45,7 @@ inline void benchmark() {
     // Measure std::map insertion time
     start = std::chrono::high_resolution_clock::now();
     for (int key : keys) {
-        std_map[key] = key;
+        std_map.insert({key, key});
     }
     end = std::chrono::high_resolution_clock::now();
     auto std_insert_time = std::chrono::duration<double, std::milli>(end - start).count();
@@ -88,18 +88,29 @@ inline void benchmark() {
 
     // Use middle value as split point
     int split_point = N / 2;
+    const int split_times = 1000;
 
     // Measure traditional AVLTree split time
-    start = std::chrono::high_resolution_clock::now();
-    auto old_split_result = old_tree_split->split(split_point);
-    end = std::chrono::high_resolution_clock::now();
-    auto old_split_time = std::chrono::duration<double, std::micro>(end - start).count();
+    double old_split_time = 0;
+    for (int i = -split_times / 2; i < split_times / 2; i++) {
+        start = std::chrono::high_resolution_clock::now();
+        auto old_split_result = old_tree_split->split(split_point + i);
+        old_tree->merge(std::move(old_split_result));
+        end = std::chrono::high_resolution_clock::now();
+        old_split_time +=
+            std::chrono::duration<double, std::micro>(end - start).count() / split_times;
+    }
 
     // Measure CRTP AVLTree split time
-    start = std::chrono::high_resolution_clock::now();
-    auto new_split_result = new_tree_split->split(split_point);
-    end = std::chrono::high_resolution_clock::now();
-    auto new_split_time = std::chrono::duration<double, std::micro>(end - start).count();
+    double new_split_time = 0;
+    for (int i = -split_times / 2; i < split_times / 2; i++) {
+        start = std::chrono::high_resolution_clock::now();
+        auto new_split_result = new_tree_split->split(split_point + i);
+        new_tree->merge(std::move(new_split_result));
+        end = std::chrono::high_resolution_clock::now();
+        new_split_time +=
+            std::chrono::duration<double, std::micro>(end - start).count() / split_times;
+    }
 
     // Measure std::map split simulation time (using lower_bound and extract)
     start = std::chrono::high_resolution_clock::now();
