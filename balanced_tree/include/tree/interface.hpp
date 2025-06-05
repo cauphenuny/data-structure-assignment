@@ -54,7 +54,7 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     // NOTE: no unified split/join/merge interface
     // example:
     // auto avl = make_unique<AVLTree<int, std::string>>(); // retains original type AVLTree
-    // avl.insert(...);
+    // avl->insert(...);
     // auto splited = avl->split(10); // returns
     // avl->join(std::move(splited)); // joins the splited tree back
 

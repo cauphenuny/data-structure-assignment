@@ -1,6 +1,7 @@
 #pragma once
 
 #include "tree/interface.hpp"
+#include "util.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -11,35 +12,44 @@ template <typename K, typename V> struct TypeTraits {
     using KeyType = K;
     using ValueType = V;
     using PairType = Pair<const K, V>;
-    enum Dir { L, R };
 };
 
 template <typename Node> struct Link {
     Node* parent{nullptr};
-    std::unique_ptr<Node> lchild{nullptr}, rchild{nullptr};
+    std::unique_ptr<Node> child[2]{nullptr, nullptr};
     Link(Node* parent = nullptr) : parent(parent) {}
 
-    void bind(int direction, std::unique_ptr<Node> node) {
+    auto& lchild() { return child[L]; }
+    auto& rchild() { return child[R]; }
+
+    void bind(size_t which, std::unique_ptr<Node> node) {
         auto& self = *(static_cast<Node*>(this));
-        auto& child = (direction == Node::R) ? self.rchild : self.lchild;
+        auto& child = self.child[which];
         child = std::move(node);
         if (child) child->parent = &self;
     }
-    auto unbind(int direction) -> std::unique_ptr<Node> {
+    auto unbind(size_t which) -> std::unique_ptr<Node> {
         auto& self = *(static_cast<Node*>(this));
-        auto child = std::move(direction == Node::R ? self.rchild : self.lchild);
+        auto child = std::move(self.child[which]);
         if (child) child->parent = nullptr;
         self.maintain();
         return child;
     }
     auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
         auto& self = *(static_cast<Node*>(this));
-        auto l = std::move(self.lchild);
-        auto r = std::move(self.rchild);
+        auto l = std::move(self.child[L]);
+        auto r = std::move(self.child[R]);
         if (l) l->parent = nullptr;
         if (r) r->parent = nullptr;
         self.maintain();
         return {std::move(l), std::move(r)};
+    }
+    auto which() const -> int {
+        auto& self = *(static_cast<const Node*>(this));
+        if (self.parent) {
+            return self.parent->child[L].get() == &self ? L : R;
+        }
+        return -1;
     }
 };
 
@@ -51,14 +61,14 @@ template <typename Node> struct Height {
     int height{1};
     int balanceFactor() {
         auto& self = *(static_cast<Node*>(this));
-        auto l = self.lchild ? self.lchild->height : 0;
-        auto r = self.rchild ? self.rchild->height : 0;
+        auto l = self.child[L] ? self.child[L]->height : 0;
+        auto r = self.child[R] ? self.child[R]->height : 0;
         return l - r;
     }
     void _maintain() {
         auto& self = *(static_cast<Node*>(this));
-        auto l = self.lchild ? self.lchild->height : 0;
-        auto r = self.rchild ? self.rchild->height : 0;
+        auto l = self.child[L] ? self.child[L]->height : 0;
+        auto r = self.child[R] ? self.child[R]->height : 0;
         self.height = 1 + std::max(l, r);
     }
 };
@@ -67,8 +77,8 @@ template <typename Node> struct Size {
     int size{1};
     void _maintain() {
         auto& self = *(static_cast<Node*>(this));
-        auto l = self.lchild ? self.lchild->size : 0;
-        auto r = self.rchild ? self.rchild->size : 0;
+        auto l = self.child[L] ? self.child[L]->size : 0;
+        auto r = self.child[R] ? self.child[R]->size : 0;
         self.size = 1 + l + r;
     }
 };
@@ -78,13 +88,13 @@ template <typename Node, typename Key> struct MinMax {
     void _maintain() {
         auto& self = *(static_cast<Node*>(this));
         min_key = self.key, max_key = self.key;
-        if (self.lchild) {
-            min_key = std::min(min_key, self.lchild->min_key);
-            max_key = std::max(max_key, self.lchild->max_key);
+        if (self.child[L]) {
+            min_key = std::min(min_key, self.child[L]->min_key);
+            max_key = std::max(max_key, self.child[L]->max_key);
         }
-        if (self.rchild) {
-            min_key = std::min(min_key, self.rchild->min_key);
-            max_key = std::max(max_key, self.rchild->max_key);
+        if (self.child[R]) {
+            min_key = std::min(min_key, self.child[R]->min_key);
+            max_key = std::max(max_key, self.child[R]->max_key);
         }
     }
 };
@@ -95,20 +105,20 @@ template <typename Node> struct Search {
         while (node) {
             if (key == node->key) break;
             if (key < node->key)
-                node = node->lchild.get();
+                node = node->child[L].get();
             else
-                node = node->rchild.get();
+                node = node->child[R].get();
         }
         return static_cast<Node::PairType*>(node);
     }
     auto findMin() {
         auto node = static_cast<Node*>(this);
-        while (node && node->lchild) node = node->lchild.get();
+        while (node && node->child[L]) node = node->child[L].get();
         return static_cast<Node::PairType*>(node);
     }
     auto findMax() {
         auto node = static_cast<Node*>(this);
-        while (node && node->rchild) node = node->rchild.get();
+        while (node && node->child[R]) node = node->child[R].get();
         return static_cast<Node::PairType*>(node);
     }
 };

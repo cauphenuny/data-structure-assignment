@@ -27,12 +27,14 @@ struct BasicNode : Pair<const K, V>,
                    trait::Search<BasicNode<K, V>> {
 
     BasicNode(const K& k, const V& v, BasicNode* parent = nullptr)
-        : Pair<const K, V>(k, v), trait::Link<BasicNode<K, V>>(parent) {}
+        : Pair<const K, V>(k, v), trait::Link<BasicNode<K, V>>(parent) {
+        this->maintain();
+    }
 
     auto stringify() const -> std::string {
         return serializeClass(
-            "BasicNode", this->key, this->value, this, this->size, this->parent, this->lchild,
-            this->rchild);
+            "BasicNode", this->key, this->value, this, this->size, this->parent, this->child[L],
+            this->child[R]);
     }
 };
 
@@ -53,7 +55,6 @@ struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
     friend struct tree_trait::Detach<BasicTreeImpl<K, V>>;
     friend struct tree_trait::Subscript<BasicTreeImpl<K, V>>;
     friend struct Test;
-    using Dir = tree_trait::TypeTraits<BasicNode<K, V>>::Dir;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
     BasicTreeImpl() = default;
@@ -72,14 +73,14 @@ struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
     auto remove(const K& key) -> Status {
         auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
-        if (!node->lchild || !node->rchild) {
+        if (!node->child[L] || !node->child[R]) {
             this->detach(node);
             this->maintain(parent);
             return Status::SUCCESS;
         }
-        auto detached = this->detach(this->maxBox(node->lchild));
-        detached->bind(Dir::L, std::move(node->lchild));
-        detached->bind(Dir::R, std::move(node->rchild));
+        auto detached = this->detach(this->maxBox(node->child[L]));
+        detached->bind(L, std::move(node->child[L]));
+        detached->bind(R, std::move(node->child[R]));
         node = std::move(detached);
         node->parent = parent;
         this->maintain(node.get());
@@ -93,15 +94,15 @@ struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
             if (key <= node->key) {
                 auto [lchild, rchild] = node->unbind();
                 auto [lchild_l, lchild_r] = self(self, std::move(lchild));
-                node->bind(Dir::L, std::move(lchild_r));
-                node->bind(Dir::R, std::move(rchild));
+                node->bind(L, std::move(lchild_r));
+                node->bind(R, std::move(rchild));
                 node->maintain();
                 return {std::move(lchild_l), std::move(node)};
             } else {
                 auto [lchild, rchild] = node->unbind();
                 auto [rchild_l, rchild_r] = self(self, std::move(rchild));
-                node->bind(Dir::L, std::move(lchild));
-                node->bind(Dir::R, std::move(rchild_l));
+                node->bind(L, std::move(lchild));
+                node->bind(R, std::move(rchild_l));
                 node->maintain();
                 return {std::move(node), std::move(rchild_r)};
             }
@@ -118,7 +119,7 @@ struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
             return Status::SUCCESS;
         }
         auto& max_node = this->maxBox(this->root);
-        max_node->bind(Dir::R, std::move(other->root));
+        max_node->bind(R, std::move(other->root));
         this->maintain(max_node.get());
         return Status::SUCCESS;
     }

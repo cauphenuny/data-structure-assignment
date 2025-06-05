@@ -12,8 +12,8 @@ struct Test {  // extract private/protected members from class
         if (!result) {
             debug(node);
         }
-        result = result && traverse(node->lchild, func);
-        result = result && traverse(node->rchild, func);
+        result = result && traverse(node->child[L], func);
+        result = result && traverse(node->child[R], func);
         return result;
     }
 
@@ -21,9 +21,9 @@ struct Test {  // extract private/protected members from class
         std::vector<std::decay_t<decltype(node->key)>> ret;
         auto dfs = [&ret](auto self, auto& node) {
             if (!node) return;
-            self(self, node->lchild);
+            self(self, node->child[L]);
             ret.push_back(node->key);
-            self(self, node->rchild);
+            self(self, node->child[R]);
         };
         dfs(dfs, node);
         for (int i = 0; i < (int)ret.size() - 1; i++) {
@@ -37,23 +37,23 @@ struct Test {  // extract private/protected members from class
     }
 
     constexpr static auto check_size = [](auto& node) {
-        return node->size == 1 + (node->lchild ? node->lchild->size : 0) +
-                                 (node->rchild ? node->rchild->size : 0);
+        return node->size == 1 + (node->child[L] ? node->child[L]->size : 0) +
+                                 (node->child[R] ? node->child[R]->size : 0);
     };
 
     constexpr static auto check_parent = [](auto& node) {
-        if (node->lchild) {
-            if (node->lchild->parent != node.get()) return false;
+        if (node->child[L]) {
+            if (node->child[L]->parent != node.get()) return false;
         }
-        if (node->rchild) {
-            if (node->rchild->parent != node.get()) return false;
+        if (node->child[R]) {
+            if (node->child[R]->parent != node.get()) return false;
         }
         return true;
     };
 
     constexpr static auto check_height = [](auto& node) {
-        int left_height = node->lchild ? node->lchild->height : 0;
-        int right_height = node->rchild ? node->rchild->height : 0;
+        int left_height = node->child[L] ? node->child[L]->height : 0;
+        int right_height = node->child[R] ? node->child[R]->height : 0;
         return node->height == std::max(left_height, right_height) + 1;
     };
 
@@ -219,7 +219,7 @@ TEST_CASE("`Tree` removal, split, merge") {
     }
 }
 
-TEST_CASE("(legacy) `Tree` removal, split, merge") {
+TEST_CASE("`Tree` removal, split, merge") {
     auto tree = std::make_unique<BasicTreeImpl<int, std::string>>();
     // Setup tree
     tree->insert(50, "fifty");
@@ -304,7 +304,7 @@ TEST_CASE("(legacy) `Tree` removal, split, merge") {
     }
 }
 
-TEST_CASE("(legacy) `AVLTree` insertion") {
+TEST_CASE("`AVLTree` insertion") {
     auto tree = std::make_unique<AVLTreeImpl<int, std::string>>();
 
     SUBCASE("Empty tree operations") {
@@ -338,8 +338,8 @@ TEST_CASE("(legacy) `AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(Test::findNode(tree, 20) == tree->root);
-        CHECK(Test::findNode(tree, 10) == tree->root->lchild);
-        CHECK(Test::findNode(tree, 30) == tree->root->rchild);
+        CHECK(Test::findNode(tree, 10) == tree->root->child[L]);
+        CHECK(Test::findNode(tree, 30) == tree->root->child[R]);
 
         // Check balance factors
         CHECK(tree->root->balanceFactor() == 0);
@@ -354,8 +354,8 @@ TEST_CASE("(legacy) `AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(Test::findNode(tree, 20) == tree->root);
-        CHECK(Test::findNode(tree, 10) == tree->root->lchild);
-        CHECK(Test::findNode(tree, 30) == tree->root->rchild);
+        CHECK(Test::findNode(tree, 10) == tree->root->child[L]);
+        CHECK(Test::findNode(tree, 30) == tree->root->child[R]);
 
         // Check balance factors
         CHECK(tree->root->balanceFactor() == 0);
@@ -370,8 +370,8 @@ TEST_CASE("(legacy) `AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(Test::findNode(tree, 20) == tree->root);
-        CHECK(Test::findNode(tree, 10) == tree->root->lchild);
-        CHECK(Test::findNode(tree, 30) == tree->root->rchild);
+        CHECK(Test::findNode(tree, 10) == tree->root->child[L]);
+        CHECK(Test::findNode(tree, 30) == tree->root->child[R]);
 
         // Check balance factors
         CHECK(tree->root->balanceFactor() == 0);
@@ -386,8 +386,8 @@ TEST_CASE("(legacy) `AVLTree` insertion") {
 
         // Verify rotation occurred
         CHECK(Test::findNode(tree, 20) == tree->root);
-        CHECK(Test::findNode(tree, 10) == tree->root->lchild);
-        CHECK(Test::findNode(tree, 30) == tree->root->rchild);
+        CHECK(Test::findNode(tree, 10) == tree->root->child[L]);
+        CHECK(Test::findNode(tree, 30) == tree->root->child[R]);
 
         // Check balance factors
         CHECK(tree->root->balanceFactor() == 0);
