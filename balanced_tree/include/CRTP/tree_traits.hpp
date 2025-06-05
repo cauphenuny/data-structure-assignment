@@ -191,6 +191,21 @@ private:
     }
 };
 
+template <typename Tree> struct Subscript {
+    const auto& operator[](auto&& key) const {
+        auto& self = *(static_cast<const Tree*>(this));
+        auto node = self.find(key);
+        if (!node) throw std::out_of_range("Key not found in the tree.");
+        return node->value;
+    }
+    auto& operator[](auto&& key) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto [parent, node] = self.findBox(self.root, key);
+        if (!node) self.insert(key, typename Tree::ValueType{});
+        return node->value;
+    }
+};
+
 template <typename Tree> struct Print {
     void printCLI() const {
         auto& self = *(static_cast<const Tree*>(this));

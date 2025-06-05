@@ -17,59 +17,24 @@ namespace crtp {  // test
 
 template <typename K, typename V> struct BasicTreeImpl;
 
-template <typename K, typename V> struct BasicTree : Tree<K, V> {
-    auto size() const -> size_t override { return tree->size(); }
-    void clear() override { tree->clear(); }
-    void print() const override { tree->print(); }
-    void printCLI() const override { tree->printCLI(); }
-    auto stringify() const -> std::string override { return tree->stringify(); }
-    auto insert(const K& key, const V& value) -> Status override {
-        return tree->insert(key, value);
-    }
-    auto remove(const K& key) -> Status override { return tree->remove(key); }
-    auto find(const K& key) -> Pair<const K, V>* override { return tree->find(key); }
-    auto min() -> Pair<const K, V>* override { return tree->min(); }
-    auto max() -> Pair<const K, V>* override { return tree->max(); }
-    auto split(const K& key) -> std::unique_ptr<Tree<K, V>> override {
-        auto split_tree = tree->split(key);
-        return std::make_unique<BasicTree>(std::move(split_tree));
-    }
-    auto join(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto basic_tree = dynamic_cast<BasicTree<K, V>*>(other.get())) {
-            return tree->join(std::move(basic_tree->tree));
-        }
-        return Status::FAILED;  // cannot join with non-Basic tree
-    }
-    auto merge(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto basic_tree = dynamic_cast<BasicTree<K, V>*>(other.get())) {
-            return tree->merge(std::move(basic_tree->tree));
-        }
-        return Status::FAILED;  // cannot merge with non-Basic tree
-    }
-    BasicTree() : tree(std::make_unique<BasicTreeImpl<K, V>>()) {}
-    BasicTree(std::unique_ptr<BasicTreeImpl<K, V>> tree) : tree(std::move(tree)) {}
-
-private:
-    std::unique_ptr<BasicTreeImpl<K, V>> tree;
-};
+template <typename K, typename V> using BasicTree = TreeImpl<K, V, BasicTreeImpl<K, V>>;
 
 // ============================== Implementation ================================
 
 template <typename K, typename V>
 struct BasicNode : TypeTraits<K, V>,
                    Pair<const K, V>,
-                   trait::Edit<BasicNode<K, V>>,
+                   trait::Link<BasicNode<K, V>>,
                    trait::Maintain<trait::Size<BasicNode<K, V>>>,
                    trait::Search<BasicNode<K, V>> {
-    BasicNode* parent{nullptr};
-    std::unique_ptr<BasicNode<K, V>> lchild{nullptr}, rchild{nullptr};
 
     BasicNode(const K& k, const V& v, BasicNode* parent = nullptr)
-        : Pair<const K, V>(k, v), parent(parent) {}
+        : Pair<const K, V>(k, v), trait::Link<BasicNode<K, V>>(parent) {}
 
     auto stringify() const -> std::string {
         return serializeClass(
-            "BasicNode", this->key, this->value, this, this->size, this->parent, lchild, rchild);
+            "BasicNode", this->key, this->value, this, this->size, this->parent, this->lchild,
+            this->rchild);
     }
 };
 
@@ -85,6 +50,7 @@ struct BasicTreeImpl : TypeTraits<K, V>,
                        private tree_trait::Maintain<BasicNode<K, V>>,
                        private tree_trait::Detach<BasicTreeImpl<K, V>> {
     friend struct tree_trait::Box<BasicTreeImpl<K, V>>;
+    friend struct tree_trait::Subscript<BasicTreeImpl<K, V>>;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
 

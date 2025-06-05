@@ -16,7 +16,11 @@ template <typename K, typename V> struct TypeTraits {
 
 namespace trait {
 
-template <typename Node> struct Edit {
+template <typename Node> struct Link {
+    Node* parent{nullptr};
+    std::unique_ptr<Node> lchild{nullptr}, rchild{nullptr};
+    Link(Node* parent = nullptr) : parent(parent) {}
+
     void bindL(std::unique_ptr<Node> node) {
         auto& self = *(static_cast<Node*>(this));
         self.lchild = std::move(node);

@@ -13,60 +13,26 @@ namespace crtp {
 
 template <typename K, typename V> struct AVLTreeImpl;
 
-template <typename K, typename V> struct AVLTree : Tree<K, V> {
-    auto size() const -> size_t override { return tree->size(); }
-    void clear() override { tree->clear(); }
-    void print() const override { tree->print(); }
-    void printCLI() const override { tree->printCLI(); }
-    auto stringify() const -> std::string override { return tree->stringify(); }
-    auto insert(const K& k, const V& v) -> Status override { return tree->insert(k, v); }
-    auto remove(const K& k) -> Status override { return tree->remove(k); }
-    auto find(const K& k) -> Pair<const K, V>* override { return tree->find(k); }
-    auto min() -> Pair<const K, V>* override { return tree->min(); }
-    auto max() -> Pair<const K, V>* override { return tree->max(); }
-    auto split(const K& k) -> std::unique_ptr<Tree<K, V>> override {
-        auto split_tree = tree->split(k);
-        return std::make_unique<AVLTree>(std::move(split_tree));
-    }
-    auto merge(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto avl_tree = dynamic_cast<AVLTree<K, V>*>(other.get())) {
-            return tree->merge(std::move(avl_tree->tree));
-        }
-        return Status::FAILED;
-    }
-    auto join(std::unique_ptr<Tree<K, V>> other) -> Status override {
-        if (auto avl_tree = dynamic_cast<AVLTree<K, V>*>(other.get())) {
-            return tree->join(std::move(avl_tree->tree));
-        }
-        return Status::FAILED;
-    }
-    AVLTree() : tree(std::make_unique<AVLTreeImpl<K, V>>()) {}
-    AVLTree(std::unique_ptr<AVLTreeImpl<K, V>> tree) : tree(std::move(tree)) {}
-
-private:
-    std::unique_ptr<AVLTreeImpl<K, V>> tree;
-};
+template <typename K, typename V> using AVLTree = TreeImpl<K, V, AVLTreeImpl<K, V>>;
 
 // ============================== Implementation ================================
 
 template <typename K, typename V>
 struct AVLNode : TypeTraits<K, V>,
                  Pair<const K, V>,
-                 trait::Edit<AVLNode<K, V>>,
+                 trait::Link<AVLNode<K, V>>,
                  trait::Maintain<trait::Size<AVLNode<K, V>>, trait::Height<AVLNode<K, V>>>,
                  trait::Search<AVLNode<K, V>> {
-    AVLNode* parent{nullptr};
-    std::unique_ptr<AVLNode<K, V>> lchild{nullptr}, rchild{nullptr};
 
     AVLNode(const K& k, const V& v, AVLNode* parent = nullptr)
-        : Pair<const K, V>(k, v), parent(parent) {
+        : Pair<const K, V>(k, v), trait::Link<AVLNode<K, V>>(parent) {
         this->maintain();
     }
 
     auto stringify() const -> std::string {
         return serializeClass(
-            "AVLNode", this->key, this->value, this, this->height, this->size, this->parent, lchild,
-            rchild);
+            "AVLNode", this->key, this->value, this, this->height, this->size, this->parent,
+            this->lchild, this->rchild);
     }
 };
 
@@ -79,12 +45,14 @@ struct AVLTreeImpl : TypeTraits<K, V>,
                      tree_trait::Print<AVLTreeImpl<K, V>>,
                      tree_trait::Traverse<AVLTreeImpl<K, V>>,
                      tree_trait::Merge<AVLTreeImpl<K, V>>,
+                     tree_trait::Subscript<AVLTreeImpl<K, V>>,
                      private tree_trait::Box<AVLTreeImpl<K, V>>,
                      private tree_trait::Maintain<AVLNode<K, V>>,
                      private tree_trait::Rotate<AVLNode<K, V>>,
                      private tree_trait::Detach<AVLTreeImpl<K, V>> {
     friend struct tree_trait::Box<AVLTreeImpl<K, V>>;
     friend struct tree_trait::Detach<AVLTreeImpl<K, V>>;
+    friend struct tree_trait::Subscript<AVLTreeImpl<K, V>>;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
 
@@ -108,24 +76,26 @@ struct AVLTreeImpl : TypeTraits<K, V>,
                 this->rotateRL(node);
             }
         }
-        this->maintain(node.get());
+        // this->maintain(node.get());
         return prev != node->height;
     }
 
     void checkBalance(AVLNode<K, V>* node) {
         while (node) {
+            node->maintain();
             if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
-                if (!this->balance(this->box(node))) return;
+                if (!this->balance(this->box(node))) break;
             }
             node = node->parent;
         }
+        this->maintain(node);
     }
 
     Status insert(const K& key, const V& value) {
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // key already exists
         node = std::make_unique<AVLNode<K, V>>(key, value, parent);
-        this->maintain(parent);
+        // this->maintain(parent);
         this->checkBalance(parent);
         return Status::SUCCESS;
     }
@@ -135,7 +105,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
         if (!node) return Status::FAILED;
         if (!node->lchild || !node->rchild) {
             this->detach(node);
-            this->maintain(parent);
+            // this->maintain(parent);
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->lchild));
@@ -143,7 +113,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             detached->bindR(std::move(node->rchild));
             node = std::move(detached);
             node->parent = parent;
-            this->maintain(node.get());
+            // this->maintain(node.get());
             this->checkBalance(parent);
         }
         return Status::SUCCESS;
@@ -198,7 +168,7 @@ struct AVLTreeImpl : TypeTraits<K, V>,
             insert_pos = cut.get();
             this->root = std::move(right->root);
         }
-        this->maintain(insert_pos);
+        // this->maintain(insert_pos);
         this->checkBalance(insert_pos);
         return Status::SUCCESS;
     }
