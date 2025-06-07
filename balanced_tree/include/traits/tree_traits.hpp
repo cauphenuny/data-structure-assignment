@@ -5,7 +5,6 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
-#include <ostream>
 #include <tuple>
 
 namespace tree_trait {
@@ -28,9 +27,9 @@ template <typename Node> struct Maintain {
 
 template <typename Node> struct Rotate {
     static void rotate(int dir, std::unique_ptr<Node>& root) {
-        auto new_root = root->child[!dir].release();
+        auto new_root = root->child[dir ^ 1].release();
         if (new_root->child[dir]) {
-            root->bind(!dir, std::move(new_root->child[dir]));
+            root->bind(dir ^ 1, std::move(new_root->child[dir]));
         }
         new_root->parent = root->parent;
         new_root->bind(dir, std::move(root));
@@ -141,25 +140,25 @@ template <typename Tree> struct Height {
 template <typename Tree> struct Traverse {
     void traverse(auto&& func) {
         auto& root = static_cast<Tree*>(this)->root;
-        void_traverse(root, func);
+        voidTraverse(root, func);
     }
     auto traverse(auto&& func, auto&& reduction) {
         auto& root = static_cast<Tree*>(this)->root;
-        return typed_traverse(root, func, reduction);
+        return typedTraverse(root, func, reduction);
     }
 
 private:
-    void void_traverse(auto& node, auto&& func) {
+    void voidTraverse(auto& node, auto&& func) {
         if (!node) return;
-        void_traverse(node->child[L], func);
+        voidTraverse(node->child[L], func);
         func(node);
-        void_traverse(node->child[R], func);
+        voidTraverse(node->child[R], func);
     }
-    auto typed_traverse(auto& node, auto&& func, auto&& reduction) {
+    auto typedTraverse(auto& node, auto&& func, auto&& reduction) {
         if (!node) return;
-        auto ret = typed_traverse(node->child[L], func);
+        auto ret = typedTraverse(node->child[L], func);
         ret = reduction(ret, func(node));
-        ret = reduction(ret, typed_traverse(node->child[R], func));
+        ret = reduction(ret, typedTraverse(node->child[R], func));
         return ret;
     }
 };
@@ -230,7 +229,7 @@ template <typename Tree> struct Print {
     void printCLI() const {
         auto& self = *(static_cast<const Tree*>(this));
         if (!self.root) {
-            std::cout << "Tree is empty." << std::endl;
+            std::cout << "Tree is empty." << '\n';
             return;
         }
         auto print_node = [&](auto self, auto node, int depth) {

@@ -7,12 +7,13 @@
 #include "tree/avl.hpp"
 #include "tree/basic.hpp"
 #include "tree/interface.hpp"
+#include "tree/treap.hpp"
 
 #include <string>
 #include <vector>
 using namespace std;
 
-void polymorphism_demo() {
+void polymorphismDemo() {
     auto forest = vector<unique_ptr<TreeBase>>();
 
     auto tree0 = BasicTree<int, string>::create();
@@ -31,30 +32,33 @@ void polymorphism_demo() {
     debug(forest);
 }
 
-void algorithm_demo() {
-    auto tree = BasicTree<int, string>::create();
+void algorithmDemo() {
+    auto tree = BasicTree<int, int>::create();
 
     const int N = 16;
     vector<int> values(N);
     for (int i = 1; i < N; i++) values[i] = values[i - 1] + rand() % 20 + 1;
     sort(values.begin(), values.end());
-    for (int i = 1; i <= N; i++) {
-        tree->insert(values[i - 1], "inserted on #" + to_string(i));
-    }
-    debug(tree->size());
-    cout << "(basic)" << endl;
-    tree->printCLI();
+    auto insert = [&values](auto& tree) {
+        for (size_t i = 0; auto v : values) tree->insert(v, ++i);
+    };
 
-    tree = AVLTree<int, string>::create();
-    for (int i = 1; i <= N; i++) {
-        tree->insert(values[i - 1], "inserted on #" + to_string(i));
-    }
+    insert(tree);
     debug(tree->size());
-    cout << "(AVL)" << endl;
-    tree->printCLI();
+    cout << "(basic)" << '\n', tree->printCLI();
+
+    tree = Treap<int, int>::create();
+    insert(tree);
+    debug(tree->size());
+    cout << "(Treap)" << '\n', tree->printCLI();
+
+    tree = AVLTree<int, int>::create();
+    insert(tree);
+    debug(tree->size());
+    cout << "(AVL)" << '\n', tree->printCLI();
 }
 
-int run_test(int argc, char* argv[], bool run_perf) {
+int runTest(int argc, char* argv[], bool run_perf) {
     doctest::Context context;
     context.setOption("no-breaks", true);
     context.applyCommandLine(argc, argv);
@@ -65,13 +69,13 @@ int run_test(int argc, char* argv[], bool run_perf) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc > 1 && strcmp(argv[1], "test") == 0) return run_test(argc, argv, true);
-    int ret = run_test(argc, argv, false);
-    cout << "====================" << endl;
-    polymorphism_demo();
-    cout << "====================" << endl;
-    algorithm_demo();
-    cout << "====================" << endl;
+    if (argc > 1 && strcmp(argv[1], "test") == 0) return runTest(argc, argv, true);
+    int ret = runTest(argc, argv, false);
+    cout << "====================" << '\n';
+    polymorphismDemo();
+    cout << "====================" << '\n';
+    algorithmDemo();
+    cout << "====================" << '\n';
     benchmark();
     return ret;
 }

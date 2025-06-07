@@ -4,11 +4,12 @@
 #pragma once
 #include "tree/interface.hpp"
 
+#include <cstdint>
 #include <string_view>
 
 /****************************** Definition ********************************/
 
-enum class LogLevel {
+enum class LogLevel : uint8_t {
     INFO,
     WARNING,
     ERROR,

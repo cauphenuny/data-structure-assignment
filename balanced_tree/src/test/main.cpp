@@ -1,6 +1,7 @@
 #include "debug.hpp"
 #include "tree/avl.hpp"
 #include "tree/basic.hpp"
+#include "tree/treap.hpp"
 
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
@@ -36,12 +37,12 @@ struct Test {  // extract private/protected members from class
         return true;
     }
 
-    constexpr static auto check_size = [](auto& node) {
+    constexpr static auto CHECK_SIZE = [](auto& node) {
         return node->size == 1 + (node->child[L] ? node->child[L]->size : 0) +
                                  (node->child[R] ? node->child[R]->size : 0);
     };
 
-    constexpr static auto check_parent = [](auto& node) {
+    constexpr static auto CHECK_PARENT = [](auto& node) {
         if (node->child[L]) {
             if (node->child[L]->parent != node.get()) return false;
         }
@@ -51,15 +52,20 @@ struct Test {  // extract private/protected members from class
         return true;
     };
 
-    constexpr static auto check_height = [](auto& node) {
+    constexpr static auto CHECK_HEIGHT = [](auto& node) {
         int left_height = node->child[L] ? node->child[L]->height : 0;
         int right_height = node->child[R] ? node->child[R]->height : 0;
         return node->height == std::max(left_height, right_height) + 1;
     };
 
-    constexpr static auto check_balance = [](auto& node) {
+    constexpr static auto CHECK_BALANCE = [](auto& node) {
         int factor = node->balanceFactor();
         return factor >= -1 && factor <= 1;
+    };
+
+    constexpr static auto CHECK_PRIORITY = [](auto& node) {
+        if (!node->parent) return true;
+        return node->parent->priority >= node->priority;
     };
 
     // static auto& extractTree(auto& container) { return container->impl; }
@@ -67,24 +73,24 @@ struct Test {  // extract private/protected members from class
     static void check(auto& tree) {
         // auto& tree = extractTree(container);
         CHECK(sorted(tree->root));
-        CHECK(traverse(tree->root, check_parent));
-        CHECK(traverse(tree->root, check_size));
+        CHECK(traverse(tree->root, CHECK_PARENT));
+        CHECK(traverse(tree->root, CHECK_SIZE));
     }
 
     static void checkAVL(auto& avl_tree) {
         CHECK(sorted(avl_tree->root));
-        CHECK(traverse(avl_tree->root, check_parent));
-        CHECK(traverse(avl_tree->root, check_size));
-        CHECK(traverse(avl_tree->root, check_height));
-        CHECK(traverse(avl_tree->root, check_balance));
+        CHECK(traverse(avl_tree->root, CHECK_PARENT));
+        CHECK(traverse(avl_tree->root, CHECK_SIZE));
+        CHECK(traverse(avl_tree->root, CHECK_HEIGHT));
+        CHECK(traverse(avl_tree->root, CHECK_BALANCE));
     }
 
-    constexpr static auto join = [](auto& tree1, auto tree2) {
-        return tree1->join(std::move(tree2));
-    };
-    constexpr static auto mixin = [](auto& tree1, auto tree2) {
-        return tree1->mixin(std::move(tree2));
-    };
+    static void checkTreap(auto& treap_tree) {
+        CHECK(sorted(treap_tree->root));
+        CHECK(traverse(treap_tree->root, CHECK_PARENT));
+        CHECK(traverse(treap_tree->root, CHECK_SIZE));
+        CHECK(traverse(treap_tree->root, CHECK_PRIORITY));
+    }
 
     static auto& findNode(auto& tree, auto&& key) {
         auto [_, node] = tree->findBox(tree->root, key);
@@ -274,11 +280,11 @@ TEST_CASE("`Tree` removal, split, merge") {
         CHECK(tree->size() + other->size() == 7);
 
         CHECK(Test::sorted(tree->root));
-        CHECK(Test::traverse(tree->root, Test::check_size));
-        CHECK(Test::traverse(tree->root, Test::check_parent));
+        CHECK(Test::traverse(tree->root, Test::CHECK_SIZE));
+        CHECK(Test::traverse(tree->root, Test::CHECK_PARENT));
         CHECK(Test::sorted(other->root));
-        CHECK(Test::traverse(other->root, Test::check_size));
-        CHECK(Test::traverse(other->root, Test::check_parent));
+        CHECK(Test::traverse(other->root, Test::CHECK_SIZE));
+        CHECK(Test::traverse(other->root, Test::CHECK_PARENT));
 
         // Verify split worked correctly
         CHECK(tree->find(30) != nullptr);
@@ -396,12 +402,12 @@ TEST_CASE("`AVLTree` insertion") {
 
     SUBCASE("Complex insertions and tree balance") {
         // Insert multiple values that trigger various rotations
-        int N = 15;
-        for (int i = 1; i <= N; i++) {
+        int n = 15;
+        for (int i = 1; i <= n; i++) {
             CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
             // debug(tree);
-            CHECK(Test::traverse(tree->root, Test::check_height));
-            CHECK(Test::traverse(tree->root, Test::check_balance));
+            CHECK(Test::traverse(tree->root, Test::CHECK_HEIGHT));
+            CHECK(Test::traverse(tree->root, Test::CHECK_BALANCE));
             CHECK(tree->size() == i);
         }
     }
@@ -409,14 +415,14 @@ TEST_CASE("`AVLTree` insertion") {
     SUBCASE("More complex insertions and tree balance") {
         tree->clear();
         // Insert multiple values that trigger various rotations
-        int N = 2000;
-        for (int i = 1; i <= N; i++) {
+        int n = 2000;
+        for (int i = 1; i <= n; i++) {
             tree->insert(i, std::to_string(i));
         }
-        CHECK(tree->size() == N);
-        CHECK(Test::traverse(tree->root, Test::check_balance));
-        CHECK(Test::traverse(tree->root, Test::check_height));
-        CHECK(tree->root->height <= std::ceil(std::sqrt(2) * std::log2(N)));
+        CHECK(tree->size() == n);
+        CHECK(Test::traverse(tree->root, Test::CHECK_BALANCE));
+        CHECK(Test::traverse(tree->root, Test::CHECK_HEIGHT));
+        CHECK(tree->root->height <= std::ceil(std::sqrt(2) * std::log2(n)));
     }
 }
 
@@ -909,5 +915,121 @@ TEST_CASE("`AVLTree` complex removal operations") {
         CHECK(tree->find(1) == nullptr);
         CHECK(tree->find(51) != nullptr);
         CHECK(tree->find(150) != nullptr);
+    }
+}
+
+TEST_CASE("`Treap` basic operations") {
+    auto tree = std::make_unique<Treap<int, std::string>>();
+
+    SUBCASE("Insert and Find") {
+        CHECK(tree->insert(10, "ten") == Status::SUCCESS);
+        CHECK(tree->insert(20, "twenty") == Status::SUCCESS);
+        CHECK(tree->insert(15, "fifteen") == Status::SUCCESS);
+
+        auto node = tree->find(10);
+        CHECK(node != nullptr);
+        CHECK(node->key == 10);
+        CHECK(node->value == "ten");
+
+        node = tree->find(20);
+        CHECK(node != nullptr);
+        CHECK(node->key == 20);
+
+        node = tree->find(15);
+        CHECK(node != nullptr);
+        CHECK(node->key == 15);
+
+        CHECK(tree->find(99) == nullptr);
+    }
+
+    SUBCASE("Remove") {
+        tree->insert(10, "ten");
+        tree->insert(20, "twenty");
+        tree->insert(15, "fifteen");
+
+        CHECK(tree->remove(15) == Status::SUCCESS);
+        CHECK(tree->find(15) == nullptr);
+        CHECK(tree->remove(10) == Status::SUCCESS);
+        CHECK(tree->find(10) == nullptr);
+        CHECK(tree->remove(20) == Status::SUCCESS);
+        CHECK(tree->find(20) == nullptr);
+        CHECK(tree->size() == 0);
+    }
+
+    SUBCASE("Split and Join") {
+        for (int i = 1; i <= 10; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+        auto right_tree = tree->split(5);
+        CHECK(tree->size() == 4);        // 1-4
+        CHECK(right_tree->size() == 6);  // 5-10
+
+        // Check split correctness
+        for (int i = 1; i <= 4; ++i) {
+            CHECK(tree->find(i) != nullptr);
+        }
+        for (int i = 5; i <= 10; ++i) {
+            CHECK(right_tree->find(i) != nullptr);
+        }
+
+        // Join back
+        CHECK(tree->merge(std::move(right_tree)) == Status::SUCCESS);
+        CHECK(tree->size() == 10);
+        for (int i = 1; i <= 10; ++i) {
+            CHECK(tree->find(i) != nullptr);
+        }
+    }
+}
+
+TEST_CASE("`Treap` complex operations") {
+    auto tree = std::make_unique<TreapImpl<int, std::string>>();
+
+    SUBCASE("Sequential insertions") {
+        for (int i = 1; i <= 100; ++i) {
+            CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
+            Test::checkTreap(tree);
+        }
+        CHECK(tree->size() == 100);
+    }
+
+    SUBCASE("Random insertions") {
+        std::vector<int> keys(100);
+        std::iota(keys.begin(), keys.end(), 1);
+        std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+        for (int k : keys) {
+            CHECK(tree->insert(k, std::to_string(k)) == Status::SUCCESS);
+            Test::checkTreap(tree);
+        }
+        CHECK(tree->size() == 100);
+    }
+
+    SUBCASE("Random removals") {
+        for (int i = 1; i <= 100; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+        std::vector<int> keys(100);
+        std::iota(keys.begin(), keys.end(), 1);
+        std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+        for (int k : keys) {
+            CHECK(tree->remove(k) == Status::SUCCESS);
+            Test::checkTreap(tree);
+        }
+        CHECK(tree->size() == 0);
+    }
+
+    SUBCASE("Split and merge with structure check") {
+        for (int i = 1; i <= 50; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+        auto right_tree = tree->split(25);
+        CHECK(tree->size() == 24);
+        CHECK(right_tree->size() == 26);
+        Test::checkTreap(tree);
+        Test::checkTreap(right_tree);
+
+        // Merge back
+        CHECK(tree->merge(std::move(right_tree)) == Status::SUCCESS);
+        CHECK(tree->size() == 50);
+        Test::checkTreap(tree);
     }
 }

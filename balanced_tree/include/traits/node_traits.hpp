@@ -54,7 +54,7 @@ template <typename Node> struct Link {
 };
 
 template <typename... Ts> struct Maintain : Ts... {
-    void maintain() { (Ts::_maintain(), ...); }
+    void maintain() { (Ts::maintain(), ...); }
 };
 
 template <typename Node> struct Height {
@@ -65,7 +65,7 @@ template <typename Node> struct Height {
         auto r = self.child[R] ? self.child[R]->height : 0;
         return l - r;
     }
-    void _maintain() {
+    void maintain() {
         auto& self = *(static_cast<Node*>(this));
         auto l = self.child[L] ? self.child[L]->height : 0;
         auto r = self.child[R] ? self.child[R]->height : 0;
@@ -75,7 +75,7 @@ template <typename Node> struct Height {
 
 template <typename Node> struct Size {
     int size{1};
-    void _maintain() {
+    void maintain() {
         auto& self = *(static_cast<Node*>(this));
         auto l = self.child[L] ? self.child[L]->size : 0;
         auto r = self.child[R] ? self.child[R]->size : 0;
@@ -85,7 +85,7 @@ template <typename Node> struct Size {
 
 template <typename Node, typename Key> struct MinMax {
     Key min_key, max_key;
-    void _maintain() {
+    void maintain() {
         auto& self = *(static_cast<Node*>(this));
         min_key = self.key, max_key = self.key;
         if (self.child[L]) {

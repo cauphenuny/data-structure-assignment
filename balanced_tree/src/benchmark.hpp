@@ -2,161 +2,162 @@
 #include "_legacy/avl.hpp"
 #include "_legacy/tree.hpp"
 #include "tree/avl.hpp"
+#include "tree/basic.hpp"
+#include "tree/treap.hpp"
 
 #include <cassert>
 #include <memory>
 #include <random>
 
-inline void benchmark() {
-    auto old_tree = std::make_unique<legacy::AVLTree<int, int>>();
-    auto new_tree = std::make_unique<AVLTree<int, int>>();
-    std::map<int, int> std_map;
+using namespace std;
 
-    constexpr int N = 500000;
+inline void crtpBenchmark() {
+    using Key = int;
+    using Value = int;
+    constexpr int N = 200000;
 
-    std::cout << std::format("\n===== Tree Implementation Comparison =====\n");
-    std::cout << std::format("Inserting and finding {} elements\n\n", N);
+    vector<Key> keys(N);
+    for (int i = 0; i < N; ++i) keys[i] = i;
+    shuffle(keys.begin(), keys.end(), mt19937{random_device{}()});
 
-    // Create vector of keys
-    std::vector<int> keys(N);
-    for (int i = 0; i < N; i++) keys[i] = i;
-    std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+    struct Metrics {
+        double insert_time;
+        double find_time;
+        double remove_time;
+    };
 
-    // Measure traditional AVLTree insertion time
-    auto start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        old_tree->insert(key, key);
-    }
-    auto end = std::chrono::high_resolution_clock::now();
-    auto old_insert_time = std::chrono::duration<double, std::milli>(end - start).count();
-    // debug(old_tree->height());
+    auto bench = [&](auto&& tree, string_view name) -> Metrics {
+        // Insert
+        auto start = chrono::high_resolution_clock::now();
+        for (auto k : keys) tree->insert(k, k);
+        auto end = chrono::high_resolution_clock::now();
+        double insert_time = chrono::duration<double, milli>(end - start).count();
 
-    // Measure CRTP AVLTree insertion time
-    start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        new_tree->insert(key, key);
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto new_insert_time = std::chrono::duration<double, std::milli>(end - start).count();
-    // debug(new_tree->root->height);
+        // Find
+        start = chrono::high_resolution_clock::now();
+        for (auto k : keys) volatile auto _ = tree->find(k);
+        end = chrono::high_resolution_clock::now();
+        double find_time = chrono::duration<double, milli>(end - start).count();
 
-    // Measure std::map insertion time
-    start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        std_map.insert({key, key});
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto std_insert_time = std::chrono::duration<double, std::milli>(end - start).count();
+        // Remove
+        start = chrono::high_resolution_clock::now();
+        for (auto k : keys) {
+            if constexpr (requires { tree->remove(k); }) {
+                tree->remove(k);
+            } else {
+                tree->erase(k);
+            }
+        }
+        end = chrono::high_resolution_clock::now();
+        double remove_time = chrono::duration<double, milli>(end - start).count();
 
-    // Measure traditional AVLTree find time
-    start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        volatile auto _ = old_tree->find(key);
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto old_find_time = std::chrono::duration<double, std::milli>(end - start).count();
+        cout << format(
+            "{:<20} {:>12.2f} {:>12.2f} {:>12.2f}\n", name, insert_time, find_time, remove_time);
 
-    // Measure CRTP AVLTree find time
-    start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        volatile auto _ = new_tree->find(key);
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto new_find_time = std::chrono::duration<double, std::milli>(end - start).count();
+        return {insert_time, find_time, remove_time};
+    };
 
-    // Measure std::map find time
-    start = std::chrono::high_resolution_clock::now();
-    for (int key : keys) {
-        volatile auto _ = std_map.find(key);
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto std_find_time = std::chrono::duration<double, std::milli>(end - start).count();
+    cout << format("\n===== Tree Implementation Comparison =====\n");
+    cout << format("{:<20} {:>12} {:>12} {:>12}\n", "Tree", "Insert", "Find", "Remove");
 
-    // Prepare new trees for split benchmark
-    auto old_tree_split = std::make_unique<legacy::AVLTree<int, int>>();
-    auto new_tree_split = std::make_unique<AVLTree<int, int>>();
-    std::map<int, int> std_map_split;
+    struct StdMapWrapper {
+        void insert(const Key& key, const Value& value) { m[key] = value; }
+        void remove(const Key& key) { m.erase(key); }
+        auto find(const Key& key) { return m.find(key); }
+        map<Key, Value> m;
+    };
 
-    // Insert same elements for split test
-    for (int key : keys) {
-        old_tree_split->insert(key, key);
-        new_tree_split->insert(key, key);
-        std_map_split[key] = key;
-    }
+    auto old_time = bench(make_unique<legacy::AVLTree<Key, Value>>(), "legacy::AVLTree(ms)");
+    auto new_time = bench(make_unique<AVLTree<Key, Value>>(), "AVLTree(ms)");
+    bench(make_unique<StdMapWrapper>(), "std::map(ms)");
 
-    // Use middle value as split point
-    int split_point = N / 2;
-    const int split_times = 1000;
-
-    // Measure traditional AVLTree split time
-    double old_split_time = 0;
-    for (int i = -split_times / 2; i < split_times / 2; i++) {
-        start = std::chrono::high_resolution_clock::now();
-        auto old_split_result = old_tree_split->split(split_point + i);
-        old_tree->merge(std::move(old_split_result));
-        end = std::chrono::high_resolution_clock::now();
-        old_split_time +=
-            std::chrono::duration<double, std::micro>(end - start).count() / split_times;
-    }
-
-    // Measure CRTP AVLTree split time
-    double new_split_time = 0;
-    for (int i = -split_times / 2; i < split_times / 2; i++) {
-        start = std::chrono::high_resolution_clock::now();
-        auto new_split_result = new_tree_split->split(split_point + i);
-        new_tree->merge(std::move(new_split_result));
-        end = std::chrono::high_resolution_clock::now();
-        new_split_time +=
-            std::chrono::duration<double, std::micro>(end - start).count() / split_times;
-    }
-
-    // Measure std::map split simulation time (using lower_bound and extract)
-    start = std::chrono::high_resolution_clock::now();
-    std::map<int, int> std_map_split_result;
-    auto split_iter = std_map_split.lower_bound(split_point);
-    while (split_iter != std_map_split.end()) {
-        std_map_split_result.insert(*split_iter);
-        auto next = std::next(split_iter);
-        std_map_split.erase(split_iter);
-        split_iter = next;
-    }
-    end = std::chrono::high_resolution_clock::now();
-    auto std_split_time = std::chrono::duration<double, std::micro>(end - start).count();
-
-    // Print results using std::format
-    std::cout << std::format(
-        "{:<12} {:<15} {:<15} {:<15} {:<15}\n", "Operation", "Traditional", "CRTP-based",
-        "std::map", "CRTP Improvement");
-
-    auto improvement = [](double old_time, double new_time) {
+    auto relative = [](double old_time, double new_time) {
         return (old_time - new_time) / old_time * 100.0;
     };
 
-    std::cout << std::format(
-        "{:<12} {:<15.2f} {:<15.2f} {:<15.2f} {:<15.2f}%\n", "Insert (ms)", old_insert_time,
-        new_insert_time, std_insert_time, improvement(old_insert_time, new_insert_time));
+    cout << format(
+        "\n{:<20} {:>12.2f} {:>12.2f} {:>12.2f}\n", "CRTP Improvement(%)",
+        relative(old_time.insert_time, new_time.insert_time),
+        relative(old_time.find_time, new_time.find_time),
+        relative(old_time.remove_time, new_time.remove_time));
+}
 
-    std::cout << std::format(
-        "{:<12} {:<15.2f} {:<15.2f} {:<15.2f} {:<15.2f}%\n", "Find (ms)", old_find_time,
-        new_find_time, std_find_time, improvement(old_find_time, new_find_time));
+inline void algorithmBenchmark() {
+    cout << format("\n===== Tree Algorithm Comparison =====\n");
+    using Key = int;
+    using Value = int;
+    constexpr int N = 200000;
+    vector<Key> keys(N);
+    for (int i = 0; i < N; ++i) keys[i] = i;
+    shuffle(keys.begin(), keys.end(), mt19937{random_device{}()});
 
-    std::cout << std::format(
-        "{:<12} {:<15.2f} {:<15.2f} {:<15.2f} {:<15.2f}%\n", "Split (μs)", old_split_time,
-        new_split_time, std_split_time, improvement(old_split_time, new_split_time));
+    auto duration = [](auto func) {
+        auto start = chrono::high_resolution_clock::now();
+        func();
+        auto end = chrono::high_resolution_clock::now();
+        return chrono::duration<double, milli>(end - start).count();
+    };
+    auto micro_duration = [](auto func) {
+        auto start = chrono::high_resolution_clock::now();
+        func();
+        auto end = chrono::high_resolution_clock::now();
+        return chrono::duration<double, micro>(end - start).count();
+    };
 
-    // Add comparison with std::map
-    std::cout << std::format(
-        "\n{:<12} {:<20} {:<20}\n", "Operation", "CRTP vs std::map", "Traditional vs std::map");
+    auto bench = [&](auto tree, string_view name, bool include_sequential = true) {
+        // Insert
+        double insert_time = duration([&] {
+            for (auto k : keys) tree->insert(k, k);
+        });
 
-    std::cout << std::format(
-        "{:<12} {:<20.2f}% {:<20.2f}%\n", "Insert", improvement(std_insert_time, new_insert_time),
-        improvement(std_insert_time, old_insert_time));
+        // Find
+        double find_time = duration([&] {
+            for (auto k : keys) volatile auto _ = tree->find(k);
+        });
 
-    std::cout << std::format(
-        "{:<12} {:<20.2f}% {:<20.2f}%\n", "Find", improvement(std_find_time, new_find_time),
-        improvement(std_find_time, old_find_time));
+        // Remove
+        double remove_time = duration([&] {
+            for (auto k : keys) tree->remove(k);
+        });
 
-    std::cout << std::format(
-        "{:<12} {:<20.2f}% {:<20.2f}%\n", "Split", improvement(std_split_time, new_split_time),
-        improvement(std_split_time, old_split_time));
+        // Re-insert for split/merge
+        for (auto k : keys) tree->insert(k, k);
+
+        // Split
+        decltype(tree->split(N / 2)) split_result;
+        double split_time = micro_duration([&] { split_result = tree->split(N / 2); });
+
+        // Merge
+        double merge_time = micro_duration([&] { tree->merge(std::move(split_result)); });
+
+        if (include_sequential) {
+            tree->clear();
+            double seq_insert_time = duration([&] {
+                for (int i = 0; i < N; i++) tree->insert(i, i);
+            });
+            double seq_find_time = duration([&] {
+                for (int i = 0; i < N; i++) volatile auto _ = tree->find(i);
+            });
+            cout << format(
+                "{:<10} {:>10.2f} {:>10.2f} {:>10.2f} {:>10.2f} {:>10.2f} {:>16.2f} {:>16.2f}\n",
+                name, insert_time, find_time, remove_time, split_time, merge_time, seq_insert_time,
+                seq_find_time);
+        } else {
+            cout << format(
+                "{:<10} {:>10.2f} {:>10.2f} {:>10.2f} {:>10.2f} {:>10.2f} {:>16} {:>16}\n", name,
+                insert_time, find_time, remove_time, split_time, merge_time, "N/A", "N/A");
+        }
+    };
+
+    cout << format(
+        "{:<10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>16} {:>16}\n", "Tree", "Insert(ms)",
+        "Find(ms)", "Remove(ms)", "Split(us)", "Merge(us)", "SeqInsert(ms)", "SeqFind(ms)");
+
+    bench(make_unique<BasicTree<Key, Value>>(), "Basic", false);
+    bench(make_unique<AVLTree<Key, Value>>(), "AVL");
+    bench(make_unique<Treap<Key, Value>>(), "Treap");
+}
+inline void benchmark() {
+    crtpBenchmark();
+    algorithmBenchmark();
 }
