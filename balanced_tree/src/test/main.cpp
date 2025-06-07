@@ -4,6 +4,12 @@
 #include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
+#include <cmath>
+#include <memory>
+#include <numeric>
+#include <random>
+#include <vector>
+
 #define DOCTEST_CONFIG_IMPLEMENT
 #include "doctest/doctest.h"
 

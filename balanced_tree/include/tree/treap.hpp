@@ -5,7 +5,9 @@
 #include "traits/tree_traits.hpp"
 #include "util.hpp"
 
+#include <memory>
 #include <random>
+#include <string>
 
 // ============================== Definition ================================
 

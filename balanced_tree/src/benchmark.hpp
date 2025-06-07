@@ -6,9 +6,14 @@
 #include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <chrono>
+#include <format>
+#include <iostream>
 #include <memory>
 #include <random>
+#include <vector>
 
 using namespace std;
 

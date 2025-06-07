@@ -5,7 +5,9 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <tuple>
+#include <vector>
 
 namespace tree_trait {
 

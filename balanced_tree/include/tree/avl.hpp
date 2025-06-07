@@ -1,11 +1,13 @@
 #pragma once
 
+#include "debug.hpp"
 #include "interface.hpp"
 #include "traits/node_traits.hpp"
 #include "traits/tree_traits.hpp"
 #include "util.hpp"
 
 #include <cassert>
+#include <memory>
 #include <string>
 
 // ============================== Definition ================================

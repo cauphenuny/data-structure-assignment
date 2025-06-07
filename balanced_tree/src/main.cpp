@@ -9,6 +9,9 @@
 #include "tree/interface.hpp"
 #include "tree/treap.hpp"
 
+#include <algorithm>
+#include <cstdlib>
+#include <memory>
 #include <string>
 #include <vector>
 using namespace std;
