@@ -36,7 +36,7 @@ template <typename K, typename V> struct Tree : TreeBase {
 // tree.insert(2, "two");
 
 // bind implementation to the interface
-template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
+template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V> {
     friend struct Test;
     auto size() const -> size_t override { return impl->size(); }
     void clear() override { impl->clear(); }
@@ -68,11 +68,11 @@ template <typename K, typename V, typename Impl> struct TreeImpl : Tree<K, V> {
     // merge: allow key overlapping, O(n log n)
 
     static auto create() -> std::unique_ptr<Tree<K, V>> {
-        return std::make_unique<TreeImpl>(std::make_unique<Impl>());
+        return std::make_unique<TreeAdapter>(std::make_unique<Impl>());
     }
 
-    TreeImpl() : impl(std::make_unique<Impl>()) {}
-    TreeImpl(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
+    TreeAdapter() : impl(std::make_unique<Impl>()) {}
+    TreeAdapter(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
 
 private:
     std::unique_ptr<Impl> impl;

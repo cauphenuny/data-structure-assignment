@@ -3,6 +3,7 @@
 #include "_legacy/tree.hpp"
 #include "tree/avl.hpp"
 #include "tree/basic.hpp"
+#include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
 #include <cassert>
@@ -156,6 +157,7 @@ inline void algorithmBenchmark() {
     bench(make_unique<BasicTree<Key, Value>>(), "Basic", false);
     bench(make_unique<AVLTree<Key, Value>>(), "AVL");
     bench(make_unique<Treap<Key, Value>>(), "Treap");
+    bench(make_unique<SplayTree<Key, Value>>(), "Splay", false);
 }
 inline void benchmark() {
     crtpBenchmark();

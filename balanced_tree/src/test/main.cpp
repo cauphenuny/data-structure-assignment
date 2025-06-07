@@ -1,6 +1,7 @@
 #include "debug.hpp"
 #include "tree/avl.hpp"
 #include "tree/basic.hpp"
+#include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
 #define DOCTEST_CONFIG_IMPLEMENT
@@ -1031,5 +1032,70 @@ TEST_CASE("`Treap` complex operations") {
         CHECK(tree->merge(std::move(right_tree)) == Status::SUCCESS);
         CHECK(tree->size() == 50);
         Test::checkTreap(tree);
+    }
+}
+
+TEST_CASE("`SplayTree` basic operations") {
+    auto tree = std::make_unique<SplayTree<int, std::string>>();
+
+    SUBCASE("Insert and Find") {
+        CHECK(tree->insert(10, "ten") == Status::SUCCESS);
+        CHECK(tree->insert(20, "twenty") == Status::SUCCESS);
+        CHECK(tree->insert(15, "fifteen") == Status::SUCCESS);
+
+        auto node = tree->find(10);
+        CHECK(node != nullptr);
+        CHECK(node->key == 10);
+        CHECK(node->value == "ten");
+
+        node = tree->find(20);
+        CHECK(node != nullptr);
+        CHECK(node->key == 20);
+
+        node = tree->find(15);
+        CHECK(node != nullptr);
+        CHECK(node->key == 15);
+
+        CHECK(tree->find(99) == nullptr);
+    }
+
+    SUBCASE("Remove") {
+        tree->insert(10, "ten");
+        tree->insert(20, "twenty");
+        tree->insert(15, "fifteen");
+
+        CHECK(tree->remove(15) == Status::SUCCESS);
+        CHECK(tree->find(15) == nullptr);
+        CHECK(tree->remove(10) == Status::SUCCESS);
+        CHECK(tree->find(10) == nullptr);
+        CHECK(tree->remove(20) == Status::SUCCESS);
+        CHECK(tree->find(20) == nullptr);
+        CHECK(tree->size() == 0);
+    }
+
+    SUBCASE("Split and Join") {
+        for (int i = 1; i <= 10; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+        auto right_tree = tree->split(5);
+        // debug(right_tree);
+        // right_tree->printCLI();
+        CHECK(tree->size() == 4);        // 1-4
+        CHECK(right_tree->size() == 6);  // 5-10
+
+        // Check split correctness
+        for (int i = 1; i <= 4; ++i) {
+            CHECK(tree->find(i) != nullptr);
+        }
+        for (int i = 5; i <= 10; ++i) {
+            CHECK(right_tree->find(i) != nullptr);
+        }
+
+        // Join back
+        CHECK(tree->merge(std::move(right_tree)) == Status::SUCCESS);
+        CHECK(tree->size() == 10);
+        for (int i = 1; i <= 10; ++i) {
+            CHECK(tree->find(i) != nullptr);
+        }
     }
 }

@@ -15,7 +15,7 @@
 
 template <typename K, typename V> struct BasicTreeImpl;
 
-template <typename K, typename V> using BasicTree = TreeImpl<K, V, BasicTreeImpl<K, V>>;
+template <typename K, typename V> using BasicTree = TreeAdapter<K, V, BasicTreeImpl<K, V>>;
 
 // ============================== Implementation ================================
 

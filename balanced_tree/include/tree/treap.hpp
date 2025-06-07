@@ -11,7 +11,7 @@
 
 template <typename K, typename V> struct TreapImpl;
 
-template <typename K, typename V> using Treap = TreeImpl<K, V, TreapImpl<K, V>>;
+template <typename K, typename V> using Treap = TreeAdapter<K, V, TreapImpl<K, V>>;
 
 // ============================== Implementation ================================
 
@@ -98,6 +98,7 @@ struct TreapImpl : tree_trait::TypeTraits<TreapNode<K, V>>,
     }
 
     auto join(std::unique_ptr<TreapImpl<K, V>> other) -> Status {
+        if (!other) return Status::FAILED;
         this->root = join(std::move(this->root), std::move(other->root));
         return Status::SUCCESS;
     }
@@ -131,16 +132,16 @@ private:
 
     auto join(std::unique_ptr<TreapNode<K, V>> left, std::unique_ptr<TreapNode<K, V>> right)
         -> std::unique_ptr<TreapNode<K, V>> {
-        if (!left) return std::move(right);
-        if (!right) return std::move(left);
+        if (!left) return right;
+        if (!right) return left;
         if (left->priority > right->priority) {
             left->bind(R, join(std::move(left->child[R]), std::move(right)));
             left->maintain();
-            return std::move(left);
+            return left;
         } else {
             right->bind(L, join(std::move(left), std::move(right->child[L])));
             right->maintain();
-            return std::move(right);
+            return right;
         }
     }
 };

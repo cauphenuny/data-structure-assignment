@@ -12,7 +12,7 @@
 
 template <typename K, typename V> struct AVLTreeImpl;
 
-template <typename K, typename V> using AVLTree = TreeImpl<K, V, AVLTreeImpl<K, V>>;
+template <typename K, typename V> using AVLTree = TreeAdapter<K, V, AVLTreeImpl<K, V>>;
 
 // ============================== Implementation ================================
 
@@ -60,35 +60,6 @@ struct AVLTreeImpl : tree_trait::TypeTraits<AVLNode<K, V>>,
     AVLTreeImpl() = default;
     AVLTreeImpl(std::unique_ptr<AVLNode<K, V>> root) : root(std::move(root)) {
         if (this->root) this->root->parent = nullptr;
-    }
-
-    bool balance(std::unique_ptr<AVLNode<K, V>>& node) {
-        int prev = node->height;
-        if (node->balanceFactor() > 1) {
-            if (node->child[L]->balanceFactor() >= 0) {
-                this->rotateR(node);
-            } else {
-                this->rotateLR(node);
-            }
-        } else if (node->balanceFactor() < -1) {
-            if (node->child[R]->balanceFactor() <= 0) {
-                this->rotateL(node);
-            } else {
-                this->rotateRL(node);
-            }
-        }
-        return prev == node->height;
-    }
-
-    void checkBalance(AVLNode<K, V>* node) {
-        while (node) {
-            node->maintain();
-            if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
-                if (this->balance(this->box(node))) break;
-            }
-            node = node->parent;
-        }
-        this->maintain(node);
     }
 
     Status insert(const K& key, const V& value) {
@@ -140,6 +111,54 @@ struct AVLTreeImpl : tree_trait::TypeTraits<AVLNode<K, V>>,
         return std::move(right);
     }
 
+    Status join(std::unique_ptr<AVLTreeImpl> other) {
+        if (!other) return Status::FAILED;
+        if (!other->root || !this->root) {
+            this->root = std::move(other->root ? other->root : this->root);
+            return Status::SUCCESS;
+        }
+        if (this->height() >= other->height()) {
+            auto mid = other->detach(other->minBox(other->root));
+            this->join(std::move(mid), std::move(other));
+        } else {
+            auto mid = this->detach(this->maxBox(this->root));
+            this->join(std::move(mid), std::move(other));
+        }
+        return Status::SUCCESS;
+    }
+
+    auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
+
+private:
+    bool balance(std::unique_ptr<AVLNode<K, V>>& node) {
+        int prev = node->height;
+        if (node->balanceFactor() > 1) {
+            if (node->child[L]->balanceFactor() >= 0) {
+                this->rotateR(node);
+            } else {
+                this->rotateLR(node);
+            }
+        } else if (node->balanceFactor() < -1) {
+            if (node->child[R]->balanceFactor() <= 0) {
+                this->rotateL(node);
+            } else {
+                this->rotateRL(node);
+            }
+        }
+        return prev == node->height;
+    }
+
+    void checkBalance(AVLNode<K, V>* node) {
+        while (node) {
+            node->maintain();
+            if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
+                if (this->balance(this->box(node))) break;
+            }
+            node = node->parent;
+        }
+        this->maintain(node);
+    }
+
     Status join(std::unique_ptr<AVLNode<K, V>> mid, std::unique_ptr<AVLTreeImpl> right) {
         auto find = [](auto self, bool is_right, int height, AVLNode<K, V>* parent,
                        std::unique_ptr<AVLNode<K, V>>& node)
@@ -169,22 +188,4 @@ struct AVLTreeImpl : tree_trait::TypeTraits<AVLNode<K, V>>,
         this->checkBalance(insert_pos);
         return Status::SUCCESS;
     }
-
-    Status join(std::unique_ptr<AVLTreeImpl> other) {
-        if (!other) return Status::FAILED;
-        if (!other->root || !this->root) {
-            this->root = std::move(other->root ? other->root : this->root);
-            return Status::SUCCESS;
-        }
-        if (this->height() >= other->height()) {
-            auto mid = other->detach(other->minBox(other->root));
-            this->join(std::move(mid), std::move(other));
-        } else {
-            auto mid = this->detach(this->maxBox(this->root));
-            this->join(std::move(mid), std::move(other));
-        }
-        return Status::SUCCESS;
-    }
-
-    auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 };
