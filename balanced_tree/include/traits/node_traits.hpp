@@ -14,6 +14,8 @@ template <typename K, typename V> struct TypeTraits {
     using PairType = Pair<const K, V>;
 };
 
+template <typename Type, template <typename> class... Traits> struct Dispatch : Traits<Type>... {};
+
 template <typename Node> struct Link {
     Node* parent{nullptr};
     std::unique_ptr<Node> child[2]{nullptr, nullptr};

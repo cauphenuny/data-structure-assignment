@@ -43,22 +43,13 @@ struct TreapNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct TreapImpl : tree_trait::TypeTraits<TreapNode<K, V>>,
-                   tree_trait::Search<TreapImpl<K, V>>,
-                   tree_trait::Clear<TreapImpl<K, V>>,
-                   tree_trait::Size<TreapImpl<K, V>>,
-                   tree_trait::Print<TreapImpl<K, V>>,
-                   tree_trait::Traverse<TreapImpl<K, V>>,
-                   tree_trait::Merge<TreapImpl<K, V>>,
-                   tree_trait::Subscript<TreapImpl<K, V>>,
-                   tree_trait::Conflict<TreapImpl<K, V>>,
-                   private tree_trait::Box<TreapImpl<K, V>>,
-                   private tree_trait::Maintain<TreapNode<K, V>>,
-                   private tree_trait::Rotate<TreapNode<K, V>>,
-                   private tree_trait::Detach<TreapImpl<K, V>> {
-    friend struct tree_trait::Box<TreapImpl<K, V>>;
-    friend struct tree_trait::Detach<TreapImpl<K, V>>;
-    friend struct tree_trait::Subscript<TreapImpl<K, V>>;
+struct TreapImpl
+    : trait::Dispatch<
+          TreapImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
+          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
+          tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
+      trait::Dispatch<
+          TreapNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};

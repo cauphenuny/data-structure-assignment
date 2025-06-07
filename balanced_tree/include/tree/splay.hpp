@@ -31,18 +31,13 @@ struct SplayNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct SplayTreeImpl : tree_trait::TypeTraits<SplayNode<K, V>>,
-                       tree_trait::Clear<SplayTreeImpl<K, V>>,
-                       tree_trait::Size<SplayTreeImpl<K, V>>,
-                       tree_trait::Print<SplayTreeImpl<K, V>>,
-                       tree_trait::Traverse<SplayTreeImpl<K, V>>,
-                       tree_trait::Merge<SplayTreeImpl<K, V>>,
-                       tree_trait::Subscript<SplayTreeImpl<K, V>>,
-                       tree_trait::Conflict<SplayTreeImpl<K, V>>,
-                       private tree_trait::Box<SplayTreeImpl<K, V>>,
-                       private tree_trait::Rotate<SplayNode<K, V>> {
-    friend struct tree_trait::Box<SplayTreeImpl<K, V>>;
-    friend struct tree_trait::Subscript<SplayTreeImpl<K, V>>;
+struct SplayTreeImpl
+    : trait::Dispatch<
+          SplayTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
+          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
+          tree_trait::Conflict, tree_trait::Box>,
+      trait::Dispatch<
+          SplayNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<SplayNode<K, V>> root{nullptr};

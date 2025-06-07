@@ -39,21 +39,13 @@ struct BasicNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct BasicTreeImpl : tree_trait::TypeTraits<BasicNode<K, V>>,
-                       tree_trait::Search<BasicTreeImpl<K, V>>,
-                       tree_trait::Clear<BasicTreeImpl<K, V>>,
-                       tree_trait::Size<BasicTreeImpl<K, V>>,
-                       tree_trait::Print<BasicTreeImpl<K, V>>,
-                       tree_trait::Traverse<BasicTreeImpl<K, V>>,
-                       tree_trait::Merge<BasicTreeImpl<K, V>>,
-                       tree_trait::Subscript<BasicTreeImpl<K, V>>,
-                       tree_trait::Conflict<BasicTreeImpl<K, V>>,
-                       private tree_trait::Box<BasicTreeImpl<K, V>>,
-                       private tree_trait::Maintain<BasicNode<K, V>>,
-                       private tree_trait::Detach<BasicTreeImpl<K, V>> {
-    friend struct tree_trait::Box<BasicTreeImpl<K, V>>;
-    friend struct tree_trait::Detach<BasicTreeImpl<K, V>>;
-    friend struct tree_trait::Subscript<BasicTreeImpl<K, V>>;
+struct BasicTreeImpl
+    : trait::Dispatch<
+          BasicTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
+          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
+          tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
+      trait::Dispatch<
+          BasicNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};

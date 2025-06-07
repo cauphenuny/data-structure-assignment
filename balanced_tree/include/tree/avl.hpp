@@ -36,23 +36,13 @@ struct AVLNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct AVLTreeImpl : tree_trait::TypeTraits<AVLNode<K, V>>,
-                     tree_trait::Search<AVLTreeImpl<K, V>>,
-                     tree_trait::Clear<AVLTreeImpl<K, V>>,
-                     tree_trait::Size<AVLTreeImpl<K, V>>,
-                     tree_trait::Height<AVLTreeImpl<K, V>>,
-                     tree_trait::Print<AVLTreeImpl<K, V>>,
-                     tree_trait::Traverse<AVLTreeImpl<K, V>>,
-                     tree_trait::Merge<AVLTreeImpl<K, V>>,
-                     tree_trait::Subscript<AVLTreeImpl<K, V>>,
-                     tree_trait::Conflict<AVLTreeImpl<K, V>>,
-                     private tree_trait::Box<AVLTreeImpl<K, V>>,
-                     private tree_trait::Maintain<AVLNode<K, V>>,
-                     private tree_trait::Rotate<AVLNode<K, V>>,
-                     private tree_trait::Detach<AVLTreeImpl<K, V>> {
-    friend struct tree_trait::Box<AVLTreeImpl<K, V>>;
-    friend struct tree_trait::Detach<AVLTreeImpl<K, V>>;
-    friend struct tree_trait::Subscript<AVLTreeImpl<K, V>>;
+struct AVLTreeImpl
+    : trait::Dispatch<
+          AVLTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
+          tree_trait::Height, tree_trait::Print, tree_trait::Traverse, tree_trait::Merge,
+          tree_trait::Subscript, tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
+      trait::Dispatch<
+          AVLNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
