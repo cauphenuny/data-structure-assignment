@@ -37,8 +37,8 @@ struct SplayNode : Pair<const K, V>,
 template <typename K, typename V>
 struct SplayTreeImpl
     : trait::Mixin<
-          SplayTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
-          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box>,
+          SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box>,
       trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
@@ -120,10 +120,23 @@ struct SplayTreeImpl
 
     auto find(const K& key) -> Pair<const K, V>* { return findNode(key); }
 
-private:
-    void pushup(SplayNode<K, V>* node) {
-        this->rotate(!node->which(), this->box(node->parent));
+    // NOTE: splay has a relatively more imbalanced structure, which would cause stack overflow in
+    // calling default destructor recursively. So I implement a custom non-recursive clear method.
+    void clear() {
+        std::vector<std::unique_ptr<SplayNode<K, V>>> stack;
+        if (this->root) stack.push_back(std::move(this->root));
+        while (!stack.empty()) {
+            auto node = std::move(stack.back());
+            stack.pop_back();
+            if (node->lchild()) stack.push_back(std::move(node->unbind(L)));
+            if (node->rchild()) stack.push_back(std::move(node->unbind(R)));
+        }
     }
+
+    ~SplayTreeImpl() { this->clear(); }
+
+private:
+    void pushup(SplayNode<K, V>* node) { this->rotate(!node->which(), this->box(node->parent)); }
 
     void splay(SplayNode<K, V>* node) {
         if (!node) return;
