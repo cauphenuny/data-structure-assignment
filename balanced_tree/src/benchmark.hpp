@@ -202,9 +202,9 @@ inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<Bench
     for (size_t n : n_values) {
         vector<size_t> keys(n);
         for (size_t i = 0; i < n; ++i) keys[i] = i;
-        BenchmarkMetric metric;
+        BenchmarkMetric metric{};  // NOTE: zero initialize!!!!!!!
         metric.n = n;
-        bench(tree, metric.sequential, keys);
+        // bench(tree, metric.sequential, keys);  TODO: visualize sequential data
         shuffle(keys.begin(), keys.end(), mt19937{random_device{}()});
         bench(tree, metric.random, keys);
         current.data.push_back(metric);
@@ -243,7 +243,8 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
     }
 
     sf::Font font;
-    if (!font.openFromFile("assets/Menlo.ttf") && !font.openFromFile("../assets/Menlo.ttf")) {
+    if (!font.openFromFile("assets/Menlo.ttf") && !font.openFromFile("../assets/Menlo.ttf") &&
+        !font.openFromFile("../../assets/Menlo.ttf")) {
         throw std::runtime_error("Failed to load font");
     }
 
@@ -422,8 +423,8 @@ inline void benchmark() {
     algorithmBenchmark();
     std::cout << std::format("\n===== Visualize =====\n");
     std::vector<int> n_values;
-    for (int i = 1; i <= 10; i++) {
-        n_values.push_back(i * 20000);
+    for (int i = 1; i <= 20; i++) {
+        n_values.push_back(i * 25000);
     }
     auto data = benchmarkData<AVLTree, Treap, SplayTree>(n_values);
     std::cout << "done\n";
