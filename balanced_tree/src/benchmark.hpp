@@ -192,7 +192,7 @@ inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<Bench
         std::unique_ptr<TreeType<int, int>> split_result;
         for (const auto& key : keys) {
             metrics.split += duration([&] { split_result = tree->split(key); });
-            metrics.merge += duration([&] { tree->merge(std::move(split_result)); });
+            metrics.merge += duration([&] { tree->join(std::move(split_result)); });
         }
     };
     BenchmarkResult current;
@@ -213,10 +213,24 @@ inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<Bench
     return results;
 }
 
+// 计算最小二乘法拟合的k值
+template <typename F>
+double fitK(const std::vector<double>& times, const std::vector<size_t>& ns, F f) {
+    double sum_xy = 0, sum_xx = 0;
+    for (size_t i = 0; i < times.size(); ++i) {
+        double x = f(ns[i]);
+        sum_xy += times[i] * x;
+        sum_xx += x * x;
+    }
+    return sum_xy / sum_xx;
+}
+
 inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
     const int WIDTH = 1200, HEIGHT = 800, MARGIN = 120;
     const sf::Color COLORS[] = {
         sf::Color::Red, sf::Color::Green, sf::Color::Blue, sf::Color::Magenta, sf::Color::Cyan};
+    const sf::Color THEORY_COLORS[] = {
+        sf::Color(64, 64, 64, 192), sf::Color(144, 144, 144, 192)};  // 半透明灰色
     const std::string OPERATION_NAMES[] = {"Insert", "Find", "Remove", "Split", "Merge"};
     const OperationType OPERATIONS[] = {
         OperationType::INSERT, OperationType::FIND, OperationType::REMOVE, OperationType::SPLIT,
@@ -233,10 +247,19 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
         throw std::runtime_error("Failed to load font");
     }
 
-    // 计算每个操作的最大时间
+    // 计算每个操作的最大时间和平均时间
     std::vector<double> max_times(OPERATION_NAMES->size(), 0.0);
+    std::vector<std::vector<double>> avg_times(OPERATION_NAMES->size());
+    std::vector<size_t> ns;
     size_t max_n = 0;
+
+    // 收集所有数据点
+    for (const auto& metric : data[0].data) {
+        ns.push_back(metric.n);
+    }
+    for (size_t i = 0; i < OPERATION_NAMES->size(); i++) avg_times[i].resize(ns.size());
     for (const auto& result : data) {
+        size_t idx = 0;
         for (const auto& metric : result.data) {
             max_n = std::max(max_n, metric.n);
             max_times[0] = std::max(max_times[0], metric.random.insert.count());
@@ -244,11 +267,40 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
             max_times[2] = std::max(max_times[2], metric.random.remove.count());
             max_times[3] = std::max(max_times[3], metric.random.split.count());
             max_times[4] = std::max(max_times[4], metric.random.merge.count());
+            avg_times[0][idx] += metric.random.insert.count();
+            avg_times[1][idx] += metric.random.find.count();
+            avg_times[2][idx] += metric.random.remove.count();
+            avg_times[3][idx] += metric.random.split.count();
+            avg_times[4][idx] += metric.random.merge.count();
+            idx++;
         }
+    }
+
+    // 计算平均值
+    // debug(data.size());
+    for (auto& times : avg_times) {
+        for (auto& t : times) t /= data.size();
     }
 
     // 将所有时间转换为毫秒
     for (auto& t : max_times) t *= 1000;
+    for (auto& times : avg_times) {
+        for (auto& t : times) t *= 1000;
+    }
+
+    // 计算每个操作的k值
+    std::vector<double> k_log_n(OPERATION_NAMES->size());
+    std::vector<double> k_sqrt_n(OPERATION_NAMES->size());
+    // debug(ns.size());
+    for (size_t op = 0; op < OPERATION_NAMES->size(); ++op) {
+        size_t max_n = ns.back();
+        double max_time = avg_times[op].back();
+        // debug(avg_times[op].size());
+        // debug(max_n, max_time);
+        k_log_n[op] = max_time / max_n / std::log2(max_n);
+        k_log_n[op] = fitK(avg_times[op], ns, [](size_t n) { return n * std::log2(n); });
+        k_sqrt_n[op] = fitK(avg_times[op], ns, [](size_t n) { return n * (n); });
+    }
 
     while (std::any_of(windows.begin(), windows.end(), [](const auto& w) { return w.isOpen(); })) {
         for (size_t op_idx = 0; op_idx < windows.size(); ++op_idx) {
@@ -267,6 +319,22 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
             auto y_map = [&](double t) {
                 return HEIGHT - MARGIN - (HEIGHT - 2 * MARGIN) * (t / max_times[op_idx]);
             };
+
+            // 绘制理论曲线
+            const int POINTS = 1000;
+            sf::VertexArray log_n_curve(sf::PrimitiveType::LineStrip, POINTS);
+            sf::VertexArray sqrt_n_curve(sf::PrimitiveType::LineStrip, POINTS);
+            for (int i = 0; i < POINTS; ++i) {
+                double n = (double)max_n * (i + 1) / POINTS;
+                double t_log_n = n * k_log_n[op_idx] * std::log2(n);
+                double t_sqrt_n = n * k_sqrt_n[op_idx] * (n);
+                log_n_curve[i].position = sf::Vector2f(x_map(n), y_map(t_log_n));
+                log_n_curve[i].color = THEORY_COLORS[0];
+                sqrt_n_curve[i].position = sf::Vector2f(x_map(n), y_map(t_sqrt_n));
+                sqrt_n_curve[i].color = THEORY_COLORS[1];
+            }
+            window.draw(log_n_curve);
+            window.draw(sqrt_n_curve);
 
             // 坐标轴
             sf::RectangleShape x_axis(sf::Vector2f(WIDTH - 2 * MARGIN, 2));
@@ -311,9 +379,22 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
                 legend.setString(result.name);
                 legend.setCharacterSize(20);
                 legend.setFillColor(COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))]);
-                legend.setPosition(sf::Vector2f(WIDTH - MARGIN + 10, MARGIN + 30 * algo));
+                legend.setPosition(sf::Vector2f(MARGIN + 10, MARGIN + 30 * algo));
                 window.draw(legend);
             }
+
+            // 添加理论曲线图例
+            sf::Text theory_legend1{font}, theory_legend2{font};
+            theory_legend1.setString(std::format("n log(n) (k={:.2e})", k_log_n[op_idx]));
+            theory_legend2.setString(std::format("n^2 (k={:.2e})", k_sqrt_n[op_idx]));
+            theory_legend1.setCharacterSize(20);
+            theory_legend2.setCharacterSize(20);
+            theory_legend1.setFillColor(THEORY_COLORS[0]);
+            theory_legend2.setFillColor(THEORY_COLORS[1]);
+            theory_legend1.setPosition(sf::Vector2f(MARGIN + 10, MARGIN + 30 * (data.size() + 1)));
+            theory_legend2.setPosition(sf::Vector2f(MARGIN + 10, MARGIN + 30 * (data.size() + 2)));
+            window.draw(theory_legend1);
+            window.draw(theory_legend2);
 
             // Y轴最大值标签
             sf::Text y_label{font};
@@ -340,9 +421,11 @@ inline void benchmark() {
     crtpBenchmark();
     algorithmBenchmark();
     std::cout << std::format("\n===== Visualize =====\n");
-    auto data = benchmarkData<AVLTree, Treap, SplayTree>(
-        {1000, 3000, 5000, 10000, 20000, 30000, 40000, 50000, 100000, 150000, 200000, 250000,
-         300000, 350000, 400000, 450000, 500000});
+    std::vector<int> n_values;
+    for (int i = 1; i <= 10; i++) {
+        n_values.push_back(i * 20000);
+    }
+    auto data = benchmarkData<AVLTree, Treap, SplayTree>(n_values);
     std::cout << "done\n";
     visualizeBenchmarkData(data);
 }

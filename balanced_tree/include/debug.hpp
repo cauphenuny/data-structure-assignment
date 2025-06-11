@@ -53,6 +53,8 @@ inline std::string tryCompressString(const std::string& str) {
         return std::string(str);
 }
 
+std::string serialize(const auto& val);
+
 template <std::input_iterator T> std::string stringify(const T& begin, const T& end) {
     std::string str;
     size_t index = 0;
