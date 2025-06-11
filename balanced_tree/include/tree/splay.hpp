@@ -49,6 +49,7 @@ struct SplayTreeImpl
         if (this->root) this->root->parent = nullptr;
     }
 
+    auto name() const -> std::string { return "SplayTree"; }
     auto stringify() const -> std::string { return serializeClass("SplayTree", root); }
 
     auto insert(const K& key, const V& value) -> Status {

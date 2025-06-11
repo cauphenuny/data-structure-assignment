@@ -117,5 +117,6 @@ struct BasicTreeImpl
         return Status::SUCCESS;
     }
 
+    auto name() const -> std::string { return "BasicTree"; }
     auto stringify() const -> std::string { return serializeClass("BasicTree", root); }
 };

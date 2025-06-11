@@ -6,6 +6,7 @@
 #include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
+#include <SFML/Graphics.hpp>
 #include <algorithm>
 #include <cassert>
 #include <chrono>
@@ -109,33 +110,20 @@ inline void algorithmBenchmark() {
         auto end = chrono::high_resolution_clock::now();
         return chrono::duration<double, micro>(end - start).count();
     };
-
     auto bench = [&](auto tree, string_view name, bool include_sequential = true) {
-        // Insert
         double insert_time = duration([&] {
             for (auto k : keys) tree->insert(k, k);
         });
-
-        // Find
         double find_time = duration([&] {
             for (auto k : keys) volatile auto _ = tree->find(k);
         });
-
-        // Remove
         double remove_time = duration([&] {
             for (auto k : keys) tree->remove(k);
         });
-
-        // Re-insert for split/merge
         for (auto k : keys) tree->insert(k, k);
-
-        // Split
         decltype(tree->split(N / 2)) split_result;
         double split_time = micro_duration([&] { split_result = tree->split(N / 2); });
-
-        // Merge
         double merge_time = micro_duration([&] { tree->merge(std::move(split_result)); });
-
         if (include_sequential) {
             tree->clear();
             double seq_insert_time = duration([&] {
@@ -164,7 +152,197 @@ inline void algorithmBenchmark() {
     bench(make_unique<Treap<Key, Value>>(), "Treap");
     bench(make_unique<SplayTree<Key, Value>>(), "Splay");
 }
+
+struct BenchmarkMetric {
+    size_t n;
+    struct {
+        std::chrono::duration<double> insert, find, remove, split, merge;
+    } random, sequential;
+};
+
+enum class OperationType : std::uint8_t { INSERT, FIND, REMOVE, SPLIT, MERGE };
+
+struct BenchmarkResult {
+    std::string name;
+    std::vector<BenchmarkMetric> data;
+};
+
+template <
+    template <typename, typename> typename TreeType, template <typename, typename> typename... Args>
+inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<BenchmarkResult> {
+    std::vector<BenchmarkResult> results;
+    if constexpr (sizeof...(Args)) results = benchmarkData<Args...>(n_values);
+    auto duration = [](auto func) {
+        auto start = std::chrono::high_resolution_clock::now();
+        func();
+        return std::chrono::high_resolution_clock::now() - start;
+    };
+    auto bench = [&duration](auto& tree, auto& metrics, auto& keys) {
+        tree->clear();
+        metrics.insert = duration([&] {
+            for (const auto& key : keys) tree->insert(key, key);
+        });
+        metrics.find = duration([&] {
+            for (const auto& key : keys) volatile auto _ = tree->find(key);
+        });
+        metrics.remove = duration([&] {
+            for (const auto& key : keys) tree->remove(key);
+        });
+        for (const auto& key : keys) tree->insert(key, key);
+        std::unique_ptr<TreeType<int, int>> split_result;
+        for (const auto& key : keys) {
+            metrics.split += duration([&] { split_result = tree->split(key); });
+            metrics.merge += duration([&] { tree->merge(std::move(split_result)); });
+        }
+    };
+    BenchmarkResult current;
+    auto tree = make_unique<TreeType<int, int>>();
+    current.name = tree->name();
+    std::cout << std::format("current benchmark: {}\n", current.name);
+    for (size_t n : n_values) {
+        vector<size_t> keys(n);
+        for (size_t i = 0; i < n; ++i) keys[i] = i;
+        BenchmarkMetric metric;
+        metric.n = n;
+        bench(tree, metric.sequential, keys);
+        shuffle(keys.begin(), keys.end(), mt19937{random_device{}()});
+        bench(tree, metric.random, keys);
+        current.data.push_back(metric);
+    }
+    results.push_back(current);
+    return results;
+}
+
+inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
+    const int WIDTH = 1200, HEIGHT = 800, MARGIN = 120;
+    const sf::Color COLORS[] = {
+        sf::Color::Red, sf::Color::Green, sf::Color::Blue, sf::Color::Magenta, sf::Color::Cyan};
+    const std::string OPERATION_NAMES[] = {"Insert", "Find", "Remove", "Split", "Merge"};
+    const OperationType OPERATIONS[] = {
+        OperationType::INSERT, OperationType::FIND, OperationType::REMOVE, OperationType::SPLIT,
+        OperationType::MERGE};
+
+    // 为每个操作创建窗口
+    std::vector<sf::RenderWindow> windows;
+    for (const auto& op_name : OPERATION_NAMES) {
+        windows.emplace_back(sf::VideoMode({WIDTH, HEIGHT}), "Benchmark: " + op_name);
+    }
+
+    sf::Font font;
+    if (!font.openFromFile("assets/Menlo.ttf") && !font.openFromFile("../assets/Menlo.ttf")) {
+        throw std::runtime_error("Failed to load font");
+    }
+
+    // 计算每个操作的最大时间
+    std::vector<double> max_times(OPERATION_NAMES->size(), 0.0);
+    size_t max_n = 0;
+    for (const auto& result : data) {
+        for (const auto& metric : result.data) {
+            max_n = std::max(max_n, metric.n);
+            max_times[0] = std::max(max_times[0], metric.random.insert.count());
+            max_times[1] = std::max(max_times[1], metric.random.find.count());
+            max_times[2] = std::max(max_times[2], metric.random.remove.count());
+            max_times[3] = std::max(max_times[3], metric.random.split.count());
+            max_times[4] = std::max(max_times[4], metric.random.merge.count());
+        }
+    }
+
+    // 将所有时间转换为毫秒
+    for (auto& t : max_times) t *= 1000;
+
+    while (std::any_of(windows.begin(), windows.end(), [](const auto& w) { return w.isOpen(); })) {
+        for (size_t op_idx = 0; op_idx < windows.size(); ++op_idx) {
+            auto& window = windows[op_idx];
+            if (!window.isOpen()) continue;
+
+            while (auto event = window.pollEvent()) {
+                if (event->is<sf::Event::Closed>()) window.close();
+            }
+            window.clear(sf::Color::White);
+
+            // 坐标变换
+            auto x_map = [&](size_t n) {
+                return MARGIN + (WIDTH - 2 * MARGIN) * (double(n) / max_n);
+            };
+            auto y_map = [&](double t) {
+                return HEIGHT - MARGIN - (HEIGHT - 2 * MARGIN) * (t / max_times[op_idx]);
+            };
+
+            // 坐标轴
+            sf::RectangleShape x_axis(sf::Vector2f(WIDTH - 2 * MARGIN, 2));
+            x_axis.setPosition(sf::Vector2f(MARGIN, HEIGHT - MARGIN));
+            x_axis.setFillColor(sf::Color::Black);
+            window.draw(x_axis);
+            sf::RectangleShape y_axis(sf::Vector2f(2, HEIGHT - 2 * MARGIN));
+            y_axis.setPosition(sf::Vector2f(MARGIN, MARGIN));
+            y_axis.setFillColor(sf::Color::Black);
+            window.draw(y_axis);
+
+            // 画每条线
+            for (size_t algo = 0; algo < data.size(); ++algo) {
+                const auto& result = data[algo];
+                sf::VertexArray line(sf::PrimitiveType::LineStrip, result.data.size());
+                for (size_t i = 0; i < result.data.size(); ++i) {
+                    double t = 0;
+                    switch (OPERATIONS[op_idx]) {
+                        case OperationType::INSERT:
+                            t = result.data[i].random.insert.count() * 1000;
+                            break;
+                        case OperationType::FIND:
+                            t = result.data[i].random.find.count() * 1000;
+                            break;
+                        case OperationType::REMOVE:
+                            t = result.data[i].random.remove.count() * 1000;
+                            break;
+                        case OperationType::SPLIT:
+                            t = result.data[i].random.split.count() * 1000;
+                            break;
+                        case OperationType::MERGE:
+                            t = result.data[i].random.merge.count() * 1000;
+                            break;
+                    }
+                    line[i].position = sf::Vector2f(x_map(result.data[i].n), y_map(t));
+                    line[i].color = COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))];
+                }
+                window.draw(line);
+
+                // 图例
+                sf::Text legend{font};
+                legend.setString(result.name);
+                legend.setCharacterSize(20);
+                legend.setFillColor(COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))]);
+                legend.setPosition(sf::Vector2f(WIDTH - MARGIN + 10, MARGIN + 30 * algo));
+                window.draw(legend);
+            }
+
+            // Y轴最大值标签
+            sf::Text y_label{font};
+            y_label.setString(std::to_string(int(max_times[op_idx])) + " ms");
+            y_label.setCharacterSize(16);
+            y_label.setFillColor(sf::Color::Black);
+            y_label.setPosition(sf::Vector2f(10, MARGIN - 10));
+            window.draw(y_label);
+
+            // X轴最大值标签
+            sf::Text x_label{font};
+            x_label.setString("n=" + std::to_string(max_n));
+            x_label.setCharacterSize(16);
+            x_label.setFillColor(sf::Color::Black);
+            x_label.setPosition(sf::Vector2f(WIDTH - MARGIN - 40, HEIGHT - MARGIN + 10));
+            window.draw(x_label);
+
+            window.display();
+        }
+    }
+}
+
 inline void benchmark() {
     crtpBenchmark();
     algorithmBenchmark();
+    std::cout << std::format("\n===== Visualize =====\n");
+    auto data = benchmarkData<AVLTree, Treap, SplayTree>(
+        {1000, 3000, 5000, 10000, 20000, 30000, 40000, 50000, 100000, 150000, 200000, 250000,
+         300000, 350000, 400000, 450000, 500000});
+    std::cout << "done\n";
+    visualizeBenchmarkData(data);
 }

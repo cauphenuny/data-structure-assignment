@@ -59,6 +59,7 @@ struct TreapImpl
         if (this->root) this->root->parent = nullptr;
     }
 
+    auto name() const -> std::string { return "Treap"; }
     auto stringify() const -> std::string { return serializeClass("Treap", root); }
 
     auto insert(const K& key, const V& value) -> Status {

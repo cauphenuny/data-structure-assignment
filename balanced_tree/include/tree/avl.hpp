@@ -120,6 +120,7 @@ struct AVLTreeImpl
         return Status::SUCCESS;
     }
 
+    auto name() const -> std::string { return "AVLTree"; }
     auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 
 private:

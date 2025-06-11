@@ -17,6 +17,7 @@ struct TreeBase {
     virtual void print() const = 0;
     virtual void printCLI() const = 0;
     virtual auto stringify() const -> std::string = 0;
+    virtual auto name() const -> std::string = 0;
 };
 
 template <typename K, typename V> struct Tree : TreeBase {
@@ -43,6 +44,7 @@ template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V>
     void print() const override { impl->print(); }
     void printCLI() const override { impl->printCLI(); }
     auto stringify() const -> std::string override { return impl->stringify(); }
+    auto name() const -> std::string override { return impl->name(); }
     auto insert(const K& k, const V& v) -> Status override { return impl->insert(k, v); }
     auto remove(const K& k) -> Status override { return impl->remove(k); }
     auto find(const K& k) -> Pair<const K, V>* override { return impl->find(k); }
@@ -58,9 +60,15 @@ template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V>
     // auto splited = avl->split(10); // returns
     // avl->join(std::move(splited)); // joins the splited tree back
 
-    auto split(const K& k) -> std::unique_ptr<Impl> { return impl->split(k); }
-    auto join(std::unique_ptr<Impl> other) -> Status { return impl->join(std::move(other)); }
-    auto merge(std::unique_ptr<Impl> other) -> Status { return impl->merge(std::move(other)); }
+    auto split(const K& k) -> std::unique_ptr<TreeAdapter> {
+        return std::make_unique<TreeAdapter>(impl->split(k));
+    }
+    auto join(std::unique_ptr<TreeAdapter> other) -> Status {
+        return impl->join(std::move(other->impl));
+    }
+    auto merge(std::unique_ptr<TreeAdapter> other) -> Status {
+        return impl->merge(std::move(other->impl));
+    }
     auto conflict(Impl* other) -> bool { return impl->conflict(other); }
 
     // NOTE:
