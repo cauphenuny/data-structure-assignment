@@ -9,7 +9,7 @@
 #include <tuple>
 #include <vector>
 
-namespace tree_trait {
+namespace trait {
 
 template <typename N> struct TypeTraits {
     using KeyType = typename N::KeyType;
@@ -17,6 +17,8 @@ template <typename N> struct TypeTraits {
     using PairType = typename N::PairType;
     using NodeType = N;
 };
+
+template <typename Type, template <typename> class... Traits> struct Mixin : Traits<Type>... {};
 
 template <typename Node> struct Maintain {
     static void maintain(Node* node) {
@@ -29,13 +31,13 @@ template <typename Node> struct Maintain {
 
 template <typename Node> struct Rotate {
     static void rotate(int dir, std::unique_ptr<Node>& root) {
-        auto new_root = root->child[dir ^ 1].release();
+        auto new_root = root->unbind(dir ^ 1);
         if (new_root->child[dir]) {
             root->bind(dir ^ 1, std::move(new_root->child[dir]));
         }
         new_root->parent = root->parent;
         new_root->bind(dir, std::move(root));
-        root.reset(new_root);
+        root = std::move(new_root);
         root->child[dir]->maintain();
         root->maintain();
     }
@@ -73,10 +75,8 @@ template <typename Tree> struct Detach {
         if (node->child[L]) node->child[L]->parent = parent;
         if (node->child[R]) node->child[R]->parent = parent;
         auto raw = node.release();
-        if (!raw->child[L])
-            node = std::move(raw->child[R]);
-        else
-            node = std::move(raw->child[L]);
+        raw->parent = nullptr;
+        node = std::move(raw->child[raw->child[L] ? L : R]);
         Tree::maintain(parent);
         return std::unique_ptr<Node>(raw);
     }
@@ -197,7 +197,7 @@ template <typename Tree> struct Merge {
         this_min = self.min()->key, this_max = self.max()->key;
         other_min = other->min()->key, other_max = other->max()->key;
         if (this_min <= other_max && other_min <= this_max) {
-            return self.mixin(std::move(other));
+            return self.inject(std::move(other));
         } else {
             if (this_min > other_max) std::swap(self.root, other->root);
             return self.join(std::move(other));
@@ -205,7 +205,7 @@ template <typename Tree> struct Merge {
     }
 
 private:
-    Status mixin(std::unique_ptr<Tree> other) {
+    Status inject(std::unique_ptr<Tree> other) {
         auto& self = *(static_cast<Tree*>(this));
         other->traverse([&self](auto& node) { self.insert(node->key, node->value); });
         return Status::SUCCESS;
@@ -248,4 +248,4 @@ template <typename Tree> struct Print {
     }
 };
 
-}  // namespace tree_trait
+}  // namespace trait

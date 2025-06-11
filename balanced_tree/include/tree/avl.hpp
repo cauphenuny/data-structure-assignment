@@ -19,14 +19,15 @@ template <typename K, typename V> using AVLTree = TreeAdapter<K, V, AVLTreeImpl<
 // ============================== Implementation ================================
 
 template <typename K, typename V>
-struct AVLNode : Pair<const K, V>,
-                 trait::TypeTraits<K, V>,
-                 trait::Link<AVLNode<K, V>>,
-                 trait::Maintain<trait::Size<AVLNode<K, V>>, trait::Height<AVLNode<K, V>>>,
-                 trait::Search<AVLNode<K, V>> {
+struct AVLNode
+    : Pair<const K, V>,
+      trait::node::TypeTraits<K, V>,
+      trait::node::Link<AVLNode<K, V>>,
+      trait::node::Maintain<trait::node::Size<AVLNode<K, V>>, trait::node::Height<AVLNode<K, V>>>,
+      trait::node::Search<AVLNode<K, V>> {
 
     AVLNode(const K& k, const V& v, AVLNode* parent = nullptr)
-        : Pair<const K, V>(k, v), trait::Link<AVLNode<K, V>>(parent) {
+        : Pair<const K, V>(k, v), trait::node::Link<AVLNode<K, V>>(parent) {
         this->maintain();
     }
 
@@ -39,12 +40,11 @@ struct AVLNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct AVLTreeImpl
-    : trait::Dispatch<
-          AVLTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
-          tree_trait::Height, tree_trait::Print, tree_trait::Traverse, tree_trait::Merge,
-          tree_trait::Subscript, tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
-      trait::Dispatch<
-          AVLNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
+    : trait::Mixin<
+          AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height, trait::Print,
+          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
+          trait::Detach>,
+      trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
@@ -87,6 +87,7 @@ struct AVLTreeImpl
             -> std::tuple<std::unique_ptr<AVLTreeImpl<K, V>>, std::unique_ptr<AVLTreeImpl<K, V>>> {
             if (!node) return {tree(nullptr), tree(nullptr)};
             auto [lchild, rchild] = node->unbind();
+            node->maintain();
             if (key <= node->key) {
                 auto [left, mid] = self(self, std::move(lchild));
                 mid->join(std::move(node), tree(std::move(rchild)));

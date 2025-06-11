@@ -7,15 +7,13 @@
 #include <memory>
 #include <tuple>
 
-namespace trait {
+namespace trait::node {
 
 template <typename K, typename V> struct TypeTraits {
     using KeyType = K;
     using ValueType = V;
     using PairType = Pair<const K, V>;
 };
-
-template <typename Type, template <typename> class... Traits> struct Dispatch : Traits<Type>... {};
 
 template <typename Node> struct Link {
     Node* parent{nullptr};
@@ -35,17 +33,10 @@ template <typename Node> struct Link {
         auto& self = *(static_cast<Node*>(this));
         auto child = std::move(self.child[which]);
         if (child) child->parent = nullptr;
-        self.maintain();
         return child;
     }
     auto unbind() -> std::tuple<std::unique_ptr<Node>, std::unique_ptr<Node>> {
-        auto& self = *(static_cast<Node*>(this));
-        auto l = std::move(self.child[L]);
-        auto r = std::move(self.child[R]);
-        if (l) l->parent = nullptr;
-        if (r) r->parent = nullptr;
-        self.maintain();
-        return {std::move(l), std::move(r)};
+        return {unbind(L), unbind(R)};
     }
     auto which() const -> int {
         auto& self = *(static_cast<const Node*>(this));
@@ -126,4 +117,4 @@ template <typename Node> struct Search {
     }
 };
 
-}  // namespace trait
+}  // namespace trait::node

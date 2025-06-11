@@ -162,7 +162,7 @@ inline void algorithmBenchmark() {
     bench(make_unique<BasicTree<Key, Value>>(), "Basic", false);
     bench(make_unique<AVLTree<Key, Value>>(), "AVL");
     bench(make_unique<Treap<Key, Value>>(), "Treap");
-    bench(make_unique<SplayTree<Key, Value>>(), "Splay", false);
+    bench(make_unique<SplayTree<Key, Value>>(), "Splay");
 }
 inline void benchmark() {
     crtpBenchmark();

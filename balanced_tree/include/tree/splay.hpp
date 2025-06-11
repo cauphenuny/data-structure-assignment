@@ -18,12 +18,12 @@ template <typename K, typename V> using SplayTree = TreeAdapter<K, V, SplayTreeI
 
 template <typename K, typename V>
 struct SplayNode : Pair<const K, V>,
-                   trait::TypeTraits<K, V>,
-                   trait::Link<SplayNode<K, V>>,
-                   trait::Maintain<trait::Size<SplayNode<K, V>>>,
-                   trait::Search<SplayNode<K, V>> {
+                   trait::node::TypeTraits<K, V>,
+                   trait::node::Link<SplayNode<K, V>>,
+                   trait::node::Maintain<trait::node::Size<SplayNode<K, V>>>,
+                   trait::node::Search<SplayNode<K, V>> {
     SplayNode(const K& k, const V& v, SplayNode* parent = nullptr)
-        : Pair<const K, V>(k, v), trait::Link<SplayNode<K, V>>(parent) {
+        : Pair<const K, V>(k, v), trait::node::Link<SplayNode<K, V>>(parent) {
         this->maintain();
     }
 
@@ -36,12 +36,10 @@ struct SplayNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct SplayTreeImpl
-    : trait::Dispatch<
-          SplayTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
-          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
-          tree_trait::Conflict, tree_trait::Box>,
-      trait::Dispatch<
-          SplayNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
+    : trait::Mixin<
+          SplayTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
+          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box>,
+      trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<SplayNode<K, V>> root{nullptr};
@@ -63,7 +61,7 @@ struct SplayTreeImpl
 
     auto remove(const K& key) -> Status {
         if (!this->find(key)) return Status::FAILED;
-        auto [left, mid, right] = this->divide(key);
+        auto [left, right] = this->root->unbind();
         this->root = std::move(left);
         this->join(std::make_unique<SplayTreeImpl<K, V>>(std::move(right)));
         return Status::SUCCESS;
@@ -74,8 +72,10 @@ struct SplayTreeImpl
         if (this->find(key)) {
             other = std::move(this->root);
             this->root = std::move(other->unbind(L));
+            other->maintain();
         } else {
             other = this->root->unbind(R);
+            this->root->maintain();
         }
         return std::make_unique<SplayTreeImpl<K, V>>(std::move(other));
     }
@@ -121,36 +121,21 @@ struct SplayTreeImpl
     auto find(const K& key) -> Pair<const K, V>* { return findNode(key); }
 
 private:
-    SplayNode<K, V>* pushup(SplayNode<K, V>* node) {
-        auto& box = this->box(node->parent);
-        this->rotate(!node->which(), box);
-        return box.get();
+    void pushup(SplayNode<K, V>* node) {
+        this->rotate(!node->which(), this->box(node->parent));
     }
 
     void splay(SplayNode<K, V>* node) {
         if (!node) return;
+        node->maintain();
         while (node->parent) {
+            node->parent->maintain();
             auto parent = node->parent;
             if (parent->parent) {
-                if (node->which() == parent->which()) {
-                    parent->parent->maintain();
-                    pushup(parent);
-                } else {
-                    node = pushup(node);
-                }
-            } else {
-                node = pushup(node);
+                node->parent->parent->maintain();
+                pushup(node->which() == parent->which() ? parent : node);
             }
+            pushup(node);
         }
-    }
-
-    auto divide(const K& key) -> std::tuple<
-        std::unique_ptr<SplayNode<K, V>>, std::unique_ptr<SplayNode<K, V>>,
-        std::unique_ptr<SplayNode<K, V>>> {
-        if (!this->root) return {nullptr, nullptr, nullptr};
-        auto [_, node] = this->findBox(this->root, key);
-        this->splay(node.get());
-        auto [lchild, rchild] = this->root->unbind();
-        return {std::move(lchild), std::move(this->root), std::move(rchild)};
     }
 };

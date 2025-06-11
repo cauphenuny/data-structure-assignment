@@ -21,13 +21,13 @@ template <typename K, typename V> using BasicTree = TreeAdapter<K, V, BasicTreeI
 
 template <typename K, typename V>
 struct BasicNode : Pair<const K, V>,
-                   trait::TypeTraits<K, V>,
-                   trait::Link<BasicNode<K, V>>,
-                   trait::Maintain<trait::Size<BasicNode<K, V>>>,
-                   trait::Search<BasicNode<K, V>> {
+                   trait::node::TypeTraits<K, V>,
+                   trait::node::Link<BasicNode<K, V>>,
+                   trait::node::Maintain<trait::node::Size<BasicNode<K, V>>>,
+                   trait::node::Search<BasicNode<K, V>> {
 
     BasicNode(const K& k, const V& v, BasicNode* parent = nullptr)
-        : Pair<const K, V>(k, v), trait::Link<BasicNode<K, V>>(parent) {
+        : Pair<const K, V>(k, v), trait::node::Link<BasicNode<K, V>>(parent) {
         this->maintain();
     }
 
@@ -40,12 +40,11 @@ struct BasicNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct BasicTreeImpl
-    : trait::Dispatch<
-          BasicTreeImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
-          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
-          tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
-      trait::Dispatch<
-          BasicNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
+    : trait::Mixin<
+          BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
+          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
+          trait::Detach>,
+      trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
@@ -85,6 +84,7 @@ struct BasicTreeImpl
             if (!node) return {nullptr, nullptr};
             if (key <= node->key) {
                 auto [lchild, rchild] = node->unbind();
+                node->maintain();
                 auto [lchild_l, lchild_r] = self(self, std::move(lchild));
                 node->bind(L, std::move(lchild_r));
                 node->bind(R, std::move(rchild));
@@ -92,6 +92,7 @@ struct BasicTreeImpl
                 return {std::move(lchild_l), std::move(node)};
             } else {
                 auto [lchild, rchild] = node->unbind();
+                node->maintain();
                 auto [rchild_l, rchild_r] = self(self, std::move(rchild));
                 node->bind(L, std::move(lchild));
                 node->bind(R, std::move(rchild_l));

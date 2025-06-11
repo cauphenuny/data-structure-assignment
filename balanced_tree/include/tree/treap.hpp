@@ -19,14 +19,14 @@ template <typename K, typename V> using Treap = TreeAdapter<K, V, TreapImpl<K, V
 
 template <typename K, typename V>
 struct TreapNode : Pair<const K, V>,
-                   trait::TypeTraits<K, V>,
-                   trait::Link<TreapNode<K, V>>,
-                   trait::Maintain<trait::Size<TreapNode<K, V>>>,
-                   trait::Search<TreapNode<K, V>> {
+                   trait::node::TypeTraits<K, V>,
+                   trait::node::Link<TreapNode<K, V>>,
+                   trait::node::Maintain<trait::node::Size<TreapNode<K, V>>>,
+                   trait::node::Search<TreapNode<K, V>> {
     int priority;  // Random priority for treap property
 
     TreapNode(const K& k, const V& v, TreapNode* parent = nullptr)
-        : Pair<const K, V>(k, v), trait::Link<TreapNode<K, V>>(parent) {
+        : Pair<const K, V>(k, v), trait::node::Link<TreapNode<K, V>>(parent) {
         this->maintain();
         this->priority = randomPriority();
     }
@@ -46,12 +46,10 @@ struct TreapNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct TreapImpl
-    : trait::Dispatch<
-          TreapImpl<K, V>, tree_trait::Search, tree_trait::Clear, tree_trait::Size,
-          tree_trait::Print, tree_trait::Traverse, tree_trait::Merge, tree_trait::Subscript,
-          tree_trait::Conflict, tree_trait::Box, tree_trait::Detach>,
-      trait::Dispatch<
-          TreapNode<K, V>, tree_trait::TypeTraits, tree_trait::Maintain, tree_trait::Rotate> {
+    : trait::Mixin<
+          TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach>,
+      trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};
@@ -109,6 +107,7 @@ private:
         if (!node) return {nullptr, nullptr, nullptr};
         if (key == node->key) {
             auto [lchild, rchild] = node->unbind();
+            node->maintain();
             return {std::move(lchild), std::move(node), std::move(rchild)};
         } else if (key < node->key) {
             auto [left, mid, right] = split(std::move(node->child[L]), key);

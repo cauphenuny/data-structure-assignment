@@ -526,13 +526,12 @@ template <class charT>
 struct char_traits;
 template <>
 struct char_traits<char>;
-template <class charT, class tree_trait>
-class basic_ostream;                                    // NOLINT(fuchsia-virtual-inheritance)
+template <class charT, class trait> class basic_ostream;  // NOLINT(fuchsia-virtual-inheritance)
 typedef basic_ostream<char, char_traits<char>> ostream; // NOLINT(modernize-use-using)
-template <class tree_trait>
+template <class trait>
 // NOLINTNEXTLINE
-basic_ostream<char, tree_trait>& operator<<(basic_ostream<char, tree_trait>&, const char*);
-template <class charT, class tree_trait> class basic_istream;
+basic_ostream<char, trait>& operator<<(basic_ostream<char, trait>&, const char*);
+template <class charT, class trait> class basic_istream;
 typedef basic_istream<char, char_traits<char>> istream; // NOLINT(modernize-use-using)
 template <class... Types>
 class tuple;
@@ -540,7 +539,7 @@ class tuple;
 // see this issue on why this is needed: https://github.com/doctest/doctest/issues/183
 template <class Ty>
 class allocator;
-template <class Elem, class tree_trait, class Alloc> class basic_string;
+template <class Elem, class trait, class Alloc> class basic_string;
 using string = basic_string<char, char_traits<char>, allocator<char>>;
 #endif // VS 2019
 } // namespace std
@@ -710,7 +709,7 @@ namespace Color {
 
 namespace assertType {
 enum Enum {
-    // macro tree_trait
+    // macro trait
 
     is_warn = 1,
     is_check = 2 * is_warn,

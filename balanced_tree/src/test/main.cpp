@@ -1042,7 +1042,7 @@ TEST_CASE("`Treap` complex operations") {
 }
 
 TEST_CASE("`SplayTree` basic operations") {
-    auto tree = std::make_unique<SplayTree<int, std::string>>();
+    auto tree = std::make_unique<SplayTreeImpl<int, std::string>>();
 
     SUBCASE("Insert and Find") {
         CHECK(tree->insert(10, "ten") == Status::SUCCESS);
@@ -1063,6 +1063,7 @@ TEST_CASE("`SplayTree` basic operations") {
         CHECK(node->key == 15);
 
         CHECK(tree->find(99) == nullptr);
+        Test::check(tree);
     }
 
     SUBCASE("Remove") {
@@ -1089,6 +1090,8 @@ TEST_CASE("`SplayTree` basic operations") {
         CHECK(tree->size() == 4);        // 1-4
         CHECK(right_tree->size() == 6);  // 5-10
 
+        Test::check(tree);
+        Test::check(right_tree);
         // Check split correctness
         for (int i = 1; i <= 4; ++i) {
             CHECK(tree->find(i) != nullptr);
@@ -1103,5 +1106,162 @@ TEST_CASE("`SplayTree` basic operations") {
         for (int i = 1; i <= 10; ++i) {
             CHECK(tree->find(i) != nullptr);
         }
+        Test::check(tree);
+    }
+}
+
+TEST_CASE("`SplayTree` complex operations") {
+    auto tree = std::make_unique<SplayTreeImpl<int, std::string>>();
+
+    SUBCASE("Sequential insertions") {
+        for (int i = 1; i <= 100; ++i) {
+            CHECK(tree->insert(i, std::to_string(i)) == Status::SUCCESS);
+            Test::check(tree);
+        }
+        CHECK(tree->size() == 100);
+    }
+
+    SUBCASE("Random insertions") {
+        std::vector<int> keys(100);
+        std::iota(keys.begin(), keys.end(), 1);
+        std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+        for (int k : keys) {
+            CHECK(tree->insert(k, std::to_string(k)) == Status::SUCCESS);
+            Test::check(tree);
+        }
+        CHECK(tree->size() == 100);
+    }
+
+    SUBCASE("Sequential access pattern benefits") {
+        // Create a balanced tree
+        for (int i = 1; i <= 50; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Access elements in sequence to test splay behavior
+        for (int i = 1; i <= 10; ++i) {
+            auto node = tree->find(i);
+            CHECK(node != nullptr);
+            // After find, the accessed node should be at the root
+            CHECK(tree->root->key == i);
+        }
+    }
+
+    SUBCASE("Random removals") {
+        for (int i = 1; i <= 100; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+        std::vector<int> keys(100);
+        std::iota(keys.begin(), keys.end(), 1);
+        std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
+        for (int k : keys) {
+            CHECK(tree->remove(k) == Status::SUCCESS);
+            Test::check(tree);
+        }
+        CHECK(tree->size() == 0);
+    }
+
+    SUBCASE("Min/Max operations") {
+        for (int i = 1; i <= 20; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Test min operation
+        auto min_node = tree->min();
+        CHECK(min_node != nullptr);
+        CHECK(min_node->key == 1);
+        // Splay should have moved min to root
+        CHECK(tree->root->key == 1);
+
+        // Test max operation
+        auto max_node = tree->max();
+        CHECK(max_node != nullptr);
+        CHECK(max_node->key == 20);
+        // Splay should have moved max to root
+        CHECK(tree->root->key == 20);
+    }
+
+    SUBCASE("Multiple split and join operations") {
+        for (int i = 1; i <= 50; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Split at 25
+        auto right1 = tree->split(25);
+        CHECK(tree->size() == 24);    // 1-24
+        CHECK(right1->size() == 26);  // 25-50
+        Test::check(tree);
+        Test::check(right1);
+
+        // Split right tree again at 37
+        auto right2 = right1->split(37);
+        CHECK(right1->size() == 12);  // 25-36
+        CHECK(right2->size() == 14);  // 37-50
+        Test::check(right1);
+        Test::check(right2);
+
+        // Join them back in different order
+        CHECK(tree->merge(std::move(right2)) == Status::SUCCESS);
+        CHECK(tree->size() == 38);  // 1-24, 37-50
+        Test::check(tree);
+
+        CHECK(tree->merge(std::move(right1)) == Status::SUCCESS);
+        CHECK(tree->size() == 50);  // 1-50
+        Test::check(tree);
+
+        // Verify all elements are present
+        for (int i = 1; i <= 50; ++i) {
+            CHECK(tree->find(i) != nullptr);
+        }
+    }
+
+    SUBCASE("Access pattern optimization") {
+        // Insert 100 elements
+        for (int i = 1; i <= 100; ++i) {
+            tree->insert(i, std::to_string(i));
+        }
+
+        // Access a specific pattern repeatedly (simulating hot spot)
+        for (int i = 0; i < 10; ++i) {
+            for (int j : {25, 50, 75}) {
+                auto node = tree->find(j);
+                CHECK(node != nullptr);
+            }
+        }
+
+        // The most recently accessed key should be at the root
+        CHECK(tree->root->key == 75);
+
+        // Access time for these frequently accessed elements should be O(1)
+        // since they're near the root after splaying
+        auto start = std::chrono::high_resolution_clock::now();
+        tree->find(25);
+        tree->find(50);
+        tree->find(75);
+        auto end = std::chrono::high_resolution_clock::now();
+
+        // This is not a strict test but verifies the operations are fast
+        auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+        CHECK(duration < 1000);  // Should be much less than 1ms for 3 finds
+    }
+
+    SUBCASE("Edge cases") {
+        // Empty tree operations
+        CHECK(tree->find(10) == nullptr);
+        CHECK(tree->min() == nullptr);
+        CHECK(tree->max() == nullptr);
+        CHECK(tree->remove(10) == Status::FAILED);
+
+        // Single element
+        tree->insert(42, "answer");
+        CHECK(tree->size() == 1);
+        CHECK(tree->min()->key == 42);
+        CHECK(tree->max()->key == 42);
+        CHECK(tree->root->key == 42);
+
+        // Remove the only element
+        CHECK(tree->remove(42) == Status::SUCCESS);
+        CHECK(tree->size() == 0);
+        CHECK(tree->root == nullptr);
     }
 }
