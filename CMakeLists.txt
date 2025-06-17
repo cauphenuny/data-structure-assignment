@@ -44,7 +44,7 @@ FetchContent_Declare(SFML
     SYSTEM)
 FetchContent_MakeAvailable(SFML)
 
-file(GLOB BALANCED_TREE_SOURCES "balanced_tree/src/*.cpp" "balanced_tree/src/test/*.cpp")
+file(GLOB BALANCED_TREE_SOURCES "balanced_tree/src/*.cpp" "balanced_tree/src/test/*.cpp" "balanced_tree/src/gui/*.cpp")
 add_executable(balanced_tree ${BALANCED_TREE_SOURCES})
 target_include_directories(balanced_tree PRIVATE 
     "${CMAKE_CURRENT_SOURCE_DIR}/balanced_tree/include"
