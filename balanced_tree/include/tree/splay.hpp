@@ -12,7 +12,7 @@
 
 template <typename K, typename V> struct SplayTreeImpl;
 
-template <typename K, typename V> using SplayTree = TreeAdapter<K, V, SplayTreeImpl<K, V>>;
+template <typename K, typename V> using SplayTree = TreeAdapter<K, V, SplayTreeImpl>;
 
 // ============================== Implementation ================================
 

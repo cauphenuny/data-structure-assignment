@@ -13,7 +13,7 @@
 
 template <typename K, typename V> struct TreapImpl;
 
-template <typename K, typename V> using Treap = TreeAdapter<K, V, TreapImpl<K, V>>;
+template <typename K, typename V> using Treap = TreeAdapter<K, V, TreapImpl>;
 
 // ============================== Implementation ================================
 

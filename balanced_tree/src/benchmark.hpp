@@ -423,7 +423,7 @@ inline void benchmark() {
     algorithmBenchmark();
     std::cout << std::format("\n===== Visualize =====\n");
     std::vector<int> n_values;
-    for (int i = 1; i <= 20; i++) {
+    for (int i = 1; i <= 40; i++) {
         n_values.push_back(i * 25000);
     }
     auto data = benchmarkData<AVLTree, Treap, SplayTree>(n_values);

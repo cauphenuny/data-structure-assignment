@@ -14,7 +14,7 @@
 
 template <typename K, typename V> struct AVLTreeImpl;
 
-template <typename K, typename V> using AVLTree = TreeAdapter<K, V, AVLTreeImpl<K, V>>;
+template <typename K, typename V> using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 
 // ============================== Implementation ================================
 

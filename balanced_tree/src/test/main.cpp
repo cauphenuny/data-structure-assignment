@@ -232,7 +232,7 @@ TEST_CASE("`Tree` removal, split, merge") {
     }
 }
 
-TEST_CASE("`Tree` removal, split, merge") {
+TEST_CASE("`Tree` removal, split, merge, conflict") {
     auto tree = std::make_unique<BasicTreeImpl<int, std::string>>();
     // Setup tree
     tree->insert(50, "fifty");
@@ -314,6 +314,20 @@ TEST_CASE("`Tree` removal, split, merge") {
         CHECK(tree->find(80) != nullptr);
 
         Test::check(tree);
+    }
+
+    SUBCASE("Conflict") {
+        auto tree1 = std::make_unique<BasicTree<int, std::string>>();
+        auto tree2 = std::make_unique<BasicTree<int, std::string>>();
+        tree1->insert(10, "ten");
+        tree1->insert(20, "twenty");
+        tree2->insert(30, "thirty");
+        tree2->insert(10, "ten conflict");
+        CHECK(tree1->conflict(tree2.get()) == true);
+        CHECK(tree2->conflict(tree1.get()) == true);
+        tree2->remove(10);
+        CHECK(tree1->conflict(tree2.get()) == false);
+        CHECK(tree2->conflict(tree1.get()) == false);
     }
 }
 

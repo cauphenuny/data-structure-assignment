@@ -169,8 +169,8 @@ template <typename Tree> struct Conflict {
     bool conflict(Tree* other) {
         std::vector<typename Tree::NodeType*> vec1, vec2;
         auto& self = *(static_cast<Tree*>(this));
-        self.traverse([&](auto& node) { vec1.push_back(node); });
-        other->traverse([&](auto& node) { vec2.push_back(node); });
+        self.traverse([&](auto& node) { vec1.push_back(node.get()); });
+        other->traverse([&](auto& node) { vec2.push_back(node.get()); });
         for (auto it1 = vec1.begin(), it2 = vec2.begin(); it1 != vec1.end() && it2 != vec2.end();) {
             if ((*it1)->key < (*it2)->key) {
                 ++it1;

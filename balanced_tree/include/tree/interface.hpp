@@ -31,13 +31,16 @@ template <typename K, typename V> struct Tree : TreeBase {
 };
 
 // NOTE: example:
+// ```cpp
 // auto tree = AVLTree<int, std::string>::create(); // std::unique_ptr<Tree<int, std::string>>
 // tree.insert(1, "one");
 // tree = BasicTree<int, std::string>::create();
 // tree.insert(2, "two");
+// ```
 
 // bind implementation to the interface
-template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V> {
+template <typename K, typename V, template <typename, typename> typename Impl>
+struct TreeAdapter : Tree<K, V> {
     friend struct Test;
     auto size() const -> size_t override { return impl->size(); }
     void clear() override { impl->clear(); }
@@ -53,12 +56,22 @@ template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V>
     auto operator[](const K& k) -> V& override { return impl->operator[](k); }
     auto operator[](const K& k) const -> const V& override { return impl->operator[](k); }
 
-    // NOTE: no unified split/join/merge interface
-    // example:
-    // auto avl = make_unique<AVLTree<int, std::string>>(); // retains original type AVLTree
+    // NOTE:
+    // no unified split/join/merge interface in Tree<K, V> for different algorithm, because these
+    // functions need algorithm info, you can't join a BasicTree to AVLTree.
+    // use `std::make_unique<AVLTree<K, V>>()` instead of `AVLTree<K, V>::create()` if you want to
+    // call split/join/merge because the latter will erase type info to Tree<K, V>.
+
+    // NOTE: example:
+    // ```cpp
+    // auto tree = AVLTree<int, std::string>::create(); // erased to Tree<K, V>
+    // tree->insert(...);
+    // auto splited = tree->split(10); // failed!
+    // auto avl = make_unique<AVLTree<int, std::string>>(); // retained original type AVLTree
     // avl->insert(...);
-    // auto splited = avl->split(10); // returns
+    // auto splited = avl->split(10); // success.
     // avl->join(std::move(splited)); // joins the splited tree back
+    // ```
 
     auto split(const K& k) -> std::unique_ptr<TreeAdapter> {
         return std::make_unique<TreeAdapter>(impl->split(k));
@@ -69,19 +82,19 @@ template <typename K, typename V, typename Impl> struct TreeAdapter : Tree<K, V>
     auto merge(std::unique_ptr<TreeAdapter> other) -> Status {
         return impl->merge(std::move(other->impl));
     }
-    auto conflict(Impl* other) -> bool { return impl->conflict(other); }
+    auto conflict(TreeAdapter* other) -> bool { return impl->conflict(other->impl.get()); }
 
     // NOTE:
     // join: key-range not overlap, and this's keys must lesser than other's, O(log n)
     // merge: allow key overlapping, O(n log n)
 
     static auto create() -> std::unique_ptr<Tree<K, V>> {
-        return std::make_unique<TreeAdapter>(std::make_unique<Impl>());
+        return std::make_unique<TreeAdapter>(std::make_unique<Impl<K, V>>());
     }
 
-    TreeAdapter() : impl(std::make_unique<Impl>()) {}
-    TreeAdapter(std::unique_ptr<Impl> impl) : impl(std::move(impl)) {}
+    TreeAdapter() : impl(std::make_unique<Impl<K, V>>()) {}
+    TreeAdapter(std::unique_ptr<Impl<K, V>> impl) : impl(std::move(impl)) {}
 
 private:
-    std::unique_ptr<Impl> impl;
+    std::unique_ptr<Impl<K, V>> impl;
 };
