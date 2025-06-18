@@ -1279,3 +1279,70 @@ TEST_CASE("`SplayTree` complex operations") {
         CHECK(tree->root == nullptr);
     }
 }
+
+TEST_CASE("`TreeAdapter`") {
+    using K = int;
+    using V = std::string;
+
+    SUBCASE("polymorphism") {
+        std::vector<std::unique_ptr<Tree<K, V>>> trees;
+        trees.push_back(BasicTree<K, V>::create());
+        trees.push_back(AVLTree<K, V>::create());
+        trees.push_back(Treap<K, V>::create());
+        trees.push_back(SplayTree<K, V>::create());
+
+        for (auto& tree : trees) {
+            CHECK(tree->insert(1, "one") == Status::SUCCESS);
+            CHECK(tree->insert(2, "two") == Status::SUCCESS);
+            CHECK(tree->find(1));
+            CHECK(tree->find(1)->value == "one");
+            CHECK(tree->find(2));
+            CHECK(tree->find(2)->value == "two");
+            CHECK(tree->size() == 2);
+
+            auto min_node = tree->min();
+            auto max_node = tree->max();
+            CHECK(min_node != nullptr);
+            CHECK(max_node != nullptr);
+            CHECK(min_node->key == 1);
+            CHECK(min_node->value == "one");
+            CHECK(max_node->key == 2);
+            CHECK(max_node->value == "two");
+
+            (*tree)[2] = "TWO";
+            CHECK(tree->find(2)->value == "TWO");
+            const auto& const_tree = *tree;
+            CHECK(const_tree[2] == "TWO");
+
+            CHECK(tree->remove(1) == Status::SUCCESS);
+            CHECK(tree->find(1) == nullptr);
+            CHECK(tree->size() == 1);
+            tree->clear();
+            CHECK(tree->size() == 0);
+        }
+    }
+
+    SUBCASE("split/join/merge") {
+        auto test = [](auto&& tree) {
+            using TreeType = typename std::decay_t<decltype(tree)>::element_type;
+            for (int i = 1; i <= 10; ++i) tree->insert(i, std::to_string(i));
+
+            auto right = tree->split(6);
+            CHECK(tree->size() + right->size() == 10);
+            for (int i = 1; i < 6; ++i) CHECK(tree->find(i));
+            for (int i = 6; i <= 10; ++i) CHECK(right->find(i));
+
+            CHECK(tree->join(std::move(right)) == Status::SUCCESS);
+            CHECK(tree->size() == 10);
+
+            auto other = std::make_unique<TreeType>();
+            for (int i = 5; i <= 15; ++i) other->insert(i, std::to_string(i));
+            CHECK(tree->merge(std::move(other)) == Status::SUCCESS);
+            for (int i = 1; i <= 15; ++i) CHECK(tree->find(i));
+        };
+        test(std::make_unique<AVLTree<K, V>>());
+        test(std::make_unique<BasicTree<K, V>>());
+        test(std::make_unique<Treap<K, V>>());
+        test(std::make_unique<SplayTree<K, V>>());
+    }
+}
