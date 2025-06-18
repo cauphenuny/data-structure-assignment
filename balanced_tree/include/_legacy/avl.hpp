@@ -36,8 +36,8 @@ private:
     static void rotateRL(std::unique_ptr<Node>& root);
     static auto avl(const std::unique_ptr<Node>& node) -> AVLNode*;
     static auto avl(Node*) -> AVLNode*;
-    void balance(Node* node);
-    auto balanceNode(std::unique_ptr<Node>& node) -> bool;
+    void checkBalance(Node* node);
+    auto balance(std::unique_ptr<Node>& node) -> bool;
     auto join(std::unique_ptr<AVLTree> other) -> Status;  // O(min(h1, h2))
     auto join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> right) -> Status;  // O(|h1 - h2|)
 };
@@ -122,7 +122,7 @@ template <typename K, typename V> void AVLTree<K, V>::rotateRL(std::unique_ptr<N
     rotateL(root);
 }
 
-template <typename K, typename V> bool AVLTree<K, V>::balanceNode(std::unique_ptr<Node>& node) {
+template <typename K, typename V> bool AVLTree<K, V>::balance(std::unique_ptr<Node>& node) {
     auto avl_node = avl(node);
     auto prev = avl_node->height;
     if (avl_node->factor() > 1) {
@@ -141,22 +141,23 @@ template <typename K, typename V> bool AVLTree<K, V>::balanceNode(std::unique_pt
     return prev != avl(node)->height;
 }
 
-template <typename K, typename V> void AVLTree<K, V>::balance(Node* node) {
+template <typename K, typename V> void AVLTree<K, V>::checkBalance(Node* node) {
     while (node) {
+        node->maintain();
         auto avl_node = avl(node);
         if (avl_node->factor() > 1 || avl_node->factor() < -1) {
-            if (!this->balanceNode(this->box(node))) return;
+            if (!this->balance(this->box(node))) break;
         }
         node = node->parent;
     }
+    Tree::maintain(node);
 }
 
 template <typename K, typename V> Status AVLTree<K, V>::insert(const K& key, const V& value) {
     auto [parent, node] = this->findBox(key);
     if (node) return Status::FAILED;  // key already exists
     node = std::make_unique<AVLNode>(key, value, parent);
-    Tree::maintain(parent);
-    this->balance(parent);
+    this->checkBalance(parent);
     return Status::SUCCESS;
 }
 
@@ -166,7 +167,7 @@ template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
     if (!node->lchild || !node->rchild) {
         Tree::detach(node);
         Tree::maintain(parent);
-        this->balance(parent);
+        this->checkBalance(parent);
     } else {
         auto detached = Tree::detach(Tree::max(node->lchild));
         detached->bindL(std::move(node->lchild));
@@ -174,7 +175,7 @@ template <typename K, typename V> Status AVLTree<K, V>::remove(const K& key) {
         node = std::move(detached);
         node->parent = parent;
         Tree::maintain(node.get());
-        this->balance(node.get());
+        this->checkBalance(node.get());
     }
     return Status::SUCCESS;
 }
@@ -229,7 +230,7 @@ Status AVLTree<K, V>::join(std::unique_ptr<Node> mid, std::unique_ptr<AVLTree> r
         this->root = std::move(right->root);
     }
     Tree::maintain(insert_pos);
-    this->balance(insert_pos);
+    this->checkBalance(insert_pos);
     return Status::SUCCESS;
 }
 

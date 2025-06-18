@@ -5,6 +5,7 @@
 #include "debug.hpp"
 #include "util.hpp"
 
+#include <cassert>
 #include <cctype>
 #include <cstdlib>
 #include <memory>
@@ -284,17 +285,24 @@ auto Tree<K, V>::findBox(const K& key) const
 }
 
 template <typename K, typename V> auto Tree<K, V>::box(Node* node) -> std::unique_ptr<Node>& {
-    if (!node) throw std::invalid_argument("node is nullptr");
+    assert(node);
     if (node == this->root.get()) return this->root;
-    if (!node->parent) throw std::invalid_argument("invalid node: no parent");
+    assert(node->parent);
     if (node->parent->lchild.get() == node) return node->parent->lchild;
-    if (node->parent->rchild.get() == node) return node->parent->rchild;
-    throw std::invalid_argument("invalid node");
+    assert(node->parent->rchild.get() == node);
+    return node->parent->rchild;
 }
 
 template <typename K, typename V> auto Tree<K, V>::find(const K& key) const -> const Node* {
-    auto [_, node] = this->findBox(key);
-    return node.get();
+    auto ptr = this->root.get();
+    while (ptr) {
+        if (key == ptr->key) return ptr;
+        if (key < ptr->key)
+            ptr = ptr->lchild.get();
+        else
+            ptr = ptr->rchild.get();
+    }
+    return ptr;
 }
 
 template <typename K, typename V> auto Tree<K, V>::operator[](const K& key) -> V& {

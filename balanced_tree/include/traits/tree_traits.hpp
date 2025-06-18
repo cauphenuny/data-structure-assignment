@@ -3,6 +3,7 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -112,8 +113,11 @@ template <typename Tree> struct Box {
     }
     auto& box(auto node_ptr) {
         auto& self = *(static_cast<Tree*>(this));
-        if (!node_ptr->parent) return self.root;
+        assert(node_ptr);
+        if (node_ptr == self.root.get()) return self.root;
+        assert(node_ptr->parent);
         if (node_ptr->parent->child[L].get() == node_ptr) return node_ptr->parent->child[L];
+        assert(node_ptr->parent->child[R].get() == node_ptr);
         return node_ptr->parent->child[R];
     }
 };
