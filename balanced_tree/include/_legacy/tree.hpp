@@ -52,6 +52,7 @@ template <typename Key, typename Value> struct Tree : TreeBase {
     virtual auto remove(const Key& key) -> Status;
     virtual auto split(const Key& key) -> std::unique_ptr<Tree>;  // split out nodes that >= key
     virtual auto merge(std::unique_ptr<Tree> other) -> Status;    // auto invokes join/mixin
+    virtual auto name() const -> std::string;
 
     // NOTE:
     // conflict:
@@ -184,6 +185,8 @@ template <typename K, typename V> auto Tree<K, V>::stringify() const -> std::str
     return serializeClass("Tree", root);
 }
 
+template <typename K, typename V> auto Tree<K, V>::name() const -> std::string { return "Tree"; }
+
 template <typename K, typename V> auto Tree<K, V>::size() const -> size_t {
     return root ? root->size : 0;
 }
@@ -196,7 +199,7 @@ template <typename K, typename V> void Tree<K, V>::print() const {
 
 template <typename K, typename V> void Tree<K, V>::printCLI() const {
     if (!root) {
-        std::cout << "<empty>" << std::endl;
+        std::cout << "<empty>" << '\n';
         return;
     }
     auto print_node = [&](auto self, const Node* node, int depth) {

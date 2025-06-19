@@ -14,6 +14,7 @@
 #include <iostream>
 #include <memory>
 #include <random>
+#include <thread>
 #include <vector>
 
 using namespace std;
@@ -189,10 +190,10 @@ inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<Bench
             for (const auto& key : keys) tree->remove(key);
         });
         for (const auto& key : keys) tree->insert(key, key);
-        std::unique_ptr<TreeType<int, int>> split_result;
+        decltype(tree->split(keys[0])) split_result;
         for (const auto& key : keys) {
             metrics.split += duration([&] { split_result = tree->split(key); });
-            metrics.merge += duration([&] { tree->join(std::move(split_result)); });
+            metrics.merge += duration([&] { tree->merge(std::move(split_result)); });
         }
     };
     BenchmarkResult current;
@@ -204,7 +205,7 @@ inline auto benchmarkData(const std::vector<int>& n_values) -> std::vector<Bench
         for (size_t i = 0; i < n; ++i) keys[i] = i;
         BenchmarkMetric metric{};  // NOTE: zero initialize!!!!!!!
         metric.n = n;
-        // bench(tree, metric.sequential, keys);  TODO: visualize sequential data
+        bench(tree, metric.sequential, keys);
         shuffle(keys.begin(), keys.end(), mt19937{random_device{}()});
         bench(tree, metric.random, keys);
         current.data.push_back(metric);
@@ -228,7 +229,7 @@ double fitK(const std::vector<double>& times, const std::vector<size_t>& ns, F f
 inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
     const int WIDTH = 1200, HEIGHT = 800, MARGIN = 120;
     const sf::Color COLORS[] = {
-        sf::Color::Red, sf::Color::Green, sf::Color::Blue, sf::Color::Magenta, sf::Color::Cyan};
+        sf::Color::Red, sf::Color::Blue, sf::Color::Green, sf::Color::Magenta, sf::Color::Cyan};
     const sf::Color THEORY_COLORS[] = {
         sf::Color(64, 64, 64, 192), sf::Color(144, 144, 144, 192)};  // 半透明灰色
     const std::string OPERATION_NAMES[] = {"Insert", "Find", "Remove", "Split", "Merge"};
@@ -334,8 +335,8 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
                 sqrt_n_curve[i].position = sf::Vector2f(x_map(n), y_map(t_sqrt_n));
                 sqrt_n_curve[i].color = THEORY_COLORS[1];
             }
-            window.draw(log_n_curve);
-            window.draw(sqrt_n_curve);
+            // window.draw(log_n_curve);
+            // window.draw(sqrt_n_curve);
 
             // 坐标轴
             sf::RectangleShape x_axis(sf::Vector2f(WIDTH - 2 * MARGIN, 2));
@@ -351,29 +352,34 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
             for (size_t algo = 0; algo < data.size(); ++algo) {
                 const auto& result = data[algo];
                 sf::VertexArray line(sf::PrimitiveType::LineStrip, result.data.size());
-                for (size_t i = 0; i < result.data.size(); ++i) {
+                sf::VertexArray line_sequential(sf::PrimitiveType::LineStrip, result.data.size());
+                auto find_time = [&](auto& metrics) {
                     double t = 0;
                     switch (OPERATIONS[op_idx]) {
-                        case OperationType::INSERT:
-                            t = result.data[i].random.insert.count() * 1000;
-                            break;
-                        case OperationType::FIND:
-                            t = result.data[i].random.find.count() * 1000;
-                            break;
-                        case OperationType::REMOVE:
-                            t = result.data[i].random.remove.count() * 1000;
-                            break;
-                        case OperationType::SPLIT:
-                            t = result.data[i].random.split.count() * 1000;
-                            break;
-                        case OperationType::MERGE:
-                            t = result.data[i].random.merge.count() * 1000;
-                            break;
+                        case OperationType::INSERT: t = metrics.insert.count() * 1000; break;
+                        case OperationType::FIND: t = metrics.find.count() * 1000; break;
+                        case OperationType::REMOVE: t = metrics.remove.count() * 1000; break;
+                        case OperationType::SPLIT: t = metrics.split.count() * 1000; break;
+                        case OperationType::MERGE: t = metrics.merge.count() * 1000; break;
                     }
+                    return t;
+                };
+                for (size_t i = 0; i < result.data.size(); ++i) {
+                    double t = find_time(result.data[i].random);
+                    double t2 = find_time(result.data[i].sequential);
                     line[i].position = sf::Vector2f(x_map(result.data[i].n), y_map(t));
                     line[i].color = COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))];
+                    line_sequential[i].position = sf::Vector2f(x_map(result.data[i].n), y_map(t2));
+                    line_sequential[i].color = COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))];
                 }
-                window.draw(line);
+                window.draw(line), window.draw(line_sequential);
+                auto pos = y_map(find_time(result.data.back().sequential));
+                sf::Text seq_mark{font};
+                seq_mark.setString("(sequential)");
+                seq_mark.setCharacterSize(10);
+                seq_mark.setFillColor(COLORS[algo % (sizeof(COLORS) / sizeof(COLORS[0]))]);
+                seq_mark.setPosition(sf::Vector2f(x_map(result.data.back().n) + 10, pos - 5));
+                window.draw(seq_mark);
 
                 // 图例
                 sf::Text legend{font};
@@ -394,8 +400,8 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
             theory_legend2.setFillColor(THEORY_COLORS[1]);
             theory_legend1.setPosition(sf::Vector2f(MARGIN + 10, MARGIN + 30 * (data.size() + 1)));
             theory_legend2.setPosition(sf::Vector2f(MARGIN + 10, MARGIN + 30 * (data.size() + 2)));
-            window.draw(theory_legend1);
-            window.draw(theory_legend2);
+            // window.draw(theory_legend1);
+            // window.draw(theory_legend2);
 
             // Y轴最大值标签
             sf::Text y_label{font};
@@ -415,6 +421,8 @@ inline void visualizeBenchmarkData(const std::vector<BenchmarkResult>& data) {
 
             window.display();
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 }
 
@@ -423,10 +431,10 @@ inline void benchmark() {
     algorithmBenchmark();
     std::cout << std::format("\n===== Visualize =====\n");
     std::vector<int> n_values;
-    for (int i = 1; i <= 40; i++) {
+    for (int i = 1; i <= 20; i++) {
         n_values.push_back(i * 25000);
     }
-    auto data = benchmarkData<AVLTree, Treap, SplayTree>(n_values);
+    auto data = benchmarkData<legacy::AVLTree, SplayTree, Treap, AVLTree>(n_values);
     std::cout << "done\n";
     visualizeBenchmarkData(data);
 }

@@ -22,6 +22,7 @@ template <typename Key, typename Value> struct AVLTree : Tree<Key, Value> {
     explicit AVLTree(std::unique_ptr<Node> root) : Tree(std::move(root)) {}
 
     auto stringify() const -> std::string override;
+    auto name() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
     auto remove(const Key& key) -> Status override;
     auto split(const Key& key) -> std::unique_ptr<Tree> override;  // O(log n)
@@ -74,6 +75,10 @@ template <typename Key, typename Value> struct AVLTree<Key, Value>::AVLNode : Tr
 
 template <typename K, typename V> auto AVLTree<K, V>::stringify() const -> std::string {
     return "AVLTree : " + this->Tree::stringify();
+}
+
+template <typename K, typename V> auto AVLTree<K, V>::name() const -> std::string {
+    return "legacy::AVLTree";
 }
 
 template <typename K, typename V> auto AVLTree<K, V>::height() const -> int {

@@ -22,6 +22,7 @@ template <typename Key, typename Value> struct Treap : Tree<Key, Value> {
     explicit Treap(std::unique_ptr<Node> root) : Tree(std::move(root)) {}
 
     auto stringify() const -> std::string override;
+    auto name() const -> std::string override;
     auto insert(const Key& key, const Value& value) -> Status override;
     auto remove(const Key& key) -> Status override;
     auto split(const Key& key) -> std::unique_ptr<Tree> override;
@@ -35,7 +36,7 @@ protected:
     static auto join(std::unique_ptr<Node> left, std::unique_ptr<Node> right)
         -> std::unique_ptr<Node>;
 
-    static int random_priority() {
+    static int randomPriority() {
         static thread_local std::mt19937 gen{std::random_device{}()};
         static thread_local std::uniform_int_distribution<int> dist(1, 1 << 30);
         return dist(gen);
@@ -68,6 +69,10 @@ template <typename K, typename V> auto Treap<K, V>::treap(Node* node) -> TreapNo
 
 template <typename K, typename V> auto Treap<K, V>::stringify() const -> std::string {
     return "Treap : " + this->Tree::stringify();
+}
+
+template <typename K, typename V> auto Treap<K, V>::name() const -> std::string {
+    return "legacy::Treap";
 }
 
 template <typename K, typename V>
@@ -135,7 +140,7 @@ template <typename K, typename V> auto Treap<K, V>::insert(const K& key, const V
     if (mid) {
         ret = Status::FAILED;
     } else {
-        mid = std::make_unique<TreapNode>(key, value, random_priority());
+        mid = std::make_unique<TreapNode>(key, value, randomPriority());
     }
     this->root = join(std::move(left), join(std::move(mid), std::move(right)));
     return ret;
