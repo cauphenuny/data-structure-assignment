@@ -56,7 +56,8 @@ template <typename Node> struct View {
             return {serialize(node->key), serialize(node->value)};
         }
         auto stringify() const -> std::string override {
-            return serializeClass("NodeView", node, this->child[L], this->child[R]);
+            return serializeClass(
+                "NodeView", node, this->content(), this->child[L], this->child[R]);
         }
     };
     auto view() const -> std::unique_ptr<NodeView> {
