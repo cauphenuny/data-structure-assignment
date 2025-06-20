@@ -8,7 +8,7 @@
 const std::array<int, 8> dx = {1, 2, 2, 1, -1, -2, -2, -1};
 const std::array<int, 8> dy = {2, 1, -1, -2, -2, -1, 1, 2};
 
-ResultKnights solve(Algorithm algo, Point start) {
+std::vector<Path> solve(Algorithm algo, Point start) {
     switch (algo) {
         case Algorithm::BRUTE_FORCE:
             return solve_brute_force(start);  // 调用暴力算法实现
@@ -20,7 +20,7 @@ ResultKnights solve(Algorithm algo, Point start) {
     }
 }
 
-ResultKnights solve_brute_force(Point start) {
+std::vector<Path> solve_brute_force(Point start) {
     struct Node {
         Point pos;
         int move_index; // 当前正在尝试的方向
@@ -33,29 +33,27 @@ ResultKnights solve_brute_force(Point start) {
             board(i, j) = 0;
 
     std::stack<Node> stk;
-    std::vector<DisplayBoard> history; // 当前路径
-    ResultKnights result;
-    result.countPaths = 0;
+    Path history; // 当前路径
+    std::vector<Path> result;
 
     int step = 1;
     board(start.x, start.y) = step;
     stk.push({start, 0});
-    history.push_back({board, {}});
+    history.push_back({{}, {}, 1});
 
     while (!stk.empty()) {
         if (step == BOARD_SIZE * BOARD_SIZE) {
-            // return board;
-            // 找到一个路径
-            result.countPaths++;
-            result.resultPaths.push_back({history}) ;
-
+            result.push_back({history}) ;
+            break;// //
             // 回退一步
+            /*
             Node current = stk.top();
             stk.pop();
             board(current.pos.x, current.pos.y) = 0;
             step--;
             history.push_back({board, {}});
             continue;
+            */
         }
 
         Node& current = stk.top();
@@ -72,8 +70,8 @@ ResultKnights solve_brute_force(Point start) {
                 stk.push({{nx, ny}, 0});
 
                 // 保存状态
-                Arrow arrow = {current.pos, {nx, ny}};
-                history.push_back({board, {arrow}});
+                Arrow arrow = {current.pos, {nx, ny}, 1};
+                history.push_back({arrow});
 
                 moved = true;
                 break;
@@ -81,11 +79,13 @@ ResultKnights solve_brute_force(Point start) {
         }
 
         if (!moved) {
-            // 当前节点无路可走，回退
-            board(current.pos.x, current.pos.y) = 0;
+            Point end = current.pos;
             stk.pop();
             --step;
-            history.push_back({board, {}}); // 记录回退
+
+            Point start = stk.empty() ? end : stk.top().pos;
+            board(end.x, end.y) = 0;
+            history.push_back({end, start, 0}); // 反向记录回退路径
         }
     }
 
@@ -105,9 +105,9 @@ static int count_onward_moves(const Board& board, int x, int y) {
     return count;
 }
 
-ResultKnights solve_heuristic(Point start) {
+std::vector<Path> solve_heuristic(Point start) {
     Board board;
-    HistoryDisplayBoard history;
+    Path history;
     
     for (int i = 0; i < BOARD_SIZE; ++i)
         for (int j = 0; j < BOARD_SIZE; ++j)
@@ -118,7 +118,7 @@ ResultKnights solve_heuristic(Point start) {
     int y = start.y;
     board(x, y) = step;
 
-    history.historyDisplayBoards.push_back({board, {}});
+    history.push_back({{}, {}, 1});
 
     while (step < BOARD_SIZE * BOARD_SIZE) {
         struct MoveOption {
@@ -140,9 +140,7 @@ ResultKnights solve_heuristic(Point start) {
 
         if (options.empty()) {
             // 无法继续前进
-            ResultKnights result;
-            result.countPaths = 0;
-            return result;
+            throw "Cannot move";
         }
 
         // 按后继步数升序排序
@@ -154,16 +152,15 @@ ResultKnights solve_heuristic(Point start) {
         int next_x = options[0].nx;
         int next_y = options[0].ny;
 
-        Arrow move = {{x, y}, {next_x, next_y}};
+        Arrow move = {{x, y}, {next_x, next_y}, 1};
         x = next_x;
         y = next_y;
         ++step;
         board(x, y) = step;
 
-        history.historyDisplayBoards.push_back({board, {move}});
+        history.push_back({move});
     }
-    ResultKnights result;
-    result.countPaths = 1;
-    result.resultPaths.push_back(history);
+    std::vector<Path> result;
+    result.push_back(history);
     return result;
 }

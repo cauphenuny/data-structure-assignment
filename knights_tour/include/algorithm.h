@@ -8,10 +8,11 @@
 enum class Algorithm : uint8_t {
     BRUTE_FORCE,  // 暴力
     HEURISTIC,    // 启发式搜索
+    
 };
 
-ResultKnights solve(Algorithm algo, Point start);
+std::vector<Path> solve(Algorithm algo, Point start);
 
-ResultKnights solve_brute_force(Point start);
+std::vector<Path> solve_brute_force(Point start);
 
-ResultKnights solve_heuristic(Point start);
+std::vector<Path> solve_heuristic(Point start);
