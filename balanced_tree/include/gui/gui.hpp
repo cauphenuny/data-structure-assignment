@@ -3,16 +3,13 @@
 
 #pragma once
 #include "gui/events.hpp"
+#include "gui/tree_renderer.hpp"
 #include "tree/interface.hpp"
 
 #include <SFML/Graphics.hpp>
 
 #include <cstdint>
-#include <string_view>
 #include <vector>
-#include <optional>
-#include <functional>
-#include <map>
 
 /****************************** Definition ********************************/
 
@@ -40,28 +37,6 @@ public:
     void run();
     
 private:
-    // 树节点结构
-    struct TreeNode {
-        inline static size_t nodeCount = 0;
-        sf::Vector2f position;
-        int value;
-        int id;
-
-        TreeNode(sf::Vector2f pos, int val)
-            : position(pos), value(val), id(nodeCount) {
-                nodeCount++;
-            }
-    };
-    
-    // 边结构
-    struct TreeEdge {
-        int from;
-        int to;
-
-        TreeEdge(int _from, int _to)
-            : from(_from), to(_to) {}
-    };
-    
     // 窗口和视图
     sf::RenderWindow window;
     sf::View contentView;
@@ -69,14 +44,7 @@ private:
 
     sf::ContextSettings settings;
     
-    // 树状结构数据
-    std::vector<TreeNode> treeNodes;
-    std::vector<TreeEdge> treeEdges;
-
-    // 绘制元素
-    std::vector<sf::CircleShape> nodes;
-    std::vector<sf::Text> nodeLabels;
-    std::vector<sf::Vertex> edges;
+    TreeRenderer treeRenderer;
 
     sf::Text titleText;
     
@@ -98,7 +66,6 @@ private:
     const unsigned int initialWidth;
     const unsigned int initialHeight;
     const float scrollbarSize;
-    const float nodeRadius;
     sf::Vector2f windowSize;
     
     // 颜色配置

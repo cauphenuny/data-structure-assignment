@@ -13,7 +13,6 @@ GUIBase::GUIBase() :
             initialWidth(800),
             initialHeight(600),
             scrollbarSize(15.0f),
-            nodeRadius(25.0f),
             windowSize(initialWidth, initialHeight),
             backgroundColor(248, 248, 248),
             lineColor(10, 136, 204),
@@ -26,7 +25,8 @@ GUIBase::GUIBase() :
             maxZoom(5.0f),
             viewOffset(0.0f, 0.0f),
             dragMode(DragMode::NONE),
-            titleText(font, "") {
+            titleText(font, ""),
+            treeRenderer(font) {
     initWindow();
     initEventListeners();
 }
@@ -84,49 +84,6 @@ inline void GUIBase::updateContentView(float effectiveZoom) {
     contentView.setSize(windowSize / effectiveZoom);
     contentView.setCenter({initialWidth/2.f + viewOffset.x, 
                           initialHeight/2.f + viewOffset.y});
-}
-
-/**
- * @brief Draws a line with feathered (soft) edges between two points
- * 
- * This function creates a line with smooth fading edges by rendering a triangle strip
- * with varying opacity. The inner part of the line has the specified color at full opacity,
- * while the outer edges fade to transparent, creating a soft, anti-aliased appearance.
- * 
- * @param window The render texture to draw on
- * @param start Starting point of the line
- * @param end Ending point of the line
- * @param color The color of the line
- * @param thickness The width of the solid part of the line (default: 1.0f)
- * @param feather The width of the fading edge on each side (default: 1.0f)
- */
-void GUIBase::drawFeatheredLine(const sf::Vector2f& start, const sf::Vector2f& end,
-                       sf::Color color, float thickness = 1.0f, float feather = 1.0f) {
-    sf::Vector2f dir = end - start;
-    float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
-    if (len == 0) return;
-    dir /= len;
-    sf::Vector2f normal(-dir.y, dir.x);
-
-    thickness /= 2.f;
-    sf::Vector2f half_n  = normal * thickness;
-    sf::Vector2f outer_n = normal * (thickness + feather);
-
-    sf::Color transparent = color;
-    transparent.a = 0;
-
-    sf::VertexArray triangles(sf::PrimitiveType::TriangleStrip, 8);
-
-    triangles[0] = {start + outer_n,  transparent};
-    triangles[1] = { end  + outer_n,  transparent};
-    triangles[2] = {start + half_n,   color      };
-    triangles[3] = { end  + half_n,   color      };
-    triangles[4] = {start - half_n,   color      };
-    triangles[5] = { end  - half_n,   color      };
-    triangles[6] = {start - outer_n,  transparent};
-    triangles[7] = { end  - outer_n,  transparent};
-
-    window.draw(triangles);
 }
 
 void GUIBase::updateScrollbars() {
@@ -313,21 +270,7 @@ void GUIBase::render() {
     window.setView(contentView);
     
     // 直接绘制边
-    for (auto& treeEdge: treeEdges) {
-        drawFeatheredLine(
-            treeNodes[treeEdge.from].position,
-            treeNodes[treeEdge.to].position,
-            lineColor, 1.5f, 1.0f);
-    }
-    
-    // 绘制节点和标签
-    for (auto& node : nodes) {
-        window.draw(node);
-    }
-    
-    for (auto& label : nodeLabels) {
-        window.draw(label);
-    }
+    treeRenderer.render(window);
     
     window.draw(titleText);
     
@@ -349,57 +292,20 @@ void GUIBase::render() {
 }
 
 void GUIBase::run() {
-    edges.reserve(20);
+    treeRenderer.addNode((sf::Vector2f){400, 100}, 1);
+    treeRenderer.addNode((sf::Vector2f){200, 200}, 2);
+    treeRenderer.addNode((sf::Vector2f){600, 200}, 3);
+    treeRenderer.addNode((sf::Vector2f){100, 300}, 4);
+    treeRenderer.addNode((sf::Vector2f){300, 300}, 5);
+    treeRenderer.addNode((sf::Vector2f){500, 300}, 6);
+    treeRenderer.addNode((sf::Vector2f){700, 300}, 7);
 
-    sf::Vector2f nodeCircle(nodeRadius, nodeRadius);
-
-    treeNodes.emplace_back((sf::Vector2f){400 - nodeRadius, 100 - nodeRadius}, 1);
-    treeNodes.emplace_back((sf::Vector2f){200 - nodeRadius, 200 - nodeRadius}, 2);
-    treeNodes.emplace_back((sf::Vector2f){600 - nodeRadius, 200 - nodeRadius}, 3);
-    treeNodes.emplace_back((sf::Vector2f){100 - nodeRadius, 300 - nodeRadius}, 4);
-    treeNodes.emplace_back((sf::Vector2f){300 - nodeRadius, 300 - nodeRadius}, 5);
-    treeNodes.emplace_back((sf::Vector2f){500 - nodeRadius, 300 - nodeRadius}, 6);
-    treeNodes.emplace_back((sf::Vector2f){700 - nodeRadius, 300 - nodeRadius}, 7);
-
-    treeEdges.emplace_back(0, 1);
-    treeEdges.emplace_back(0, 2);
-    treeEdges.emplace_back(1, 3);
-    treeEdges.emplace_back(1, 4);
-    treeEdges.emplace_back(2, 5);
-    treeEdges.emplace_back(2, 6);
-
-    // 添加节点
-    for (auto& treeNode: treeNodes) {
-        sf::CircleShape circle(nodeRadius);
-        circle.setPointCount(120); // 增加点数，默认是30
-        circle.setFillColor(sf::Color::White);
-        circle.setOutlineColor(nodeOutlineColor);
-        circle.setOutlineThickness(2);
-        
-        sf::Text label(font, std::to_string(treeNode.value), 20);
-        label.setFillColor(textColor);
-
-        sf::Vector2f nodePosition = treeNode.position - nodeCircle;
-        sf::Vector2f labelBound   = label.getLocalBounds().size;
-        
-        circle.setPosition(nodePosition);
-        label.setPosition(nodePosition - labelBound/2.0f + sf::Vector2f(20, 20));
-        // std::cout << (std::string)label.getString() << " ";
-
-        nodes.push_back(circle);
-        nodeLabels.push_back(label);
-    }
-
-    for (auto& treeEdge: treeEdges) {
-        // Get source and target node indices
-        
-        // sf::Vector2f fromPos = treeNodes[fromIdx].position + sf::Vector2f(nodeRadius, nodeRadius);
-        // sf::Vector2f toPos = treeNodes[toIdx].position + sf::Vector2f(nodeRadius, nodeRadius);
-
-        // Add the edge (two vertices for start and end)
-        edges.emplace_back(treeNodes[treeEdge.from].position);
-        edges.emplace_back(treeNodes[treeEdge.to].position);
-    }
+    treeRenderer.addEdge(0, 1);
+    treeRenderer.addEdge(0, 2);
+    treeRenderer.addEdge(1, 3);
+    treeRenderer.addEdge(1, 4);
+    treeRenderer.addEdge(2, 5);
+    treeRenderer.addEdge(2, 6);
     
     // 主循环
     while (window.isOpen()) {
@@ -415,14 +321,7 @@ void GUIBase::run() {
         }
 
         // 更新动画 (简单的颜色变化)
-        float time = clock.getElapsedTime().asSeconds();
-        for (size_t i = 0; i < nodes.size(); i++) {
-            // 周期性更改节点颜色
-            int r = 100 + static_cast<int>(50 * std::sin(time + i));
-            int g = 150 + static_cast<int>(50 * std::sin(time * 0.7f + i));
-            int b = 250 + static_cast<int>(50 * std::sin(time * 0.5f + i));
-            nodes[i].setFillColor(sf::Color(r, g, b));
-        }
+        treeRenderer.update(0);
         
         updateScrollbars();
         render();

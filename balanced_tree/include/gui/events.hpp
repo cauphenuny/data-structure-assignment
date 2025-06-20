@@ -4,8 +4,6 @@
 #pragma once
 
 #include <SFML/Graphics.hpp>
-#include <vector>
-#include <memory>
 #include <functional>
 #include <map>
 #include <optional>
