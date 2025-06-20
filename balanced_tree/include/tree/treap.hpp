@@ -49,8 +49,9 @@ template <typename K, typename V>
 struct TreapImpl
     : trait::Mixin<
           TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View>,
-      trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View,
+          trait::Record, trait::BindRecord, trait::Rotate>,
+      trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};
@@ -108,17 +109,17 @@ private:
         std::unique_ptr<TreapNode<K, V>>> {
         if (!node) return {nullptr, nullptr, nullptr};
         if (key == node->key) {
-            auto [lchild, rchild] = node->unbind();
+            auto [lchild, rchild] = this->unbind(node);
             node->maintain();
             return {std::move(lchild), std::move(node), std::move(rchild)};
         } else if (key < node->key) {
             auto [left, mid, right] = split(std::move(node->child[L]), key);
-            node->bind(L, std::move(right));
+            this->bind(node, L, std::move(right));
             node->maintain();
             return {std::move(left), std::move(mid), std::move(node)};
         } else {
             auto [left, mid, right] = split(std::move(node->child[R]), key);
-            node->bind(R, std::move(left));
+            this->bind(node, R, std::move(left));
             node->maintain();
             return {std::move(node), std::move(mid), std::move(right)};
         }
@@ -129,11 +130,11 @@ private:
         if (!left) return right;
         if (!right) return left;
         if (left->priority > right->priority) {
-            left->bind(R, join(std::move(left->child[R]), std::move(right)));
+            this->bind(left, R, join(std::move(left->child[R]), std::move(right)));
             left->maintain();
             return left;
         } else {
-            right->bind(L, join(std::move(left), std::move(right->child[L])));
+            this->bind(right, L, join(std::move(left), std::move(right->child[L])));
             right->maintain();
             return right;
         }
