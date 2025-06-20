@@ -254,7 +254,10 @@ template <typename Tree> struct Print {
 };
 
 template <typename Tree> struct View {
-    auto view() const -> ForestView {}
+    auto view() const -> ForestView {
+        ForestView forest;
+        return forest;
+    }
 };
 
 }  // namespace trait

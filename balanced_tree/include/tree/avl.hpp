@@ -43,7 +43,7 @@ struct AVLTreeImpl
     : trait::Mixin<
           AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach>,
+          trait::Detach, trait::View>,
       trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 

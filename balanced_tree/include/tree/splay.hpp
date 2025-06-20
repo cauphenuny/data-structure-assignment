@@ -38,7 +38,7 @@ template <typename K, typename V>
 struct SplayTreeImpl
     : trait::Mixin<
           SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box>,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View>,
       trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 

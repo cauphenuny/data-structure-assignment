@@ -48,7 +48,7 @@ template <typename K, typename V>
 struct TreapImpl
     : trait::Mixin<
           TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach>,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View>,
       trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
