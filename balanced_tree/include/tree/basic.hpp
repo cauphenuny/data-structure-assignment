@@ -23,6 +23,7 @@ template <typename K, typename V>
 struct BasicNode : Pair<const K, V>,
                    trait::node::TypeTraits<K, V>,
                    trait::node::Link<BasicNode<K, V>>,
+                   trait::node::View<BasicNode<K, V>>,
                    trait::node::Maintain<trait::node::Size<BasicNode<K, V>>>,
                    trait::node::Search<BasicNode<K, V>> {
 
@@ -43,7 +44,7 @@ struct BasicTreeImpl
     : trait::Mixin<
           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach>,
+          trait::Detach, trait::View>,
       trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "debug.hpp"
 #include "tree/interface.hpp"
 #include "util.hpp"
 
@@ -44,6 +45,22 @@ template <typename Node> struct Link {
             return self.parent->child[L].get() == &self ? L : R;
         }
         return -1;
+    }
+};
+
+template <typename Node> struct View {
+    struct Wrapper : NodeView {
+        const Node* node;
+        Wrapper(const Node* node) : node(node) {}
+        auto content() const -> std::pair<std::string, std::string> override {
+            return {serialize(node->key), serialize(node->value)};
+        }
+        auto stringify() const -> std::string override {
+            return serializeClass("NodeView", node, this->child[L], this->child[R]);
+        }
+    };
+    auto view() const -> std::unique_ptr<NodeView> {
+        return std::make_unique<Wrapper>(static_cast<const Node*>(this));
     }
 };
 

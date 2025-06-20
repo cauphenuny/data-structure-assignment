@@ -33,6 +33,9 @@ void polymorphismDemo() {
     forest.push_back(std::move(tree1));
 
     debug(forest);
+
+    auto view = forest[0]->view();
+    debug(view);
 }
 
 void algorithmDemo() {

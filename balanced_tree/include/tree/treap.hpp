@@ -21,6 +21,7 @@ template <typename K, typename V>
 struct TreapNode : Pair<const K, V>,
                    trait::node::TypeTraits<K, V>,
                    trait::node::Link<TreapNode<K, V>>,
+                   trait::node::View<TreapNode<K, V>>,
                    trait::node::Maintain<trait::node::Size<TreapNode<K, V>>>,
                    trait::node::Search<TreapNode<K, V>> {
     int priority;  // Random priority for treap property
@@ -48,7 +49,7 @@ template <typename K, typename V>
 struct TreapImpl
     : trait::Mixin<
           TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach>,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View>,
       trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 

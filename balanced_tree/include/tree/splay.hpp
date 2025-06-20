@@ -20,6 +20,7 @@ template <typename K, typename V>
 struct SplayNode : Pair<const K, V>,
                    trait::node::TypeTraits<K, V>,
                    trait::node::Link<SplayNode<K, V>>,
+                   trait::node::View<SplayNode<K, V>>,
                    trait::node::Maintain<trait::node::Size<SplayNode<K, V>>>,
                    trait::node::Search<SplayNode<K, V>> {
     SplayNode(const K& k, const V& v, SplayNode* parent = nullptr)
@@ -38,7 +39,7 @@ template <typename K, typename V>
 struct SplayTreeImpl
     : trait::Mixin<
           SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box>,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View>,
       trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
     friend struct Test;
 
