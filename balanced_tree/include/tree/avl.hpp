@@ -23,6 +23,7 @@ struct AVLNode
     : Pair<const K, V>,
       trait::node::TypeTraits<K, V>,
       trait::node::Link<AVLNode<K, V>>,
+      trait::node::View<AVLNode<K, V>>,
       trait::node::Maintain<trait::node::Size<AVLNode<K, V>>, trait::node::Height<AVLNode<K, V>>>,
       trait::node::Search<AVLNode<K, V>> {
 

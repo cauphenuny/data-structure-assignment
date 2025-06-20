@@ -255,8 +255,21 @@ template <typename Tree> struct Print {
 
 template <typename Tree> struct View {
     auto view() const -> ForestView {
-        ForestView forest;
-        return forest;
+        auto& root = (static_cast<const Tree*>(this))->root;
+        ForestView forest_view;
+        forest_view.push_back(create(root.get()));
+        return forest_view;
+    }
+
+private:
+    auto create(auto* node) const -> std::unique_ptr<NodeView> {
+        if (!node) return nullptr;
+        auto view = node->view();
+        view->child[L] = create(node->child[L].get());
+        view->child[R] = create(node->child[R].get());
+        if (view->child[L]) view->child[L]->parent = view.get();
+        if (view->child[R]) view->child[R]->parent = view.get();
+        return view;
     }
 };
 

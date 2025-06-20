@@ -23,6 +23,7 @@ template <typename K, typename V>
 struct BasicNode : Pair<const K, V>,
                    trait::node::TypeTraits<K, V>,
                    trait::node::Link<BasicNode<K, V>>,
+                   trait::node::View<BasicNode<K, V>>,
                    trait::node::Maintain<trait::node::Size<BasicNode<K, V>>>,
                    trait::node::Search<BasicNode<K, V>> {
 
