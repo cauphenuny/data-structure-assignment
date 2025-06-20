@@ -35,3 +35,12 @@ struct DisplayBoard {
 };
 
 void Print_board(Board);
+
+struct HistoryDisplayBoard {
+    std::vector<DisplayBoard> historyDisplayBoards;
+};
+
+struct ResultKnights {
+    int countPaths;
+    std::vector<HistoryDisplayBoard> resultPaths;
+};

@@ -33,13 +33,30 @@ Board solve_brute_force(Point start) {
             board(i, j) = 0;
 
     std::stack<Node> stk;
+    std::vector<DisplayBoard> history; // 当前路径
+    ResultKnights result;
+    result.countPaths = 0;
+
     int step = 1;
     board(start.x, start.y) = step;
     stk.push({start, 0});
+    history.push_back({board, {}});
 
     while (!stk.empty()) {
-        if (step == BOARD_SIZE * BOARD_SIZE)
-            return board; 
+        if (step == BOARD_SIZE * BOARD_SIZE) {
+            // return board;
+            // 找到一个路径
+            result.countPaths++;
+            result.resultPaths.push_back({history}) ;
+
+            // 回退一步
+            Node current = stk.top();
+            stk.pop();
+            board(current.pos.x, current.pos.y) = 0;
+            step--;
+            history.push_back({board, {}});
+            continue;
+        }
 
         Node& current = stk.top();
         bool moved = false;
@@ -53,6 +70,11 @@ Board solve_brute_force(Point start) {
                 ++step;
                 board(nx, ny) = step;
                 stk.push({{nx, ny}, 0});
+
+                // 保存状态
+                Arrow arrow = {current.pos, {nx, ny}};
+                history.push_back({board, {arrow}});
+
                 moved = true;
                 break;
             }
@@ -63,11 +85,12 @@ Board solve_brute_force(Point start) {
             board(current.pos.x, current.pos.y) = 0;
             stk.pop();
             --step;
+            history.push_back({board, {}}); // 记录回退
         }
     }
 
     // 如果失败返回一个空棋盘（全 0）
-    return board;
+    return result;
 }
 
 static int count_onward_moves(const Board& board, int x, int y) {
