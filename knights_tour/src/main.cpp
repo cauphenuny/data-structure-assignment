@@ -13,7 +13,7 @@ int main() {
     out_board = solve(modes, start_p);
     
     // out_board.print_board();
-    cout << out_board.countPaths << std::endl;
+    std::cout << out_board.countPaths << std::endl;
 
     return 0;
 }
