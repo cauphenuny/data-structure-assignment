@@ -31,19 +31,9 @@ std::vector<Path> solve_brute_force(Point start) {
     for (int i = 0; i < BOARD_SIZE; ++i)
         for (int j = 0; j < BOARD_SIZE; ++j) board(i, j) = 0;
 
-<<<<<<< HEAD
-    std::stack<Node> stk;
-<<<<<<< HEAD
-    std::vector<DisplayBoard> history;  // 当前路径
-    ResultKnights result;
-    result.countPaths = 0;
-=======
-=======
     SimpleStack<Node> stk;;
->>>>>>> 78d3432 (fix(knights): use manual stack and fix bugs)
     Path history; // 当前路径
     std::vector<Path> result;
->>>>>>> 8eef297 (fix(knights): change type of return value and only search one path)
 
     int step = 1;
     board(start.x, start.y) = step;
@@ -52,17 +42,8 @@ std::vector<Path> solve_brute_force(Point start) {
 
     while (!stk.empty()) {
         if (step == BOARD_SIZE * BOARD_SIZE) {
-<<<<<<< HEAD
-            // return board;
-            // 找到一个路径
-            result.countPaths++;
-            result.resultPaths.push_back({history});
-            break;
-
-=======
             result.push_back({history}) ;
             break;// //
->>>>>>> 8eef297 (fix(knights): change type of return value and only search one path)
             // 回退一步
             /*
             Node current = stk.top();
@@ -100,14 +81,10 @@ std::vector<Path> solve_brute_force(Point start) {
             Point end = current.pos;
             stk.pop();
             --step;
-<<<<<<< HEAD
-            history.push_back({board, {}});  // 记录回退
-=======
 
             Point start = stk.empty() ? end : stk.peek().pos;
             board(end.x, end.y) = 0;
             history.push_back({end, start, 0}); // 反向记录回退路径
->>>>>>> 8eef297 (fix(knights): change type of return value and only search one path)
         }
     }
 
@@ -129,13 +106,8 @@ static int count_onward_moves(const Board& board, int x, int y) {
 
 std::vector<Path> solve_heuristic(Point start) {
     Board board;
-<<<<<<< HEAD
-    HistoryDisplayBoard history;
-
-=======
     Path history;
     
->>>>>>> 8eef297 (fix(knights): change type of return value and only search one path)
     for (int i = 0; i < BOARD_SIZE; ++i)
         for (int j = 0; j < BOARD_SIZE; ++j) board(i, j) = 0;
 
