@@ -14,6 +14,7 @@ struct Board {
     int data[BOARD_SIZE][BOARD_SIZE];
     int& operator()(int x, int y) { return data[x][y]; }
     const int& operator()(int x, int y) const { return data[x][y]; }
+    void print_board();
 };
 
 /*
@@ -32,3 +33,5 @@ struct DisplayBoard {
     Board board;
     std::vector<Arrow> arrows;
 };
+
+void Print_board(Board);
