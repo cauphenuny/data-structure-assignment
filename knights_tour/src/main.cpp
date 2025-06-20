@@ -9,11 +9,13 @@ int main() {
     std::cin >> choose_modes;
     modes = choose_modes == 0 ? Algorithm::BRUTE_FORCE : Algorithm::HEURISTIC;
     
-    ResultKnights out_board;
-    out_board = solve(modes, start_p);
+    std::vector<Path> results;
+    results = solve(modes, start_p);
     
     // out_board.print_board();
-    std::cout << out_board.countPaths << std::endl;
+    size_t num_arrows = results[0].size();
+    for(int i=1; i < num_arrows; i++)
+        std::cout << "(" << results[0][i].start.x << ","<< results[0][i].start.y << ")";
 
     return 0;
 }
