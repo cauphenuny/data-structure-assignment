@@ -1,8 +1,9 @@
 #pragma once
 
 #include "interface.hpp"
-#include "traits/node_traits.hpp"
-#include "traits/tree_traits.hpp"
+#include "traits/node.hpp"
+#include "traits/tree_external.hpp"
+#include "traits/tree_internal.hpp"
 #include "util.hpp"
 
 #include <memory>

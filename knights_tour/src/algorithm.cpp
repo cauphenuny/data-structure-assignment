@@ -1,19 +1,18 @@
 #include "algorithm.h"
-#include <stack>
+
+#include <algorithm>
 #include <array>
-#include <utility>
-#include <algorithm> 
+#include <stack>
 #include <stdexcept>
+#include <utility>
 
 const std::array<int, 8> dx = {1, 2, 2, 1, -1, -2, -2, -1};
 const std::array<int, 8> dy = {2, 1, -1, -2, -2, -1, 1, 2};
 
 ResultKnights solve(Algorithm algo, Point start) {
     switch (algo) {
-        case Algorithm::BRUTE_FORCE:
-            return solve_brute_force(start);  // 调用暴力算法实现
-        case Algorithm::HEURISTIC:
-            return solve_heuristic(start);     // 调用启发式算法实现
+        case Algorithm::BRUTE_FORCE: return solve_brute_force(start);  // 调用暴力算法实现
+        case Algorithm::HEURISTIC: return solve_heuristic(start);      // 调用启发式算法实现
         default:
             // 处理未知算法类型（可选）
             throw std::invalid_argument("Unknown algorithm type");
@@ -23,17 +22,16 @@ ResultKnights solve(Algorithm algo, Point start) {
 ResultKnights solve_brute_force(Point start) {
     struct Node {
         Point pos;
-        int move_index; // 当前正在尝试的方向
+        int move_index;  // 当前正在尝试的方向
     };
 
     Board board;
     // 初始化棋盘未访问状态
     for (int i = 0; i < BOARD_SIZE; ++i)
-        for (int j = 0; j < BOARD_SIZE; ++j)
-            board(i, j) = 0;
+        for (int j = 0; j < BOARD_SIZE; ++j) board(i, j) = 0;
 
     std::stack<Node> stk;
-    std::vector<DisplayBoard> history; // 当前路径
+    std::vector<DisplayBoard> history;  // 当前路径
     ResultKnights result;
     result.countPaths = 0;
 
@@ -47,7 +45,8 @@ ResultKnights solve_brute_force(Point start) {
             // return board;
             // 找到一个路径
             result.countPaths++;
-            result.resultPaths.push_back({history}) ;
+            result.resultPaths.push_back({history});
+            break;
 
             // 回退一步
             Node current = stk.top();
@@ -85,7 +84,7 @@ ResultKnights solve_brute_force(Point start) {
             board(current.pos.x, current.pos.y) = 0;
             stk.pop();
             --step;
-            history.push_back({board, {}}); // 记录回退
+            history.push_back({board, {}});  // 记录回退
         }
     }
 
@@ -108,10 +107,9 @@ static int count_onward_moves(const Board& board, int x, int y) {
 ResultKnights solve_heuristic(Point start) {
     Board board;
     HistoryDisplayBoard history;
-    
+
     for (int i = 0; i < BOARD_SIZE; ++i)
-        for (int j = 0; j < BOARD_SIZE; ++j)
-            board(i, j) = 0;
+        for (int j = 0; j < BOARD_SIZE; ++j) board(i, j) = 0;
 
     int step = 1;
     int x = start.x;
@@ -123,7 +121,7 @@ ResultKnights solve_heuristic(Point start) {
     while (step < BOARD_SIZE * BOARD_SIZE) {
         struct MoveOption {
             int nx, ny;
-            int onward; // 后继可选步数
+            int onward;  // 后继可选步数
         };
 
         std::vector<MoveOption> options;

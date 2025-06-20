@@ -4,10 +4,19 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 template <typename K, typename V> struct Pair {
     K key;
     V value;
+};
+
+struct ForestView {
+    struct NodeView {
+        NodeView *parent, *child[2];
+        virtual auto stringify() const -> std::pair<std::string, std::string> = 0;
+    };
+    std::vector<NodeView*> roots;
 };
 
 struct TreeBase {
@@ -15,6 +24,7 @@ struct TreeBase {
     virtual auto size() const -> size_t = 0;
     virtual void clear() = 0;
     virtual void print() const = 0;
+    virtual auto view() const -> ForestView = 0;
     virtual void printCLI() const = 0;
     virtual auto stringify() const -> std::string = 0;
     virtual auto name() const -> std::string = 0;
@@ -45,6 +55,7 @@ struct TreeAdapter : Tree<K, V> {
     auto size() const -> size_t override { return impl->size(); }
     void clear() override { impl->clear(); }
     void print() const override { impl->print(); }
+    auto view() const -> ForestView override { return impl->view(); }
     void printCLI() const override { impl->printCLI(); }
     auto stringify() const -> std::string override { return impl->stringify(); }
     auto name() const -> std::string override { return impl->name(); }
