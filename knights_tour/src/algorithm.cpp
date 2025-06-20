@@ -141,7 +141,7 @@ ResultKnights solve_heuristic(Point start) {
         if (options.empty()) {
             // 无法继续前进
             ResultKnights result;
-            result.countPsths = 0;
+            result.countPaths = 0;
             return result;
         }
 
