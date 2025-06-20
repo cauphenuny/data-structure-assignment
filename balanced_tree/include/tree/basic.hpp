@@ -44,8 +44,8 @@ struct BasicTreeImpl
     : trait::Mixin<
           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View>,
-      trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
+          trait::Detach, trait::View, trait::Record, trait::BindRecord>,
+      trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
@@ -71,8 +71,8 @@ struct BasicTreeImpl
             return Status::SUCCESS;
         }
         auto detached = this->detach(this->maxBox(node->child[L]));
-        detached->bind(L, std::move(node->child[L]));
-        detached->bind(R, std::move(node->child[R]));
+        this->bind(detached, L, std::move(node->child[L]));
+        this->bind(detached, R, std::move(node->child[R]));
         node = std::move(detached);
         node->parent = parent;
         this->maintain(node.get());
@@ -80,23 +80,23 @@ struct BasicTreeImpl
     }
 
     auto split(const K& key) -> std::unique_ptr<BasicTreeImpl> {
-        auto divide = [&key](auto self, std::unique_ptr<BasicNode<K, V>> node)
+        auto divide = [&key, this](auto self, std::unique_ptr<BasicNode<K, V>> node)
             -> std::tuple<std::unique_ptr<BasicNode<K, V>>, std::unique_ptr<BasicNode<K, V>>> {
             if (!node) return {nullptr, nullptr};
             if (key <= node->key) {
-                auto [lchild, rchild] = node->unbind();
+                auto [lchild, rchild] = this->unbind(node);
                 node->maintain();
                 auto [lchild_l, lchild_r] = self(self, std::move(lchild));
-                node->bind(L, std::move(lchild_r));
-                node->bind(R, std::move(rchild));
+                this->bind(node, L, std::move(lchild_r));
+                this->bind(node, R, std::move(rchild));
                 node->maintain();
                 return {std::move(lchild_l), std::move(node)};
             } else {
-                auto [lchild, rchild] = node->unbind();
+                auto [lchild, rchild] = this->unbind(node);
                 node->maintain();
                 auto [rchild_l, rchild_r] = self(self, std::move(rchild));
-                node->bind(L, std::move(lchild));
-                node->bind(R, std::move(rchild_l));
+                this->bind(node, L, std::move(lchild));
+                this->bind(node, R, std::move(rchild_l));
                 node->maintain();
                 return {std::move(node), std::move(rchild_r)};
             }
@@ -113,7 +113,7 @@ struct BasicTreeImpl
             return Status::SUCCESS;
         }
         auto& max_node = this->maxBox(this->root);
-        max_node->bind(R, std::move(other->root));
+        this->bind(max_node, R, std::move(other->root));
         this->maintain(max_node.get());
         return Status::SUCCESS;
     }

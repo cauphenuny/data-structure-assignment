@@ -44,8 +44,8 @@ struct AVLTreeImpl
     : trait::Mixin<
           AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View>,
-      trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
+          trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::Rotate>,
+      trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
@@ -71,8 +71,8 @@ struct AVLTreeImpl
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->child[L]));
-            detached->bind(L, std::move(node->child[L]));
-            detached->bind(R, std::move(node->child[R]));
+            this->bind(detached, L, std::move(node->child[L]));
+            this->bind(detached, R, std::move(node->child[R]));
             node = std::move(detached);
             node->parent = parent;
             this->checkBalance(node.get());
@@ -87,7 +87,7 @@ struct AVLTreeImpl
         auto divide = [&](auto self, std::unique_ptr<AVLNode<K, V>> node)
             -> std::tuple<std::unique_ptr<AVLTreeImpl<K, V>>, std::unique_ptr<AVLTreeImpl<K, V>>> {
             if (!node) return {tree(nullptr), tree(nullptr)};
-            auto [lchild, rchild] = node->unbind();
+            auto [lchild, rchild] = this->unbind(node);
             node->maintain();
             if (key <= node->key) {
                 auto [left, mid] = self(self, std::move(lchild));
@@ -166,15 +166,15 @@ private:
         AVLNode<K, V>* insert_pos = nullptr;
         if (this->height() >= right->height()) {
             auto [parent, cut] = find(find, true, right->height() + 1, nullptr, this->root);
-            mid->bind(L, std::move(cut));
-            mid->bind(R, std::move(right->root));
+            this->bind(mid, L, std::move(cut));
+            this->bind(mid, R, std::move(right->root));
             cut = std::move(mid);
             cut->parent = parent;
             insert_pos = cut.get();
         } else {
             auto [parent, cut] = find(find, false, this->height() + 1, nullptr, right->root);
-            mid->bind(L, std::move(this->root));
-            mid->bind(R, std::move(cut));
+            this->bind(mid, L, std::move(this->root));
+            this->bind(mid, R, std::move(cut));
             cut = std::move(mid);
             cut->parent = parent;
             insert_pos = cut.get();

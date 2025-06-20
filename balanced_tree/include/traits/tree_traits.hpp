@@ -31,25 +31,26 @@ template <typename Node> struct Maintain {
     }
 };
 
-template <typename Node> struct Rotate {
-    static void rotate(int dir, std::unique_ptr<Node>& root) {
-        auto new_root = root->unbind(dir ^ 1);
+template <typename Tree> struct Rotate {
+    void rotate(int dir, auto& root) {
+        auto& self = *static_cast<Tree*>(this);
+        auto new_root = self.unbind(root, dir ^ 1);
         if (new_root->child[dir]) {
-            root->bind(dir ^ 1, std::move(new_root->child[dir]));
+            self.bind(root, dir ^ 1, std::move(new_root->child[dir]));
         }
         new_root->parent = root->parent;
-        new_root->bind(dir, std::move(root));
+        self.bind(new_root, dir, std::move(root));
         root = std::move(new_root);
         root->child[dir]->maintain();
         root->maintain();
     }
-    static void rotateL(std::unique_ptr<Node>& root) { return rotate(L, root); }
-    static void rotateR(std::unique_ptr<Node>& root) { return rotate(R, root); }
-    static void rotateLR(std::unique_ptr<Node>& root) {
+    void rotateL(auto& root) { return rotate(L, root); }
+    void rotateR(auto& root) { return rotate(R, root); }
+    void rotateLR(auto& root) {
         rotateL(root->child[L]);
         rotateR(root);
     }
-    static void rotateRL(std::unique_ptr<Node>& root) {
+    void rotateRL(auto& root) {
         rotateR(root->child[R]);
         rotateL(root);
     }
@@ -260,6 +261,12 @@ template <typename Tree> struct View {
         forest_view.push_back(create(root.get()));
         return forest_view;
     }
+    auto view(auto& node) const -> std::unique_ptr<NodeView> {
+        auto root = node.get();
+        if (!root) return nullptr;
+        while (root->parent) root = root->parent;
+        return create(root);
+    }
 
 private:
     auto create(auto* node) const -> std::unique_ptr<NodeView> {
@@ -270,6 +277,62 @@ private:
         if (view->child[L]) view->child[L]->parent = view.get();
         if (view->child[R]) view->child[R]->parent = view.get();
         return view;
+    }
+};
+
+template <typename Tree> struct Record {
+    void startRecording() { recording = true; }
+    void stopRecording() { recording = false; }
+    auto getRecord() -> std::vector<ForestView> {
+        auto ret = std::move(records);
+        records = std::vector<ForestView>();
+        return ret;
+    }
+    void record(auto&... nodes) {
+        if (!recording) return;
+        auto& self = *static_cast<Tree*>(this);
+        ForestView view;
+        (view.push_back(self.view(nodes)), ...);
+        ForestView filtered;
+        for (auto& v : view) {
+            if (v) filtered.push_back(std::move(v));
+        }
+        records.push_back(std::move(filtered));
+    }
+
+private:
+    bool recording{false};
+    std::vector<ForestView> records;
+};
+
+template <typename Tree> struct Bind {
+    static void bind(auto& parent, size_t which, auto node) { parent.bind(which, std::move(node)); }
+    static auto unbind(auto& parent, size_t which) { parent.unbind(which); }
+    static auto unbind(auto& parent) { return std::make_tuple(parent.unbind(L), parent.unbind(R)); }
+};
+
+template <typename Tree> struct BindRecord {
+    void bind(auto& parent, size_t which, auto node) {
+        auto& self = *(static_cast<Tree*>(this));
+        if (!node) {
+            parent->bind(which, std::move(node));
+        } else {
+            self.record(parent, node);
+            parent->bind(which, std::move(node));
+            self.record(parent);
+        }
+    }
+    auto unbind(auto& parent, size_t which) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto node = parent->unbind(which);
+        self.record(parent, node);
+        return node;
+    }
+    auto unbind(auto& parent) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto [lchild, rchild] = parent->unbind();
+        self.record(parent, lchild, rchild);
+        return std::make_tuple(std::move(lchild), std::move(rchild));
     }
 };
 

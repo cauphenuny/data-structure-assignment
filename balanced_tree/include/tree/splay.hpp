@@ -39,8 +39,9 @@ template <typename K, typename V>
 struct SplayTreeImpl
     : trait::Mixin<
           SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View>,
-      trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain, trait::Rotate> {
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View, trait::Record,
+          trait::BindRecord, trait::Rotate>,
+      trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain> {
     friend struct Test;
 
     std::unique_ptr<SplayNode<K, V>> root{nullptr};
@@ -63,7 +64,7 @@ struct SplayTreeImpl
 
     auto remove(const K& key) -> Status {
         if (!this->find(key)) return Status::FAILED;
-        auto [left, right] = this->root->unbind();
+        auto [left, right] = this->unbind(this->root);
         this->root = std::move(left);
         this->join(std::make_unique<SplayTreeImpl<K, V>>(std::move(right)));
         return Status::SUCCESS;
@@ -73,10 +74,10 @@ struct SplayTreeImpl
         std::unique_ptr<SplayNode<K, V>> other;
         if (this->find(key)) {
             other = std::move(this->root);
-            this->root = std::move(other->unbind(L));
+            this->root = std::move(this->unbind(other, L));
             other->maintain();
         } else {
-            other = this->root->unbind(R);
+            other = this->unbind(this->root, R);
             this->root->maintain();
         }
         return std::make_unique<SplayTreeImpl<K, V>>(std::move(other));
@@ -89,7 +90,7 @@ struct SplayTreeImpl
             return Status::SUCCESS;
         }
         this->splay(this->maxBox(this->root).get());
-        this->root->bind(R, std::move(other->root));
+        this->bind(root, R, std::move(other->root));
         this->root->maintain();
         return Status::SUCCESS;
     }
@@ -130,8 +131,8 @@ struct SplayTreeImpl
         while (!stack.empty()) {
             auto node = std::move(stack.back());
             stack.pop_back();
-            if (node->lchild()) stack.push_back(std::move(node->unbind(L)));
-            if (node->rchild()) stack.push_back(std::move(node->unbind(R)));
+            if (node->lchild()) stack.push_back(std::move(this->unbind(node, L)));
+            if (node->rchild()) stack.push_back(std::move(this->unbind(node, R)));
         }
     }
 
