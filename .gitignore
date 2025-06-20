@@ -5,3 +5,4 @@ build/
 .cache/
 out/
 compile_commands.json
+.vscode/settings.json
