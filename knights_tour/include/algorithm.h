@@ -10,8 +10,8 @@ enum class Algorithm : uint8_t {
     HEURISTIC,    // 启发式搜索
 };
 
-Board solve(Algorithm algo, Point start);
+ResultKnights solve(Algorithm algo, Point start);
 
-Board solve_brute_force(Point start);
+ResultKnights solve_brute_force(Point start);
 
-Board solve_heuristic(Point start);
+ResultKnights solve_heuristic(Point start);

@@ -8,7 +8,7 @@
 const std::array<int, 8> dx = {1, 2, 2, 1, -1, -2, -2, -1};
 const std::array<int, 8> dy = {2, 1, -1, -2, -2, -1, 1, 2};
 
-Board solve(Algorithm algo, Point start) {
+ResultKnights solve(Algorithm algo, Point start) {
     switch (algo) {
         case Algorithm::BRUTE_FORCE:
             return solve_brute_force(start);  // 调用暴力算法实现
@@ -20,7 +20,7 @@ Board solve(Algorithm algo, Point start) {
     }
 }
 
-Board solve_brute_force(Point start) {
+ResultKnights solve_brute_force(Point start) {
     struct Node {
         Point pos;
         int move_index; // 当前正在尝试的方向
@@ -105,8 +105,9 @@ static int count_onward_moves(const Board& board, int x, int y) {
     return count;
 }
 
-Board solve_heuristic(Point start) {
+ResultKnights solve_heuristic(Point start) {
     Board board;
+    HistoryDisplayBoard history;
     
     for (int i = 0; i < BOARD_SIZE; ++i)
         for (int j = 0; j < BOARD_SIZE; ++j)
@@ -116,6 +117,8 @@ Board solve_heuristic(Point start) {
     int x = start.x;
     int y = start.y;
     board(x, y) = step;
+
+    history.historyDisplayBoards.push_back({board, {}});
 
     while (step < BOARD_SIZE * BOARD_SIZE) {
         struct MoveOption {
@@ -136,7 +139,10 @@ Board solve_heuristic(Point start) {
         }
 
         if (options.empty()) {
-            break; // 无法继续前进，失败（不应该发生）
+            // 无法继续前进
+            ResultKnights result;
+            result.countPsths = 0;
+            return result;
         }
 
         // 按后继步数升序排序
@@ -145,11 +151,19 @@ Board solve_heuristic(Point start) {
         });
 
         // 选择最优方向
-        x = options[0].nx;
-        y = options[0].ny;
+        int next_x = options[0].nx;
+        int next_y = options[0].ny;
+
+        Arrow move = {{x, y}, {next_x, next_y}};
+        x = next_x;
+        y = next_y;
         ++step;
         board(x, y) = step;
-    }
 
-    return board;
+        history.historyDisplayBoards.push_back({board, {move}});
+    }
+    ResultKnights result;
+    result.countPaths = 1;
+    result.resultPaths.push_back(history);
+    return result;
 }
