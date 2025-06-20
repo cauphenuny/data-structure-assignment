@@ -14,7 +14,7 @@ template <typename K, typename V> struct Pair {
 struct ForestView {
     struct NodeView {
         NodeView *parent, *child[2];
-        virtual auto stringify() const -> std::pair<std::string, std::string> = 0;
+        virtual auto content() const -> std::pair<std::string, std::string> = 0;
     };
     std::vector<NodeView*> roots;
 };

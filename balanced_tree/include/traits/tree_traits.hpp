@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tree/interface.hpp"
 #include "util.hpp"
 
 #include <algorithm>
@@ -250,6 +251,10 @@ template <typename Tree> struct Print {
         // auto& self = *(static_cast<const Tree*>(this));
         // TODO:
     }
+};
+
+template <typename Tree> struct View {
+    auto view() const -> ForestView {}
 };
 
 }  // namespace trait
