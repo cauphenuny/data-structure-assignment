@@ -27,20 +27,9 @@ struct Board {
 
 struct Arrow {
     Point start, end;
-};
-
-struct DisplayBoard {
-    Board board;
-    std::vector<Arrow> arrows;
+    bool stepNext; // 前进为1，后退为0
 };
 
 void Print_board(Board);
 
-struct HistoryDisplayBoard {
-    std::vector<DisplayBoard> historyDisplayBoards;
-};
-
-struct ResultKnights {
-    int countPaths;
-    std::vector<HistoryDisplayBoard> resultPaths;
-};
+using Path = std::vector<Arrow>;
