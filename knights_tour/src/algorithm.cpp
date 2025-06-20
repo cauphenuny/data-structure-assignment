@@ -161,3 +161,7 @@ std::vector<Path> solve_heuristic(Point start) {
     result.push_back(history);
     return result;
 }
+
+std::vector<Path> solve_heuristic_inhancer(Point start) {
+    
+}
