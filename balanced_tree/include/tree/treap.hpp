@@ -93,6 +93,7 @@ struct TreapImpl
 
     auto join(std::unique_ptr<TreapImpl<K, V>> other) -> Status {
         if (!other) return Status::FAILED;
+        this->tracedTrack(other->root);
         this->root = join(std::move(this->root), std::move(other->root));
         return Status::SUCCESS;
     }
@@ -130,11 +131,11 @@ private:
         if (!left) return right;
         if (!right) return left;
         if (left->priority > right->priority) {
-            this->bind(left, R, join(std::move(left->child[R]), std::move(right)));
+            this->bind(left, R, join(this->unbind(left, R), std::move(right)));
             left->maintain();
             return left;
         } else {
-            this->bind(right, L, join(std::move(left), std::move(right->child[L])));
+            this->bind(right, L, join(std::move(left), this->unbind(right, L)));
             right->maintain();
             return right;
         }

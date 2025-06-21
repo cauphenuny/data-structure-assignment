@@ -1,10 +1,14 @@
 #include "doctest/doctest.h"
 #include "tree/avl.hpp"
+#include "tree/splay.hpp"
+#include "tree/treap.hpp"
 
 static void printNodeViewCLI(const NodeView* node, int depth) {
     if (!node) return;
     printNodeViewCLI(node->child[R].get(), depth + 1);
-    std::cout << std::string(depth * 4, ' ') << serialize(node->content()) << "\n";
+    auto [key, value] = node->content();
+    std::cout << std::format(
+        "{}{{{}: {}}} at {}\n", std::string(depth * 4, ' '), key, value, node->id());
     printNodeViewCLI(node->child[L].get(), depth + 1);
 }
 
@@ -27,10 +31,11 @@ static void printTraceCLI(std::string_view title, const std::vector<ForestView>&
 }
 
 TEST_CASE("Recording `AVLTree`") {
-    auto tree = std::make_unique<AVLTree<int, int>>();
+    using T = AVLTree<int, int>;
+    auto tree = std::make_unique<T>();
     tree->traceStart();
     for (int i = 0; i < 8; i++) tree->insert(i, i * 10);
-    printTraceCLI("After inserting 5 elements", tree->trace());
+    printTraceCLI("After inserting 8 elements", tree->trace());
 
     std::cout << "\n\n--------------------------------\n";
     tree->split(4);
@@ -38,13 +43,29 @@ TEST_CASE("Recording `AVLTree`") {
 
     std::cout << "\n\n--------------------------------\n";
     auto trace = tree->trace([&] {
-        auto tree2 = std::make_unique<AVLTree<int, int>>();
+        auto tree2 = std::make_unique<T>();
         for (int i = 10; i < 13; i++) {
             tree2->insert(i, i * 10);
         }
         tree->join(std::move(tree2));
     });
     printTraceCLI("After joining another tree", trace);
+    // debug(tree);
     // tree->remove(0);
     // debug(tree->getRecord());
+}
+
+TEST_CASE("Recording `Treap`") {
+    using T = Treap<int, int>;
+    auto tree = std::make_unique<T>();
+    tree->traceStart();
+    for (int i = 0; i < 8; i++) tree->insert(i, i * 10);
+    tree->split(4);
+    auto trace = tree->trace([&] {
+        auto tree2 = std::make_unique<T>();
+        for (int i = 10; i < 13; i++) {
+            tree2->insert(i, i * 10);
+        }
+        tree->join(std::move(tree2));
+    });
 }
