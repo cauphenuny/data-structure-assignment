@@ -51,7 +51,7 @@ struct TreapImpl
       trait::Mixin<
           TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
           trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View,
-          trait::Record, trait::BindRecord, trait::Rotate, trait::ConstructRecord> {
+          trait::Trace, trait::TracedBind, trait::Rotate, trait::TracedConstruct> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};

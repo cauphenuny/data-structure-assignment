@@ -44,8 +44,8 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
                      trait::Mixin<
                          AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height,
                          trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
-                         trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Record,
-                         trait::BindRecord, trait::ConstructRecord, trait::Rotate> {
+                         trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
+                         trait::TracedBind, trait::TracedConstruct, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
@@ -68,7 +68,7 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
         if (!node) return Status::FAILED;
         if (!node->child[L] || !node->child[R]) {
             auto detached = this->detach(node);
-            this->recordUntrack(detached);
+            this->tracedUntrack(detached);
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->child[L]));
@@ -101,7 +101,7 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
         };
         auto [left, right] = divide(divide, std::move(this->root));
         this->root = std::move(left);
-        this->recordUntrack(right);
+        this->tracedUntrack(right);
         return std::make_unique<AVLTreeImpl<K, V>>(std::move(right));
     }
 
@@ -113,7 +113,7 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
             return Status::SUCCESS;
         }
         auto other_root = std::move(other->root);
-        this->recordTrack(other_root);
+        this->tracedTrack(other_root);
         if (this->height() >= other->height()) {
             auto mid = this->detach(this->minBox(other_root));
             this->join(this->root, std::move(mid), std::move(other_root));

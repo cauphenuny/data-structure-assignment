@@ -17,11 +17,11 @@ static void printForestCLI(const ForestView& forest) {
     }
 }
 
-static void printTraceCLI(std::string_view title, const std::vector<ForestView>& record) {
+static void printTraceCLI(std::string_view title, const std::vector<ForestView>& trace) {
     std::cout << title << ":\n";
-    for (size_t i = 0; i < record.size(); ++i) {
-        std::cout << "Record " << i + 1 << ":\n";
-        printForestCLI(record[i]);
+    for (size_t i = 0; i < trace.size(); ++i) {
+        std::cout << "Trace #" << i + 1 << ":\n";
+        printForestCLI(trace[i]);
         std::cout << "-----------------------\n";
     }
 }
