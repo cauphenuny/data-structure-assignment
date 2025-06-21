@@ -88,7 +88,7 @@ template <typename Node> struct Height {
 };
 
 template <typename Node> struct Size {
-    int size{1};
+    size_t size{1};
     void maintain() {
         auto& self = *(static_cast<Node*>(this));
         auto l = self.child[L] ? self.child[L]->size : 0;
@@ -114,7 +114,7 @@ template <typename Node, typename Key> struct MinMax {
 };
 
 template <typename Node> struct Search {
-    auto find(auto& key) {
+    auto find(auto&& key) {
         auto node = static_cast<Node*>(this);
         while (node) {
             if (key == node->key) break;
@@ -123,22 +123,26 @@ template <typename Node> struct Search {
             else
                 node = node->child[R].get();
         }
-        return static_cast<Node::PairType*>(node);
+        return node;
+    }
+    auto findKth(size_t rank) {
+        auto node = static_cast<Node*>(this);
+        if (rank > node->size) return static_cast<Node*>(nullptr);
+        size_t lsize = node->child[L] ? node->child[L]->size : 0;
+        if (rank <= lsize) return node->child[L]->findKth(rank);
+        if (rank > lsize + 1) return node->child[R]->findKth(rank - lsize - 1);
+        return node;
     }
     auto findMin() {
         auto node = static_cast<Node*>(this);
         while (node && node->child[L]) node = node->child[L].get();
-        return static_cast<Node::PairType*>(node);
+        return node;
     }
     auto findMax() {
         auto node = static_cast<Node*>(this);
         while (node && node->child[R]) node = node->child[R].get();
-        return static_cast<Node::PairType*>(node);
+        return node;
     }
-};
-
-template <typename Tree> struct Owner {
-    Tree* owner{nullptr};
 };
 
 }  // namespace trait::node

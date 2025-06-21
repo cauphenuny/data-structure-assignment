@@ -41,7 +41,7 @@ struct SplayTreeImpl
       trait::Mixin<
           SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
           trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View, trait::Trace,
-          trait::TracedBind, trait::Rotate, trait::TracedConstruct> {
+          trait::TracedBind, trait::Rotate, trait::TracedConstruct, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<SplayNode<K, V>> root{nullptr};

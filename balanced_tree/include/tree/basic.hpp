@@ -40,12 +40,12 @@ struct BasicNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct BasicTreeImpl
-    : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
-      trait::Mixin<
-          BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
-          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View, trait::Trace, trait::TracedBind, trait::TracedConstruct> {
+struct BasicTreeImpl : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
+                       trait::Mixin<
+                           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size,
+                           trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
+                           trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
+                           trait::TracedBind, trait::TracedConstruct, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};

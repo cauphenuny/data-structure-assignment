@@ -45,7 +45,7 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
                          AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height,
                          trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
                          trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
-                         trait::TracedBind, trait::TracedConstruct, trait::Rotate> {
+                         trait::TracedBind, trait::TracedConstruct, trait::Rotate, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
