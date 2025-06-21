@@ -46,12 +46,11 @@ struct TreapNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct TreapImpl
-    : trait::Mixin<
-          TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
-          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View,
-          trait::Record, trait::BindRecord, trait::Rotate>,
-      trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain> {
+struct TreapImpl : trait::Mixin<
+                       TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
+                       trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
+                       trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::Rotate>,
+                   trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};
@@ -68,6 +67,7 @@ struct TreapImpl
         auto [parent, box] = this->findBox(this->root, key);
         if (box) return Status::FAILED;  // Key already exists
         box = std::make_unique<TreapNode<K, V>>(key, value, parent);
+        this->record(box);
         this->maintain(parent);
         auto node = box.get();
         while (parent && node->priority > parent->priority) {

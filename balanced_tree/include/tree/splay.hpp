@@ -58,6 +58,7 @@ struct SplayTreeImpl
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // Key already exists
         node = std::make_unique<SplayNode<K, V>>(key, value, parent);
+        this->record(node);
         this->splay(node.get());
         return Status::SUCCESS;
     }

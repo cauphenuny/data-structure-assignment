@@ -73,15 +73,24 @@ template <typename Tree> struct Search {
 
 template <typename Tree> struct Detach {
     template <typename Node> auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
-        if (node->child[L] && node->child[R]) return nullptr;
-        auto parent = node->parent;
-        if (node->child[L]) node->child[L]->parent = parent;
-        if (node->child[R]) node->child[R]->parent = parent;
-        auto raw = node.release();
-        raw->parent = nullptr;
-        node = std::move(raw->child[raw->child[L] ? L : R]);
-        Tree::maintain(parent);
-        return std::unique_ptr<Node>(raw);
+        auto& self = *(static_cast<Tree*>(this));
+        assert(!(node->child[L] && node->child[R]));
+        if (!node->child[L] && !node->child[R]) {
+            auto parent = node->parent;
+            node->parent = nullptr;
+            auto detached = std::move(node);
+            Tree::maintain(parent);
+            return detached;
+        } else {
+            auto child = std::move(node->child[L] ? node->child[L] : node->child[R]);
+            child->parent = node->parent;
+            node->parent = nullptr;
+            auto detached = std::move(node);
+            node = std::move(child);
+            Tree::maintain(node->parent);
+            self.record(node);
+            return detached;
+        }
     }
 };
 
@@ -272,6 +281,7 @@ private:
     auto create(auto* node) const -> std::unique_ptr<NodeView> {
         if (!node) return nullptr;
         auto view = node->view();
+        view->parent = nullptr;
         view->child[L] = create(node->child[L].get());
         view->child[R] = create(node->child[R].get());
         if (view->child[L]) view->child[L]->parent = view.get();
@@ -303,6 +313,7 @@ template <typename Tree> struct Record {
 private:
     bool recording{false};
     std::vector<ForestView> records;
+    // std::set<typename Tree::NodeType*> entries;
 };
 
 template <typename Tree> struct Bind {
@@ -311,13 +322,20 @@ template <typename Tree> struct Bind {
     static auto unbind(auto& parent) { return std::make_tuple(parent.unbind(L), parent.unbind(R)); }
 };
 
+template <typename Node> struct Root {
+    std::unique_ptr<Node> root{nullptr};
+    void setRoot(std::unique_ptr<Node> new_root) {
+        if (new_root) new_root->parent = nullptr;
+        root = std::move(new_root);
+    }
+};
+
 template <typename Tree> struct BindRecord {
     void bind(auto& parent, size_t which, auto node) {
         auto& self = *(static_cast<Tree*>(this));
         if (!node) {
             parent->bind(which, std::move(node));
         } else {
-            self.record(parent, node);
             parent->bind(which, std::move(node));
             self.record(parent);
         }

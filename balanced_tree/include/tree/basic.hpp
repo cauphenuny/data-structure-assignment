@@ -59,6 +59,7 @@ struct BasicTreeImpl
         if (node) return Status::FAILED;
         node = std::make_unique<BasicNode<K, V>>(key, value, parent);
         this->maintain(parent);
+        this->record(node);
         return Status::SUCCESS;
     }
 
