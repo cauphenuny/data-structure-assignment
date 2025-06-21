@@ -14,6 +14,8 @@
 
 namespace trait {
 
+/// @struct TypeTraits
+/// @brief type info for metaprogramming
 template <typename N> struct TypeTraits {
     using KeyType = typename N::KeyType;
     using ValueType = typename N::ValueType;
@@ -21,8 +23,12 @@ template <typename N> struct TypeTraits {
     using NodeType = N;
 };
 
+/// @struct Mixin
+/// @brief simply mixin multiple traits into a single type, Mixin<T, A, B> serves as A<T>, B<T>
 template <typename Type, template <typename> class... Traits> struct Mixin : Traits<Type>... {};
 
+/// @struct Maintain
+/// @brief provide a maintain() method which maintain info upwards starts from {node}
 template <typename Node> struct Maintain {
     static void maintain(Node* node) {
         while (node) {
@@ -62,6 +68,10 @@ template <typename Tree> struct Search {
         auto&& root = static_cast<const Tree*>(this)->root;
         return root ? root->find(key) : nullptr;
     }
+    auto findKth(size_t rank) {
+        auto&& root = static_cast<const Tree*>(this)->root;
+        return root ? root->findKth(rank) : nullptr;
+    }
     auto min() {
         auto&& root = static_cast<Tree*>(this)->root;
         return root ? root->findMin() : nullptr;
@@ -72,6 +82,58 @@ template <typename Tree> struct Search {
     }
 };
 
+template <typename Tree> struct Iterate {
+    auto begin() { return wrap(static_cast<Tree*>(this)->min()); }
+    auto end() {
+        using NodeType = typename Tree::NodeType;
+        return wrap(static_cast<NodeType*>(nullptr));
+    }
+    auto iteratorOf(auto&& key) { return wrap(static_cast<Tree*>(this)->find(key)); }
+
+private:
+    auto wrap(auto* node) {
+        using PairType = typename Tree::PairType;
+        using NodeType = typename Tree::NodeType;
+        struct Iterator {
+            PairType* content;
+
+            Iterator(NodeType* node) : content(node) {}
+            PairType* operator->() { return content; }
+            const PairType* operator->() const { return content; }
+            PairType& operator*() { return *content; }
+            PairType const& operator*() const { return *content; }
+
+            auto next() -> Iterator {
+                auto node = static_cast<NodeType*>(content);
+                if (node->child[R]) return node->child[R]->findMin();
+                while (node->parent && node->which() == R) node = node->parent;
+                return Iterator(node->parent);
+            }
+            auto prev() -> Iterator {
+                auto node = static_cast<NodeType*>(content);
+                if (node->child[L]) return node->child[L]->findMax();
+                while (node->parent && node->which() == L) node = node->parent;
+                return Iterator(node->parent);
+            }
+
+            Iterator& operator++() {
+                content = next().content;
+                return *this;
+            }
+            Iterator& operator--() {
+                content = prev().content;
+                return *this;
+            }
+            bool operator==(const Iterator& other) const { return content == other.content; }
+            bool operator!=(const Iterator& other) const { return content != other.content; }
+            operator bool() const { return content != nullptr; }
+        };
+        return Iterator(node);
+    }
+};
+
+/// @struct Detach
+/// @brief detach a leaf node or semi-leaf node from the tree
 template <typename Tree> struct Detach {
     template <typename Node> auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
         auto& self = *(static_cast<Tree*>(this));
@@ -97,6 +159,8 @@ template <typename Tree> struct Detach {
     }
 };
 
+/// @struct Box
+/// @brief get the std::unique_ptr container of specific node
 template <typename Tree> struct Box {
     auto findBox(auto&& node, auto&& key) {
         auto find = [&key](
@@ -157,6 +221,8 @@ template <typename Tree> struct Height {
     }
 };
 
+/// @struct Traverse
+/// @brief provide tree traversal methods
 template <typename Tree> struct Traverse {
     void traverse(auto&& func) {
         auto& root = static_cast<Tree*>(this)->root;
@@ -183,6 +249,8 @@ private:
     }
 };
 
+/// @struct Conflict
+/// @brief check if two trees have conflict keys
 template <typename Tree> struct Conflict {
     bool conflict(Tree* other) {
         std::vector<typename Tree::NodeType*> vec1, vec2;
@@ -202,6 +270,8 @@ template <typename Tree> struct Conflict {
     }
 };
 
+/// @struct Merge
+/// @brief merge two trees, auto call join/inject
 template <typename Tree> struct Merge {
     Status merge(std::unique_ptr<Tree> other) {
         if (!other) return Status::FAILED;
@@ -266,6 +336,8 @@ template <typename Tree> struct Print {
     }
 };
 
+/// @struct View
+/// @brief create a view of root or specific node
 template <typename Tree> struct View {
     auto view() const -> ForestView {
         auto& root = (static_cast<const Tree*>(this))->root;
@@ -273,6 +345,9 @@ template <typename Tree> struct View {
         forest_view.push_back(create(root.get()));
         return forest_view;
     }
+
+    /// @func view
+    /// @brief create a view of the connected component of {node}
     auto view(auto* node) const -> std::unique_ptr<NodeView> {
         auto root = node;
         if (!root) return nullptr;
@@ -293,6 +368,8 @@ private:
     }
 };
 
+/// @struct Trace
+/// @brief functions that control tracing
 template <typename Tree> struct Trace {
     void traceClear() {
         entries.clear();
@@ -319,12 +396,21 @@ template <typename Tree> struct Trace {
         traceStop();
         return trace();
     }
+
+    /// @func tracedTrack
+    /// @brief start tracking {nodes}, and snapshot the current state
     void tracedTrack(auto&&... nodes) {
         if (track(nodes...)) snapshot();
     }
+
+    /// @func tracedUntrack
+    /// @brief stop tracking {nodes}, and snapshot the current state
     void tracedUntrack(auto&&... nodes) {
         if (untrack(nodes...)) snapshot();
     }
+
+    /// @func snapshot
+    /// @brief create a snapshot by entries
     void snapshot() {
         if (!tracing) return;
         auto& self = *static_cast<Tree*>(this);
@@ -335,6 +421,9 @@ template <typename Tree> struct Trace {
         }
         record.push_back(std::move(view));
     }
+
+    /// @func track
+    /// @brief start tracking {nodes} by adding roots to entries
     bool track(auto&&... nodes) {
         if (!tracing) return false;
         bool success = false;
@@ -348,6 +437,9 @@ template <typename Tree> struct Trace {
         (add(nodes), ...);
         return success;
     }
+
+    /// @func untrack
+    /// @brief stop tracking {nodes} by removing roots from entries
     bool untrack(auto&&... nodes) {
         if (!tracing) return false;
         bool success = false;
@@ -374,21 +466,19 @@ template <typename Tree> struct Bind {
     static auto unbind(auto& parent) { return std::make_tuple(parent.unbind(L), parent.unbind(R)); }
 };
 
-template <typename Node> struct Root {
-    std::unique_ptr<Node> root{nullptr};
-    void setRoot(std::unique_ptr<Node> new_root) {
-        if (new_root) new_root->parent = nullptr;
-        root = std::move(new_root);
-    }
-};
-
 template <typename Tree> struct TracedConstruct {
+    /// @func constructNode
+    /// @brief construct a node with {args} at {node}
     void constructNode(auto& node, auto&&... args) {
         auto& self = *(static_cast<Tree*>(this));
         using Node = typename Tree::NodeType;
         node = std::make_unique<Node>(std::forward<decltype(args)>(args)...);
         self.tracedTrack(node);
     }
+
+    /// @func overwriteNode
+    /// @brief move node from {src} to {dest}, where the info in dest is valid, like
+    /// operator=(auto&&)
     auto overwriteNode(auto& dest, auto src) {
         auto& self = *(static_cast<Tree*>(this));
         auto parent = dest ? dest->parent : nullptr;
@@ -397,6 +487,10 @@ template <typename Tree> struct TracedConstruct {
         dest->parent = parent;
         self.tracedTrack(dest);
     }
+
+    /// @func moveNode
+    /// @brief move node from {src} to {dest}, where dest is invalid before, like
+    /// constructor(auto&&)
     auto moveNode(auto& dest, auto src, auto* parent) {
         auto& self = *(static_cast<Tree*>(this));
         self.untrack(src);
@@ -406,6 +500,8 @@ template <typename Tree> struct TracedConstruct {
     }
 };
 
+/// @struct TracedBind
+/// @brief bind/unbind nodes with tracing
 template <typename Tree> struct TracedBind {
     void bind(auto& parent, size_t which, auto node) {
         auto& self = *(static_cast<Tree*>(this));

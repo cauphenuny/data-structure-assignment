@@ -1346,3 +1346,16 @@ TEST_CASE("`TreeAdapter`") {
         test(std::make_unique<SplayTree<K, V>>());
     }
 }
+
+TEST_CASE("Iterator") {
+    auto tree = AVLTree<int, std::string>();
+    const int N = 10;
+    for (int i = 1; i <= N; i++) {
+        tree.insert(i, std::to_string(i));
+    }
+    int sum = 0;
+    for (auto& [key, value] : tree) {
+        sum += key;
+    }
+    CHECK(sum == (N * (N + 1)) / 2);
+}

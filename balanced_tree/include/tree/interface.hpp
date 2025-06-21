@@ -42,6 +42,8 @@ struct TreeBase {
 
 template <typename K, typename V> struct Tree : TreeBase {
     virtual auto find(const K& key) -> Pair<const K, V>* = 0;
+    virtual auto findKth(size_t rank)
+        -> Pair<const K, V>* = 0;  // find the k-th element, 1-based index
     virtual auto min() -> Pair<const K, V>* = 0;
     virtual auto max() -> Pair<const K, V>* = 0;
     virtual auto insert(const K& key, const V& value) -> Status = 0;
@@ -72,6 +74,7 @@ struct TreeAdapter : Tree<K, V> {
     auto insert(const K& k, const V& v) -> Status override { return impl->insert(k, v); }
     auto remove(const K& k) -> Status override { return impl->remove(k); }
     auto find(const K& k) -> Pair<const K, V>* override { return impl->find(k); }
+    auto findKth(size_t rank) -> Pair<const K, V>* override { return impl->findKth(rank); }
     auto trace() -> std::vector<ForestView> override { return impl->trace(); }
     auto trace(const std::function<void()>& func) -> std::vector<ForestView> override {
         return impl->trace(func);
@@ -110,6 +113,10 @@ struct TreeAdapter : Tree<K, V> {
         return impl->merge(std::move(other->impl));
     }
     auto conflict(TreeAdapter* other) -> bool { return impl->conflict(other->impl.get()); }
+
+    auto begin() { return impl->begin(); }
+    auto end() { return impl->end(); }
+    auto iteratorOf(const K& k) { return impl->iteratorOf(k); }
 
     // NOTE:
     // join: key-range not overlap, and this's keys must lesser than other's, O(log n)
