@@ -9,24 +9,21 @@
 #include <iostream>
 #include <vector>
 
-GUIBase::GUIBase() :
-            initialWidth(800),
-            initialHeight(600),
-            scrollbarSize(15.0f),
-            windowSize(initialWidth, initialHeight),
-            backgroundColor(248, 248, 248),
-            lineColor(10, 136, 204),
-            nodeOutlineColor(10, 136, 204),
-            textColor(30, 30, 40),
-            scrollbarColor(200, 200, 200),
-            scrollbarHandleColor(150, 150, 150),
-            zoom(1.0f),
-            minZoom(0.1f),
-            maxZoom(5.0f),
-            viewOffset(0.0f, 0.0f),
-            dragMode(DragMode::NONE),
-            titleText(font, ""),
-            treeRenderer(font) {
+GUIBase::GUIBase()
+    : initialWidth(800),
+      initialHeight(600),
+      scrollbarSize(15.0f),
+      windowSize(initialWidth, initialHeight),
+      backgroundColor(248, 248, 248),
+      lineColor(10, 136, 204),
+      nodeOutlineColor(10, 136, 204),
+      textColor(30, 30, 40),
+      scrollbarColor(200, 200, 200),
+      scrollbarHandleColor(150, 150, 150),
+      dragMode(DragMode::NONE),
+      titleText(font, ""),
+      treeRenderer(font),
+      viewManager(window, windowSize, windowSize) {
     initWindow();
     initEventListeners();
 }
@@ -34,14 +31,8 @@ GUIBase::GUIBase() :
 void GUIBase::initWindow() {
     settings.antiAliasingLevel = 8;
     
-    // 创建一个初始大小的窗口
     window.create(sf::VideoMode({initialWidth, initialHeight}), "Balanced Tree demo",
                   sf::Style::Default, sf::State::Windowed, settings);
-    
-    // 创建两个视图：一个用于内容，一个用于UI
-    contentView.setCenter({initialWidth/2.f, initialHeight/2.f});
-    contentView.setSize({initialWidth, initialHeight});
-    uiView = window.getDefaultView();
 
     horizontalScrollbar.setSize({100.0f, scrollbarSize});
     horizontalScrollbarHandle.setSize({30.0f, scrollbarSize});
@@ -66,31 +57,8 @@ void GUIBase::initWindow() {
     titleText.setFillColor(textColor);
 }
 
-inline float GUIBase::getEffectiveZoom() {
-    // 设置内容视图缩放以填满窗口但保持比例
-    // 移除视口设置，改为直接调整视图大小
-    float scaleX = windowSize.x / initialWidth;
-    float scaleY = windowSize.y / initialHeight;
-    float effectiveZoom = zoom / std::min(scaleX, scaleY);
-    return effectiveZoom;
-}
-
-inline void GUIBase::updateContentView() {
-    contentView.setCenter({initialWidth/2.f + viewOffset.x, 
-                          initialHeight/2.f + viewOffset.y});
-}
-
-inline void GUIBase::updateContentView(float effectiveZoom) {
-    contentView.setSize(windowSize / effectiveZoom);
-    contentView.setCenter({initialWidth/2.f + viewOffset.x, 
-                          initialHeight/2.f + viewOffset.y});
-}
-
 void GUIBase::updateScrollbars() {
-    // 计算当前有效缩放比例
-    float scaleX = windowSize.x / initialWidth;
-    float scaleY = windowSize.y / initialHeight;
-    float effectiveZoom = zoom / std::min(scaleX, scaleY);
+    float effectiveZoom = viewManager.getEffectiveZoom();
     
     // 计算可视区域和内容区域
     float visibleWidth = windowSize.x / effectiveZoom;
@@ -99,6 +67,8 @@ void GUIBase::updateScrollbars() {
     // 计算最大偏移量
     float maxHOffset = std::max(0.0f, initialWidth - visibleWidth);
     float maxVOffset = std::max(0.0f, initialHeight - visibleHeight);
+
+    sf::Vector2f viewOffset = viewManager.getViewOffset();
 
     // 更新滚动条位置和大小
     float hScrollbarWidth = windowSize.x - scrollbarSize;
@@ -138,46 +108,14 @@ void GUIBase::initEventListeners() {
         const auto& resizeEvent = event->getIf<sf::Event::Resized>();
         windowSize = {static_cast<float>(resizeEvent->size.x), 
                       static_cast<float>(resizeEvent->size.y)};
-        
-        // 更新UI视图以匹配新窗口
-        uiView.setSize(windowSize);
-        uiView.setCenter(windowSize / 2.f);
-        
-        float effectiveZoom = getEffectiveZoom();
-        
-        updateContentView(effectiveZoom);
+        viewManager.update();
     });
 
     on<sf::Event::MouseWheelScrolled>([this](const Event& event) {
         const auto& scrollEvent = event->getIf<sf::Event::MouseWheelScrolled>();
 
         if (scrollEvent->wheel == sf::Mouse::Wheel::Vertical) {
-            float zoomFactor = (scrollEvent->delta > 0) ? 1.1f : 0.9f;
-            float newZoom = zoom * zoomFactor;
-            
-            // 限制缩放范围
-            if (newZoom < minZoom || newZoom > maxZoom)
-                return;
-            
-            // 获取鼠标在内容视图中的位置
-            sf::Vector2f mousePos = window.mapPixelToCoords(
-                scrollEvent->position, contentView);
-            
-            // 更新缩放
-            zoom = newZoom;
-            
-            float effectiveZoom = getEffectiveZoom();
-            
-            // 调整内容视图大小
-            contentView.setSize(windowSize / effectiveZoom);
-            
-            // 重新计算鼠标在内容视图中的位置
-            sf::Vector2f newMousePos = window.mapPixelToCoords(
-                scrollEvent->position, contentView);
-            
-            // 调整视图偏移，使鼠标位置保持相对稳定
-            viewOffset += (mousePos - newMousePos) * effectiveZoom;
-            updateContentView();
+            viewManager.setZoom(scrollEvent->delta, scrollEvent->position);
         }
     });
 
@@ -215,11 +153,12 @@ void GUIBase::initEventListeners() {
         }
 
         sf::Vector2f delta = mousePos - lastMousePos;    
-        float effectiveZoom = getEffectiveZoom();
+
+        float effectiveZoom = viewManager.getEffectiveZoom();
                     
         if (dragMode == DragMode::VIEW_DRAG) {
             // 视图拖动 - 根据缩放调整移动速度
-            viewOffset += -delta / effectiveZoom;
+            viewManager.pan(delta);
         } else {
             // 滚动条拖动 - 根据滚动比例计算偏移
             bool isHorizontal = (dragMode == DragMode::HSCROLL_DRAG);
@@ -236,6 +175,8 @@ void GUIBase::initEventListeners() {
             float maxOffset = std::max(0.0f, contentSize - visibleSize);
 
             float scrollRatio = axisDelta / (scrollbarSize - handleSize);
+
+            sf::Vector2f viewOffset = viewManager.getViewOffset();
             
             float& offsetComponent = isHorizontal ? viewOffset.x : viewOffset.y;
             offsetComponent += scrollRatio * maxOffset;
@@ -243,17 +184,14 @@ void GUIBase::initEventListeners() {
             
         }
         
-        // 更新视图中心点
-        updateContentView();
+        viewManager.update();
         lastMousePos = mousePos;
     });
 }
 
 void GUIBase::render() {
     // 计算当前有效缩放比例
-    float scaleX = windowSize.x / initialWidth;
-    float scaleY = windowSize.y / initialHeight;
-    float effectiveZoom = zoom / std::min(scaleX, scaleY);
+    float effectiveZoom = viewManager.getEffectiveZoom();
     
     // 计算可视区域和内容区域
     float visibleWidth = windowSize.x / effectiveZoom;
@@ -263,21 +201,15 @@ void GUIBase::render() {
     float maxHOffset = std::max(0.0f, initialWidth - visibleWidth);
     float maxVOffset = std::max(0.0f, initialHeight - visibleHeight);
 
-    // 清屏
     window.clear(backgroundColor);
     
-    // 绘制内容
-    window.setView(contentView);
-    
-    // 直接绘制边
+    window.setView(viewManager.getContentView());
+
     treeRenderer.render(window);
-    
     window.draw(titleText);
     
-    // 切换到UI视图绘制滚动条
-    window.setView(uiView);
+    window.setView(viewManager.getUIView());
     
-    // 仅当内容超出可视区域时显示滚动条
     if (maxHOffset > 0) {
         window.draw(horizontalScrollbar);
         window.draw(horizontalScrollbarHandle);
@@ -291,7 +223,7 @@ void GUIBase::render() {
     window.display();
 }
 
-void GUIBase::run() {
+void GUIBase::initTreeData() {
     treeRenderer.addNode((sf::Vector2f){400, 100}, 1);
     treeRenderer.addNode((sf::Vector2f){200, 200}, 2);
     treeRenderer.addNode((sf::Vector2f){600, 200}, 3);
@@ -306,8 +238,11 @@ void GUIBase::run() {
     treeRenderer.addEdge(1, 4);
     treeRenderer.addEdge(2, 5);
     treeRenderer.addEdge(2, 6);
-    
-    // 主循环
+}
+
+void GUIBase::run() {
+    initTreeData();
+
     while (window.isOpen()) {
         // 检查事件
         while (const std::optional event = window.pollEvent()) {        

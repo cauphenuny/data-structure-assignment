@@ -25,17 +25,11 @@ public:
     
     TreeRenderer(const sf::Font& font, float nodeRadius = 25.0f);
     
-    // 添加节点和边
     int addNode(sf::Vector2f position, int value);
     void addEdge(int fromNodeId, int toNodeId);
     
-    // 清空树
     void clear();
-    
-    // 渲染树
     void render(sf::RenderTarget& target);
-    
-    // 动画更新
     void update(float deltaTime);
     
     // 获取树的边界框

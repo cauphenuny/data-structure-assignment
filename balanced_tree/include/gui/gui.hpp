@@ -4,6 +4,7 @@
 #pragma once
 #include "gui/events.hpp"
 #include "gui/tree_renderer.hpp"
+#include "gui/view_manager.hpp"
 #include "tree/interface.hpp"
 
 #include <SFML/Graphics.hpp>
@@ -39,12 +40,8 @@ public:
 private:
     // 窗口和视图
     sf::RenderWindow window;
-    sf::View contentView;
-    sf::View uiView;
 
     sf::ContextSettings settings;
-    
-    TreeRenderer treeRenderer;
 
     sf::Text titleText;
     
@@ -57,16 +54,15 @@ private:
     // 状态变量
     DragMode dragMode;
     sf::Vector2f lastMousePos;
-    sf::Vector2f viewOffset;
-    float zoom;
-    const float minZoom;
-    const float maxZoom;
     
     // 配置常量
     const unsigned int initialWidth;
     const unsigned int initialHeight;
     const float scrollbarSize;
     sf::Vector2f windowSize;
+    
+    TreeRenderer treeRenderer;
+    ViewManager viewManager;
     
     // 颜色配置
     sf::Color backgroundColor;
@@ -87,23 +83,12 @@ private:
     
     // 更新方法
     void updateScrollbars();
-    void updateAnimation(float deltaTime);
-    inline void updateContentView();
-    inline void updateContentView(float effectiveZoom);
 
     // 事件处理方法
     void initEventListeners();
     
     // 渲染方法
     void render();
-    void drawNodes();
-    void drawEdges();
-    void drawUI();
-    
-    // 辅助方法
-    inline float getEffectiveZoom();
-    void drawFeatheredLine(const sf::Vector2f& start, const sf::Vector2f& end,
-                          sf::Color color, float thickness, float feather);
     
     // // 让事件处理器类可以访问私有成员
     // friend class EventHandlerBase;
