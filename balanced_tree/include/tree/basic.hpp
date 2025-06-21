@@ -66,13 +66,14 @@ struct BasicTreeImpl
         auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
         if (!node->child[L] || !node->child[R]) {
-            this->detach(node);
+            this->recordUntrack(this->detach(node));
             this->maintain(parent);
             return Status::SUCCESS;
         }
         auto detached = this->detach(this->maxBox(node->child[L]));
         this->bind(detached, L, std::move(node->child[L]));
         this->bind(detached, R, std::move(node->child[R]));
+        this->recordUntrack(node);
         node = std::move(detached);
         node->parent = parent;
         this->maintain(node.get());

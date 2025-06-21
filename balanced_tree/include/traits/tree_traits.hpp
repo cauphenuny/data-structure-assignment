@@ -39,9 +39,9 @@ template <typename Tree> struct Rotate {
         if (new_root->child[dir]) {
             self.bind(root, dir ^ 1, std::move(new_root->child[dir]));
         }
-        new_root->parent = root->parent;
+        auto parent = root->parent;
         self.bind(new_root, dir, std::move(root));
-        root = std::move(new_root);
+        self.moveNode(root, std::move(new_root), parent);
         root->child[dir]->maintain();
         root->maintain();
     }
@@ -254,9 +254,9 @@ template <typename Tree> struct Print {
         }
         auto print_node = [&](auto self, auto node, int depth) {
             if (!node) return;
-            self(self, node->child[L].get(), depth + 1);
-            std::cout << std::string(depth * 4, ' ') << node->key << ": " << node->value << "\n";
             self(self, node->child[R].get(), depth + 1);
+            std::cout << std::string(depth * 4, ' ') << node->key << ": " << node->value << "\n";
+            self(self, node->child[L].get(), depth + 1);
         };
         print_node(print_node, self.root.get(), 0);
     }
@@ -308,12 +308,10 @@ template <typename Tree> struct Record {
         records = std::vector<ForestView>();
         return ret;
     }
-    void recordTrack(auto&... nodes) {
-        if (!recording) return;
+    void recordTrack(auto&&... nodes) {
         if (track(nodes...)) record();
     }
-    void recordUntrack(auto&... nodes) {
-        if (!recording) return;
+    void recordUntrack(auto&&... nodes) {
         if (untrack(nodes...)) record();
     }
     void record() {
@@ -327,6 +325,7 @@ template <typename Tree> struct Record {
         records.push_back(std::move(view));
     }
     bool track(auto&&... nodes) {
+        if (!recording) return false;
         bool success = false;
         auto add = [&](auto&& node) {
             if (!node) return;
@@ -339,6 +338,7 @@ template <typename Tree> struct Record {
         return success;
     }
     bool untrack(auto&&... nodes) {
+        if (!recording) return false;
         bool success = false;
         auto remove = [&](auto&& node) {
             if (!node) return;
@@ -378,6 +378,21 @@ template <typename Tree> struct ConstructRecord {
         node = std::make_unique<Node>(std::forward<decltype(args)>(args)...);
         self.recordTrack(node);
     }
+    auto overwriteNode(auto& dest, auto src) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto parent = dest ? dest->parent : nullptr;
+        self.untrack(src), self.untrack(dest);
+        dest = std::move(src);
+        dest->parent = parent;
+        self.recordTrack(dest);
+    }
+    auto moveNode(auto& dest, auto src, auto* parent) {
+        auto& self = *(static_cast<Tree*>(this));
+        self.untrack(src);
+        dest = std::move(src);
+        dest->parent = parent;
+        self.recordTrack(dest);
+    }
 };
 
 template <typename Tree> struct BindRecord {
@@ -386,6 +401,7 @@ template <typename Tree> struct BindRecord {
         if (!node) {
             parent->bind(which, std::move(node));
         } else {
+            node->parent = nullptr;
             self.untrack(node);
             parent->bind(which, std::move(node));
             self.record();
