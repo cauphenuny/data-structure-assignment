@@ -163,5 +163,6 @@ std::vector<Path> solve_heuristic(Point start) {
 }
 
 std::vector<Path> solve_heuristic_inhancer(Point start) {
-    
+    // fix msvc error C4716: 'solve_heuristic_inhancer': must return a value
+    return std::vector<Path>();
 }
