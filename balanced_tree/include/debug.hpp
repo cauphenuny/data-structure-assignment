@@ -68,7 +68,7 @@ template <std::input_iterator T> std::string stringify(const T& begin, const T& 
 }
 
 template <typename T1, typename T2> std::string stringify(const std::pair<T1, T2>& p) {
-    return std::format("{}: {}", serialize(p.first), serialize(p.second));
+    return std::format("{{{}, {}}}", serialize(p.first), serialize(p.second));
 }
 
 template <typename T> std::string stringify(const std::vector<T>& vec) {

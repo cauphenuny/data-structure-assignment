@@ -50,14 +50,13 @@ template <typename Node> struct Link {
 
 template <typename Node> struct View {
     struct Wrapper : NodeView {
-        const Node* node;
-        Wrapper(const Node* node) : node(node) {}
+        std::string key, value;
+        Wrapper(const Node* node) : key(serialize(node->key)), value(serialize(node->value)) {}
         auto content() const -> std::pair<std::string, std::string> override {
-            return {serialize(node->key), serialize(node->value)};
+            return {key, value};
         }
         auto stringify() const -> std::string override {
-            return serializeClass(
-                "NodeView", node, this->content(), this->child[L], this->child[R]);
+            return serializeClass("NodeView", key, value, this->child[L], this->child[R]);
         }
     };
     auto view() const -> std::unique_ptr<NodeView> {
@@ -133,6 +132,10 @@ template <typename Node> struct Search {
         while (node && node->child[R]) node = node->child[R].get();
         return static_cast<Node::PairType*>(node);
     }
+};
+
+template <typename Tree> struct Owner {
+    Tree* owner{nullptr};
 };
 
 }  // namespace trait::node

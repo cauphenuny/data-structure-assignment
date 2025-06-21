@@ -59,6 +59,7 @@ struct AVLTreeImpl
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // key already exists
         node = std::make_unique<AVLNode<K, V>>(key, value, parent);
+        this->record(this->root);
         this->checkBalance(parent);
         return Status::SUCCESS;
     }
@@ -71,10 +72,12 @@ struct AVLTreeImpl
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->child[L]));
-            this->bind(detached, L, std::move(node->child[L]));
-            this->bind(detached, R, std::move(node->child[R]));
+            auto lchild = std::move(node->child[L]);
+            auto rchild = std::move(node->child[R]);
             node = std::move(detached);
             node->parent = parent;
+            this->bind(node, L, std::move(lchild));
+            this->bind(node, R, std::move(rchild));
             this->checkBalance(node.get());
         }
         return Status::SUCCESS;
