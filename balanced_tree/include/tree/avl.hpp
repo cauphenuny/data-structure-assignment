@@ -74,9 +74,7 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
             auto detached = this->detach(this->maxBox(node->child[L]));
             auto lchild = this->unbind(node, L);
             auto rchild = this->unbind(node, R);
-            this->recordUntrack(node);
-            node = std::move(detached);
-            node->parent = parent;
+            this->overwriteNode(node, std::move(detached));
             this->bind(node, L, std::move(lchild));
             this->bind(node, R, std::move(rchild));
             this->checkBalance(node.get());
@@ -85,42 +83,43 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
     }
 
     std::unique_ptr<AVLTreeImpl<K, V>> split(const K& key) {
-        auto tree = [](std::unique_ptr<AVLNode<K, V>> node) {
-            return std::make_unique<AVLTreeImpl<K, V>>(std::move(node));
-        };
         auto divide = [&](auto self, std::unique_ptr<AVLNode<K, V>> node)
-            -> std::tuple<std::unique_ptr<AVLTreeImpl<K, V>>, std::unique_ptr<AVLTreeImpl<K, V>>> {
-            if (!node) return {tree(nullptr), tree(nullptr)};
+            -> std::tuple<std::unique_ptr<AVLNode<K, V>>, std::unique_ptr<AVLNode<K, V>>> {
+            if (!node) return {nullptr, nullptr};
             auto [lchild, rchild] = this->unbind(node);
             node->maintain();
             if (key <= node->key) {
                 auto [left, mid] = self(self, std::move(lchild));
-                mid->join(std::move(node), tree(std::move(rchild)));
+                this->join(mid, std::move(node), std::move(rchild));
                 return {std::move(left), std::move(mid)};
             } else {
                 auto [mid, right] = self(self, std::move(rchild));
-                auto left = tree(std::move(lchild));
-                left->join(std::move(node), std::move(mid));
+                auto left = std::move(lchild);
+                this->join(left, std::move(node), std::move(mid));
                 return {std::move(left), std::move(right)};
             }
         };
         auto [left, right] = divide(divide, std::move(this->root));
-        this->root = std::move(left->root);
-        return std::move(right);
+        this->root = std::move(left);
+        this->recordUntrack(right);
+        return std::make_unique<AVLTreeImpl<K, V>>(std::move(right));
     }
 
     Status join(std::unique_ptr<AVLTreeImpl> other) {
         if (!other) return Status::FAILED;
         if (!other->root || !this->root) {
-            this->root = std::move(other->root ? other->root : this->root);
+            if (other->root)
+                this->moveNode(this->root, std::move(other->root), (AVLNode<K, V>*)nullptr);
             return Status::SUCCESS;
         }
+        auto other_root = std::move(other->root);
+        this->recordTrack(other_root);
         if (this->height() >= other->height()) {
-            auto mid = other->detach(other->minBox(other->root));
-            this->join(std::move(mid), std::move(other));
+            auto mid = this->detach(this->minBox(other_root));
+            this->join(this->root, std::move(mid), std::move(other_root));
         } else {
             auto mid = this->detach(this->maxBox(this->root));
-            this->join(std::move(mid), std::move(other));
+            this->join(this->root, std::move(mid), std::move(other_root));
         }
         return Status::SUCCESS;
     }
@@ -158,7 +157,9 @@ private:
         this->maintain(node);
     }
 
-    Status join(std::unique_ptr<AVLNode<K, V>> mid, std::unique_ptr<AVLTreeImpl> right) {
+    Status join(
+        std::unique_ptr<AVLNode<K, V>>& left, std::unique_ptr<AVLNode<K, V>> mid,
+        std::unique_ptr<AVLNode<K, V>> right) {
         auto find = [](auto self, bool is_right, int height, AVLNode<K, V>* parent,
                        std::unique_ptr<AVLNode<K, V>>& node)
             -> std::tuple<AVLNode<K, V>*, std::unique_ptr<AVLNode<K, V>>&> {
@@ -168,21 +169,21 @@ private:
                 self, is_right, height, node.get(), is_right ? node->child[R] : node->child[L]);
         };
         AVLNode<K, V>* insert_pos = nullptr;
-        if (this->height() >= right->height()) {
-            auto [parent, cut] = find(find, true, right->height() + 1, nullptr, this->root);
+        auto left_height = left ? left->height : 0;
+        auto right_height = right ? right->height : 0;
+        if (left_height >= right_height) {
+            auto [parent, cut] = find(find, true, right_height + 1, nullptr, left);
             this->bind(mid, L, std::move(cut));
-            this->bind(mid, R, std::move(right->root));
-            cut = std::move(mid);
-            cut->parent = parent;
+            this->bind(mid, R, std::move(right));
+            this->moveNode(cut, std::move(mid), parent);
             insert_pos = cut.get();
         } else {
-            auto [parent, cut] = find(find, false, this->height() + 1, nullptr, right->root);
-            this->bind(mid, L, std::move(this->root));
+            auto [parent, cut] = find(find, false, left_height + 1, nullptr, right);
+            this->bind(mid, L, std::move(left));
             this->bind(mid, R, std::move(cut));
-            cut = std::move(mid);
-            cut->parent = parent;
+            this->moveNode(cut, std::move(mid), parent);
             insert_pos = cut.get();
-            this->root = std::move(right->root);
+            left = std::move(right);
         }
         this->checkBalance(insert_pos);
         return Status::SUCCESS;
