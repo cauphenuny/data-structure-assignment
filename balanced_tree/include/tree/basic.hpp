@@ -104,6 +104,7 @@ struct BasicTreeImpl
         };
         auto [left, right] = divide(divide, std::move(this->root));
         this->root = std::move(left);
+        this->tracedUntrack(right);
         return std::make_unique<BasicTreeImpl>(std::move(right));
     }
 
@@ -113,6 +114,7 @@ struct BasicTreeImpl
             this->root = std::move(other->root ? other->root : this->root);
             return Status::SUCCESS;
         }
+        this->tracedTrack(other->root);
         auto& max_node = this->maxBox(this->root);
         this->bind(max_node, R, std::move(other->root));
         this->maintain(max_node.get());
