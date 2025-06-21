@@ -45,7 +45,7 @@ struct BasicTreeImpl
       trait::Mixin<
           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::ConstructRecord> {
+          trait::Detach, trait::View, trait::Trace, trait::TracedBind, trait::TracedConstruct> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
@@ -66,14 +66,14 @@ struct BasicTreeImpl
         auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
         if (!node->child[L] || !node->child[R]) {
-            this->recordUntrack(this->detach(node));
+            this->tracedUntrack(this->detach(node));
             this->maintain(parent);
             return Status::SUCCESS;
         }
         auto detached = this->detach(this->maxBox(node->child[L]));
         this->bind(detached, L, std::move(node->child[L]));
         this->bind(detached, R, std::move(node->child[R]));
-        this->recordUntrack(node);
+        this->tracedUntrack(node);
         node = std::move(detached);
         node->parent = parent;
         this->maintain(node.get());
