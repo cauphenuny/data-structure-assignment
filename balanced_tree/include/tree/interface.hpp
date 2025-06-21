@@ -2,6 +2,7 @@
 
 #include "util.hpp"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,9 +30,11 @@ struct TreeBase {
     virtual void clear() = 0;
     virtual void print() const = 0;
     virtual auto view() const -> ForestView = 0;
-    virtual auto getRecord() -> std::vector<ForestView> = 0;
-    virtual void startRecording() = 0;
-    virtual void stopRecording() = 0;
+    virtual auto trace() -> std::vector<ForestView> = 0;  // dump trace history
+    // dump trace during a function execution
+    virtual auto trace(const std::function<void()>& func) -> std::vector<ForestView> = 0;
+    virtual void traceStart() = 0;
+    virtual void traceStop() = 0;
     virtual void printCLI() const = 0;
     virtual auto stringify() const -> std::string = 0;
     virtual auto name() const -> std::string = 0;
@@ -69,9 +72,12 @@ struct TreeAdapter : Tree<K, V> {
     auto insert(const K& k, const V& v) -> Status override { return impl->insert(k, v); }
     auto remove(const K& k) -> Status override { return impl->remove(k); }
     auto find(const K& k) -> Pair<const K, V>* override { return impl->find(k); }
-    auto getRecord() -> std::vector<ForestView> override { return impl->getRecord(); }
-    void startRecording() override { impl->startRecording(); }
-    void stopRecording() override { impl->stopRecording(); }
+    auto trace() -> std::vector<ForestView> override { return impl->trace(); }
+    auto trace(const std::function<void()>& func) -> std::vector<ForestView> override {
+        return impl->trace(func);
+    }
+    void traceStart() override { impl->traceStart(); }
+    void traceStop() override { impl->traceStop(); }
     auto min() -> Pair<const K, V>* override { return impl->min(); }
     auto max() -> Pair<const K, V>* override { return impl->max(); }
     auto operator[](const K& k) -> V& override { return impl->operator[](k); }

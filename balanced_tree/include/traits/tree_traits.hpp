@@ -294,19 +294,30 @@ private:
 };
 
 template <typename Tree> struct Record {
-    void startRecording() {
+    void traceClear() {
+        entries.clear();
+        records.clear();
+    }
+    void traceStart() {
         auto& self = *static_cast<Tree*>(this);
         recording = true;
         recordTrack(self.root);
     }
-    void stopRecording() {
+    void traceStop() {
         recording = false;
         entries.clear();
     }
-    auto getRecord() -> std::vector<ForestView> {
+    auto trace() -> std::vector<ForestView> {
         auto ret = std::move(records);
         records = std::vector<ForestView>();
         return ret;
+    }
+    auto trace(auto&& func, auto&&... args) -> std::vector<ForestView> {
+        traceClear();
+        traceStart();
+        func(std::forward<decltype(args)>(args)...);
+        traceStop();
+        return trace();
     }
     void recordTrack(auto&&... nodes) {
         if (track(nodes...)) record();

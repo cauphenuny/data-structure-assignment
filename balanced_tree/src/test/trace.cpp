@@ -17,7 +17,8 @@ static void printForestCLI(const ForestView& forest) {
     }
 }
 
-static void printRecordCLI(const std::vector<ForestView>& record) {
+static void printTraceCLI(std::string_view title, const std::vector<ForestView>& record) {
+    std::cout << title << ":\n";
     for (size_t i = 0; i < record.size(); ++i) {
         std::cout << "Record " << i + 1 << ":\n";
         printForestCLI(record[i]);
@@ -27,26 +28,23 @@ static void printRecordCLI(const std::vector<ForestView>& record) {
 
 TEST_CASE("Recording `AVLTree`") {
     auto tree = std::make_unique<AVLTree<int, int>>();
-    tree->startRecording();
-    decltype(tree->getRecord()) record;
+    tree->traceStart();
     for (int i = 0; i < 8; i++) tree->insert(i, i * 10);
-    record = tree->getRecord();
-    // debug(record);
-    std::cout << "After inserting 5 elements:\n";
-    printRecordCLI(record);
+    printTraceCLI("After inserting 5 elements", tree->trace());
 
     std::cout << "\n\n--------------------------------\n";
     tree->split(4);
-    std::cout << "After splitting at key 4:\n";
-    printRecordCLI(tree->getRecord());
+    printTraceCLI("After splitting at key 4", tree->trace());
 
     std::cout << "\n\n--------------------------------\n";
-    auto tree2 = std::make_unique<AVLTree<int, int>>();
-    for (int i = 10; i < 13; i++) tree2->insert(i, i * 10);
-    tree->join(std::move(tree2));
-    std::cout << "After joining another tree:\n";
-    record = tree->getRecord();
-    printRecordCLI(record);
+    auto trace = tree->trace([&] {
+        auto tree2 = std::make_unique<AVLTree<int, int>>();
+        for (int i = 10; i < 13; i++) {
+            tree2->insert(i, i * 10);
+        }
+        tree->join(std::move(tree2));
+    });
+    printTraceCLI("After joining another tree", trace);
     // tree->remove(0);
     // debug(tree->getRecord());
 }
