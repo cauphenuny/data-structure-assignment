@@ -1,5 +1,6 @@
 #include "doctest/doctest.h"
 #include "tree/avl.hpp"
+#include "tree/basic.hpp"
 #include "tree/splay.hpp"
 #include "tree/treap.hpp"
 
