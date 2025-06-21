@@ -15,6 +15,8 @@ struct NodeView {
     NodeView* parent;
     std::unique_ptr<NodeView> child[2];
     virtual ~NodeView() = default;
+    // NOTE: id(): identification of the node, unique, invariant across operations
+    virtual auto id() const -> const void* = 0;
     virtual auto content() const -> std::pair<std::string, std::string> = 0;
     virtual auto stringify() const -> std::string = 0;
 };

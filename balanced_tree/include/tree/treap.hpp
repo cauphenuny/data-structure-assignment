@@ -46,11 +46,12 @@ struct TreapNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct TreapImpl : trait::Mixin<
-                       TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
-                       trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-                       trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::Rotate>,
-                   trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain> {
+struct TreapImpl
+    : trait::Mixin<TreapNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
+          TreapImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print, trait::Traverse,
+          trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View,
+          trait::Record, trait::BindRecord, trait::Rotate, trait::ConstructRecord> {
     friend struct Test;
 
     std::unique_ptr<TreapNode<K, V>> root{nullptr};
@@ -64,15 +65,14 @@ struct TreapImpl : trait::Mixin<
     auto stringify() const -> std::string { return serializeClass("Treap", root); }
 
     auto insert(const K& key, const V& value) -> Status {
-        auto [parent, box] = this->findBox(this->root, key);
-        if (box) return Status::FAILED;  // Key already exists
-        box = std::make_unique<TreapNode<K, V>>(key, value, parent);
-        this->record(box);
+        auto [parent, node] = this->findBox(this->root, key);
+        if (node) return Status::FAILED;  // Key already exists
+        this->constructNode(node, key, value, parent);
         this->maintain(parent);
-        auto node = box.get();
-        while (parent && node->priority > parent->priority) {
-            node = this->pushup(node);
-            parent = node->parent;
+        auto ptr = node.get();
+        while (parent && ptr->priority > parent->priority) {
+            ptr = this->pushup(ptr);
+            parent = ptr->parent;
         }
         return Status::SUCCESS;
     }
