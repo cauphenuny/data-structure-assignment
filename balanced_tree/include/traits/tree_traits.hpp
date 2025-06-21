@@ -7,6 +7,7 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
@@ -79,6 +80,7 @@ template <typename Tree> struct Detach {
             auto parent = node->parent;
             node->parent = nullptr;
             auto detached = std::move(node);
+            self.recordTrack(detached);
             Tree::maintain(parent);
             return detached;
         } else {
@@ -86,9 +88,10 @@ template <typename Tree> struct Detach {
             child->parent = node->parent;
             node->parent = nullptr;
             auto detached = std::move(node);
+            self.recordTrack(detached);
             node = std::move(child);
+            self.record();
             Tree::maintain(node->parent);
-            self.record(node);
             return detached;
         }
     }
@@ -270,8 +273,8 @@ template <typename Tree> struct View {
         forest_view.push_back(create(root.get()));
         return forest_view;
     }
-    auto view(auto& node) const -> std::unique_ptr<NodeView> {
-        auto root = node.get();
+    auto view(auto* node) const -> std::unique_ptr<NodeView> {
+        auto root = node;
         if (!root) return nullptr;
         while (root->parent) root = root->parent;
         return create(root);
@@ -291,29 +294,67 @@ private:
 };
 
 template <typename Tree> struct Record {
-    void startRecording() { recording = true; }
-    void stopRecording() { recording = false; }
+    void startRecording() {
+        auto& self = *static_cast<Tree*>(this);
+        recording = true;
+        recordTrack(self.root);
+    }
+    void stopRecording() {
+        recording = false;
+        entries.clear();
+    }
     auto getRecord() -> std::vector<ForestView> {
         auto ret = std::move(records);
         records = std::vector<ForestView>();
         return ret;
     }
-    void record(auto&... nodes) {
+    void recordTrack(auto&... nodes) {
+        if (!recording) return;
+        if (track(nodes...)) record();
+    }
+    void recordUntrack(auto&... nodes) {
+        if (!recording) return;
+        if (untrack(nodes...)) record();
+    }
+    void record() {
         if (!recording) return;
         auto& self = *static_cast<Tree*>(this);
+        using T = typename Tree::NodeType;
         ForestView view;
-        (view.push_back(self.view(nodes)), ...);
-        ForestView filtered;
-        for (auto& v : view) {
-            if (v) filtered.push_back(std::move(v));
+        for (auto entry : entries) {
+            view.push_back(self.view(static_cast<T*>(entry)));
         }
-        records.push_back(std::move(filtered));
+        records.push_back(std::move(view));
+    }
+    bool track(auto&&... nodes) {
+        bool success = false;
+        auto add = [&](auto&& node) {
+            if (!node) return;
+            success = true;
+            auto ptr = node.get();
+            while (ptr->parent) ptr = ptr->parent;
+            entries.insert(ptr);
+        };
+        (add(nodes), ...);
+        return success;
+    }
+    bool untrack(auto&&... nodes) {
+        bool success = false;
+        auto remove = [&](auto&& node) {
+            if (!node) return;
+            success = true;
+            auto ptr = node.get();
+            while (ptr->parent) ptr = ptr->parent;
+            entries.erase(ptr);
+        };
+        (remove(nodes), ...);
+        return success;
     }
 
 private:
     bool recording{false};
     std::vector<ForestView> records;
-    // std::set<typename Tree::NodeType*> entries;
+    std::set<void*> entries;
 };
 
 template <typename Tree> struct Bind {
@@ -330,26 +371,36 @@ template <typename Node> struct Root {
     }
 };
 
+template <typename Tree> struct ConstructRecord {
+    void constructNode(auto& node, auto&&... args) {
+        auto& self = *(static_cast<Tree*>(this));
+        using Node = typename Tree::NodeType;
+        node = std::make_unique<Node>(std::forward<decltype(args)>(args)...);
+        self.recordTrack(node);
+    }
+};
+
 template <typename Tree> struct BindRecord {
     void bind(auto& parent, size_t which, auto node) {
         auto& self = *(static_cast<Tree*>(this));
         if (!node) {
             parent->bind(which, std::move(node));
         } else {
+            self.untrack(node);
             parent->bind(which, std::move(node));
-            self.record(parent);
+            self.record();
         }
     }
     auto unbind(auto& parent, size_t which) {
         auto& self = *(static_cast<Tree*>(this));
         auto node = parent->unbind(which);
-        self.record(parent, node);
+        self.recordTrack(node);
         return node;
     }
     auto unbind(auto& parent) {
         auto& self = *(static_cast<Tree*>(this));
         auto [lchild, rchild] = parent->unbind();
-        self.record(parent, lchild, rchild);
+        self.recordTrack(lchild, rchild);
         return std::make_tuple(std::move(lchild), std::move(rchild));
     }
 };

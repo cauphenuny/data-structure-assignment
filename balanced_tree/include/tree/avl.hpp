@@ -40,12 +40,12 @@ struct AVLNode
 };
 
 template <typename K, typename V>
-struct AVLTreeImpl
-    : trait::Mixin<
-          AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height, trait::Print,
-          trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::Rotate>,
-      trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain> {
+struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
+                     trait::Mixin<
+                         AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height,
+                         trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
+                         trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Record,
+                         trait::BindRecord, trait::ConstructRecord, trait::Rotate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
@@ -58,8 +58,7 @@ struct AVLTreeImpl
     Status insert(const K& key, const V& value) {
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // key already exists
-        node = std::make_unique<AVLNode<K, V>>(key, value, parent);
-        this->record(this->root);
+        this->constructNode(node, key, value, parent);
         this->checkBalance(parent);
         return Status::SUCCESS;
     }
@@ -68,12 +67,14 @@ struct AVLTreeImpl
         auto [parent, node] = this->findBox(this->root, key);
         if (!node) return Status::FAILED;
         if (!node->child[L] || !node->child[R]) {
-            this->detach(node);
+            auto detached = this->detach(node);
+            this->recordUntrack(detached);
             this->checkBalance(parent);
         } else {
             auto detached = this->detach(this->maxBox(node->child[L]));
-            auto lchild = std::move(node->child[L]);
-            auto rchild = std::move(node->child[R]);
+            auto lchild = this->unbind(node, L);
+            auto rchild = this->unbind(node, R);
+            this->recordUntrack(node);
             node = std::move(detached);
             node->parent = parent;
             this->bind(node, L, std::move(lchild));

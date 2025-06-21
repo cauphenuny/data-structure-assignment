@@ -50,13 +50,16 @@ template <typename Node> struct Link {
 
 template <typename Node> struct View {
     struct Wrapper : NodeView {
+        const void* addr;
         std::string key, value;
-        Wrapper(const Node* node) : key(serialize(node->key)), value(serialize(node->value)) {}
+        Wrapper(const Node* node)
+            : addr(node), key(serialize(node->key)), value(serialize(node->value)) {}
+        auto id() const -> const void* override { return addr; }
         auto content() const -> std::pair<std::string, std::string> override {
             return {key, value};
         }
         auto stringify() const -> std::string override {
-            return serializeClass("NodeView", key, value, this->child[L], this->child[R]);
+            return serializeClass("NodeView", addr, key, value, this->child[L], this->child[R]);
         }
     };
     auto view() const -> std::unique_ptr<NodeView> {

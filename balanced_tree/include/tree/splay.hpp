@@ -37,11 +37,11 @@ struct SplayNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct SplayTreeImpl
-    : trait::Mixin<
+    : trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
           SplayTreeImpl<K, V>, trait::Search, trait::Size, trait::Print, trait::Traverse,
           trait::Merge, trait::Subscript, trait::Conflict, trait::Box, trait::View, trait::Record,
-          trait::BindRecord, trait::Rotate>,
-      trait::Mixin<SplayNode<K, V>, trait::TypeTraits, trait::Maintain> {
+          trait::BindRecord, trait::Rotate, trait::ConstructRecord> {
     friend struct Test;
 
     std::unique_ptr<SplayNode<K, V>> root{nullptr};
@@ -57,8 +57,7 @@ struct SplayTreeImpl
     auto insert(const K& key, const V& value) -> Status {
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;  // Key already exists
-        node = std::make_unique<SplayNode<K, V>>(key, value, parent);
-        this->record(node);
+        this->constructNode(node, key, value, parent);
         this->splay(node.get());
         return Status::SUCCESS;
     }

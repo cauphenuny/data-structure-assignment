@@ -41,11 +41,11 @@ struct BasicNode : Pair<const K, V>,
 
 template <typename K, typename V>
 struct BasicTreeImpl
-    : trait::Mixin<
+    : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Print,
           trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict, trait::Box,
-          trait::Detach, trait::View, trait::Record, trait::BindRecord>,
-      trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain> {
+          trait::Detach, trait::View, trait::Record, trait::BindRecord, trait::ConstructRecord> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
@@ -57,9 +57,8 @@ struct BasicTreeImpl
     auto insert(const K& key, const V& value) -> Status {
         auto [parent, node] = this->findBox(this->root, key);
         if (node) return Status::FAILED;
-        node = std::make_unique<BasicNode<K, V>>(key, value, parent);
+        this->constructNode(node, key, value, parent);
         this->maintain(parent);
-        this->record(node);
         return Status::SUCCESS;
     }
 
