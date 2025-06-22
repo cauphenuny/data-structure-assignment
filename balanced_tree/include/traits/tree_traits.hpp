@@ -157,43 +157,30 @@ template <typename Tree> struct Detach {
     }
 };
 
-template <typename Tree> struct Insert {
+template <typename Tree, auto callback = [](auto& self, auto* node) { self.maintain(node); }>
+struct InsertRemove {
     auto insert(auto&& key, auto&& value) {
         auto& self = *(static_cast<Tree*>(this));
         auto [parent, node] = self.findBox(self.root, key);
         if (node) return Status::FAILED;
         self.constructNode(node, key, value, parent);
-        if constexpr (requires { self.maintainStructure(node.get()); }) {
-            self.maintainStructure(node.get());
-        } else {
-            self.maintain(node.get());  // fall back to normal maintain, only maintain info
-        }
+        callback(self, node.get());
         return Status::SUCCESS;
     }
-};
-
-template <typename Tree> struct Remove {
     auto remove(auto&& key) {
         auto& self = *(static_cast<Tree*>(this));
         auto [parent, node] = self.findBox(self.root, key);
         if (!node) return Status::FAILED;
-        auto maintain = [&](auto node) {
-            if constexpr (requires { self.maintainStructure(node); }) {
-                self.maintainStructure(node);
-            } else {
-                self.maintain(node);
-            }
-        };
         if (!node->child[L] || !node->child[R]) {
             self.tracedUntrack(self.detach(node));
-            maintain(parent);
+            callback(self, parent);
         } else {
             auto detached = self.detach(self.maxBox(node->child[L]));
             self.bind(detached, L, self.unbind(node, L));
             self.bind(detached, R, self.unbind(node, R));
             self.tracedUntrack(self.detach(node));
             self.moveNode(node, std::move(detached), parent);
-            maintain(node.get());
+            callback(self, node.get());
         }
         return Status::SUCCESS;
     }
