@@ -40,12 +40,13 @@ struct AVLNode
 };
 
 template <typename K, typename V>
-struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
-                     trait::Mixin<
-                         AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height,
-                         trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
-                         trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
-                         trait::TracedBind, trait::TracedConstruct, trait::Rotate, trait::Iterate> {
+struct AVLTreeImpl
+    : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
+          AVLTreeImpl<K, V>, trait::Insert, trait::Remove, trait::Search, trait::Clear, trait::Size,
+          trait::Height, trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
+          trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace, trait::TracedBind,
+          trait::TracedConstruct, trait::Rotate, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};
@@ -53,33 +54,6 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
     AVLTreeImpl() = default;
     AVLTreeImpl(std::unique_ptr<AVLNode<K, V>> root) : root(std::move(root)) {
         if (this->root) this->root->parent = nullptr;
-    }
-
-    Status insert(const K& key, const V& value) {
-        auto [parent, node] = this->findBox(this->root, key);
-        if (node) return Status::FAILED;  // key already exists
-        this->constructNode(node, key, value, parent);
-        this->checkBalance(parent);
-        return Status::SUCCESS;
-    }
-
-    Status remove(const K& key) {
-        auto [parent, node] = this->findBox(this->root, key);
-        if (!node) return Status::FAILED;
-        if (!node->child[L] || !node->child[R]) {
-            auto detached = this->detach(node);
-            this->tracedUntrack(detached);
-            this->checkBalance(parent);
-        } else {
-            auto detached = this->detach(this->maxBox(node->child[L]));
-            auto lchild = this->unbind(node, L);
-            auto rchild = this->unbind(node, R);
-            this->overwriteNode(node, std::move(detached));
-            this->bind(node, L, std::move(lchild));
-            this->bind(node, R, std::move(rchild));
-            this->checkBalance(node.get());
-        }
-        return Status::SUCCESS;
     }
 
     std::unique_ptr<AVLTreeImpl<K, V>> split(const K& key) {
@@ -124,6 +98,17 @@ struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maint
         return Status::SUCCESS;
     }
 
+    void maintainStructure(AVLNode<K, V>* node) {
+        while (node) {
+            node->maintain();
+            if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
+                if (this->balance(this->box(node))) break;
+            }
+            node = node->parent;
+        }
+        this->maintain(node);
+    }
+
     auto name() const -> std::string { return "AVLTree"; }
     auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 
@@ -144,17 +129,6 @@ private:
             }
         }
         return prev == node->height;
-    }
-
-    void checkBalance(AVLNode<K, V>* node) {
-        while (node) {
-            node->maintain();
-            if (node->balanceFactor() > 1 || node->balanceFactor() < -1) {
-                if (this->balance(this->box(node))) break;
-            }
-            node = node->parent;
-        }
-        this->maintain(node);
     }
 
     Status join(
@@ -185,7 +159,7 @@ private:
             insert_pos = cut.get();
             left = std::move(right);
         }
-        this->checkBalance(insert_pos);
+        this->maintain(insert_pos);
         return Status::SUCCESS;
     }
 };

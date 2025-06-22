@@ -5,6 +5,7 @@
 #include "util.hpp"
 
 #include <algorithm>
+#include <cassert>
 #include <memory>
 #include <tuple>
 

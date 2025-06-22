@@ -65,6 +65,7 @@ struct SplayTreeImpl
     auto remove(const K& key) -> Status {
         if (!this->find(key)) return Status::FAILED;
         auto [left, right] = this->unbind(this->root);
+        this->tracedUntrack(this->root);
         this->root = std::move(left);
         this->join(std::make_unique<SplayTreeImpl<K, V>>(std::move(right)));
         return Status::SUCCESS;
