@@ -1,3 +1,5 @@
+/// @file treap.hpp
+/// @brief Treap tree implementation
 #pragma once
 
 #include "interface.hpp"

@@ -1,3 +1,6 @@
+/// @file interface.hpp
+/// @brief Interface for trees
+
 #pragma once
 
 #include "util.hpp"
@@ -125,7 +128,7 @@ struct TreeAdapter : Tree<K, V> {
     // Using unified iterator type for different algorithms requires virtual function call,
     // which is not efficient.
     // If you must traverse a abstract tree, use `traverse(func)` instead.
-
+    //
     auto begin() { return impl->begin(); }
     auto end() { return impl->end(); }
     auto iteratorOf(const K& k) { return impl->iteratorOf(k); }

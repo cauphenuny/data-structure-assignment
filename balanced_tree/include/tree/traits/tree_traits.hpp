@@ -1,3 +1,6 @@
+/// @file tree_traits.hpp
+/// @brief Tree traits for different tree types
+
 #pragma once
 
 #include "tree/interface.hpp"

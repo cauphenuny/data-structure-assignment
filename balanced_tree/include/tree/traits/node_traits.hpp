@@ -1,3 +1,6 @@
+/// @file node_traits.hpp
+/// @brief Node traits for different tree types
+
 #pragma once
 
 #include "debug.hpp"

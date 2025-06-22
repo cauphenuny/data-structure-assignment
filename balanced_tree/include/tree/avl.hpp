@@ -1,3 +1,5 @@
+/// @file avl.hpp
+/// @brief AVL tree implementation
 #pragma once
 
 #include "debug.hpp"
@@ -56,6 +58,7 @@ struct AVLTreeImpl
         if (this->root) this->root->parent = nullptr;
     }
 
+    /// @brief split out a tree in $O(\log n)$
     std::unique_ptr<AVLTreeImpl<K, V>> split(const K& key) {
         auto divide = [&](auto self, std::unique_ptr<AVLNode<K, V>> node)
             -> std::tuple<std::unique_ptr<AVLNode<K, V>>, std::unique_ptr<AVLNode<K, V>>> {
@@ -79,6 +82,7 @@ struct AVLTreeImpl
         return std::make_unique<AVLTreeImpl<K, V>>(std::move(right));
     }
 
+    /// @brief join another tree in $O(\log n)$
     Status join(std::unique_ptr<AVLTreeImpl> other) {
         if (!other) return Status::FAILED;
         if (!other->root || !this->root) {
@@ -98,6 +102,8 @@ struct AVLTreeImpl
         return Status::SUCCESS;
     }
 
+    /// @brief maintain the AVL balance structure after insertion or deletion
+    /// @note this is called in `trait::InsertRemove::{insert, remove}`
     void maintainStructure(AVLNode<K, V>* node) {
         while (node) {
             node->maintain();
@@ -113,6 +119,7 @@ struct AVLTreeImpl
     auto stringify() const -> std::string { return serializeClass("AVLTree", root); }
 
 private:
+    /// @brief check the balance of the node and rotate if necessary
     bool balance(std::unique_ptr<AVLNode<K, V>>& node) {
         int prev = node->height;
         if (node->balanceFactor() > 1) {
@@ -131,6 +138,7 @@ private:
         return prev == node->height;
     }
 
+    /// @brief join two trees with a connecting node in $O(|h_1 - h_2|)$
     Status join(
         std::unique_ptr<AVLNode<K, V>>& left, std::unique_ptr<AVLNode<K, V>> mid,
         std::unique_ptr<AVLNode<K, V>> right) {

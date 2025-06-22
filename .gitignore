@@ -4,5 +4,6 @@ build/
 .tasks
 .cache/
 out/
+docs/
 compile_commands.json
 .vscode/settings.json
