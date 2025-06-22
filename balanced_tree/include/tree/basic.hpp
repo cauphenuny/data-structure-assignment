@@ -1,3 +1,5 @@
+/// @file basic.hpp
+/// @brief Basic tree implementation
 #pragma once
 
 #include "debug.hpp"

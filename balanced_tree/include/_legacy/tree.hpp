@@ -1,3 +1,4 @@
+/// @deprecated
 /// @file tree.hpp
 /// @brief Base class for binary search tree
 

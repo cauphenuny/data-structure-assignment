@@ -1,3 +1,5 @@
+/// @file splay.hpp
+/// @brief Splay tree implementation
 #pragma once
 
 #include "debug.hpp"
@@ -97,35 +99,32 @@ struct SplayTreeImpl
     }
 
     auto min() -> Pair<const K, V>* {
-        auto& box = this->minBox(this->root);
-        this->splay(box.get());
+        if (!this->root) return nullptr;
+        this->splay(this->root->findMin());
         return this->root.get();
     }
 
     auto max() -> Pair<const K, V>* {
-        auto& box = this->maxBox(this->root);
-        this->splay(box.get());
+        if (!this->root) return nullptr;
+        this->splay(this->root->findMax());
         return this->root.get();
     }
 
     auto findNode(const K& key) -> SplayNode<K, V>* {
-        auto node = this->root.get(), last = node;
-        while (node && key != node->key) {
-            last = node;
-            if (key < node->key) {
-                node = node->child[L].get();
-            } else {
-                node = node->child[R].get();
-            }
+        if (!this->root) return nullptr;
+        auto [parent, node] = this->findBox(this->root, key);
+        if (!node) {
+            this->splay(parent);
+            return nullptr;
         }
-        this->splay(node ? node : last);
-        return node ? this->root.get() : nullptr;
+        this->splay(node.get());
+        return this->root.get();
     }
 
     auto find(const K& key) -> Pair<const K, V>* { return findNode(key); }
 
-    // NOTE: splay has a relatively more imbalanced structure, which would cause stack overflow in
-    // calling default destructor recursively. So I implement a custom non-recursive clear method.
+    /// NOTE: splay has a relatively more imbalanced structure, which would cause stack overflow in
+    /// calling default destructor recursively. So I implement a custom non-recursive clear method.
     void clear() {
         std::vector<std::unique_ptr<SplayNode<K, V>>> stack;
         if (this->root) stack.push_back(std::move(this->root));

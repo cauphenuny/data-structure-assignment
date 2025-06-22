@@ -1,3 +1,4 @@
+/// @deprecated
 /// @file treap.hpp
 /// @brief Treap implementation
 

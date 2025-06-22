@@ -1,3 +1,4 @@
+/// @deprecated
 /// @file avl.hpp
 /// @brief AVL tree implementation
 
