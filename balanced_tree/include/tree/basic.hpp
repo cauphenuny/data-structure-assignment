@@ -40,44 +40,19 @@ struct BasicNode : Pair<const K, V>,
 };
 
 template <typename K, typename V>
-struct BasicTreeImpl : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
-                       trait::Mixin<
-                           BasicTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size,
-                           trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
-                           trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
-                           trait::TracedBind, trait::TracedConstruct, trait::Iterate> {
+struct BasicTreeImpl
+    : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
+          BasicTreeImpl<K, V>, trait::Insert, trait::Remove, trait::Search, trait::Clear,
+          trait::Size, trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
+          trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace, trait::TracedBind,
+          trait::TracedConstruct, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<BasicNode<K, V>> root{nullptr};
     BasicTreeImpl() = default;
     BasicTreeImpl(std::unique_ptr<BasicNode<K, V>> root) : root(std::move(root)) {
         if (this->root) this->root->parent = nullptr;
-    }
-
-    auto insert(const K& key, const V& value) -> Status {
-        auto [parent, node] = this->findBox(this->root, key);
-        if (node) return Status::FAILED;
-        this->constructNode(node, key, value, parent);
-        this->maintain(parent);
-        return Status::SUCCESS;
-    }
-
-    auto remove(const K& key) -> Status {
-        auto [parent, node] = this->findBox(this->root, key);
-        if (!node) return Status::FAILED;
-        if (!node->child[L] || !node->child[R]) {
-            this->tracedUntrack(this->detach(node));
-            this->maintain(parent);
-            return Status::SUCCESS;
-        }
-        auto detached = this->detach(this->maxBox(node->child[L]));
-        this->bind(detached, L, std::move(node->child[L]));
-        this->bind(detached, R, std::move(node->child[R]));
-        this->tracedUntrack(node);
-        node = std::move(detached);
-        node->parent = parent;
-        this->maintain(node.get());
-        return Status::SUCCESS;
     }
 
     auto split(const K& key) -> std::unique_ptr<BasicTreeImpl> {

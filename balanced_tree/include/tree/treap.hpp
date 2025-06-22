@@ -81,6 +81,7 @@ struct TreapImpl
         auto [left, mid, right] = split(std::move(this->root), key);
         auto ret = Status::SUCCESS;
         if (!mid) ret = Status::FAILED;
+        this->tracedUntrack(mid);
         this->root = join(std::move(left), std::move(right));
         return ret;
     }
@@ -88,7 +89,9 @@ struct TreapImpl
     auto split(const K& key) -> std::unique_ptr<TreapImpl<K, V>> {
         auto [left, mid, right] = split(std::move(this->root), key);
         this->root = std::move(left);
-        return std::make_unique<TreapImpl<K, V>>(join(std::move(mid), std::move(right)));
+        auto joined = this->join(std::move(mid), std::move(right));
+        this->tracedUntrack(joined);
+        return std::make_unique<TreapImpl<K, V>>(std::move(joined));
     }
 
     auto join(std::unique_ptr<TreapImpl<K, V>> other) -> Status {
@@ -114,12 +117,12 @@ private:
             node->maintain();
             return {std::move(lchild), std::move(node), std::move(rchild)};
         } else if (key < node->key) {
-            auto [left, mid, right] = split(std::move(node->child[L]), key);
+            auto [left, mid, right] = split(this->unbind(node, L), key);
             this->bind(node, L, std::move(right));
             node->maintain();
             return {std::move(left), std::move(mid), std::move(node)};
         } else {
-            auto [left, mid, right] = split(std::move(node->child[R]), key);
+            auto [left, mid, right] = split(this->unbind(node, R), key);
             this->bind(node, R, std::move(left));
             node->maintain();
             return {std::move(node), std::move(mid), std::move(right)};

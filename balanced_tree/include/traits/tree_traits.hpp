@@ -43,7 +43,7 @@ template <typename Tree> struct Rotate {
         auto& self = *static_cast<Tree*>(this);
         auto new_root = self.unbind(root, dir ^ 1);
         if (new_root->child[dir]) {
-            self.bind(root, dir ^ 1, std::move(new_root->child[dir]));
+            self.bind(root, dir ^ 1, self.unbind(new_root, dir));
         }
         auto parent = root->parent;
         self.bind(new_root, dir, std::move(root));
@@ -95,38 +95,37 @@ private:
         using PairType = typename Tree::PairType;
         using NodeType = typename Tree::NodeType;
         struct Iterator {
-            PairType* content;
-
-            Iterator(NodeType* node) : content(node) {}
-            PairType* operator->() { return content; }
-            const PairType* operator->() const { return content; }
-            PairType& operator*() { return *content; }
-            PairType const& operator*() const { return *content; }
+            Iterator(NodeType* node) : node(node) {}
+            auto operator->() -> PairType* { return node; }
+            auto operator->() const -> const PairType* { return node; }
+            auto operator*() -> PairType& { return *node; }
+            auto operator*() const -> const PairType& { return *node; }
 
             auto next() -> Iterator {
-                auto node = static_cast<NodeType*>(content);
                 if (node->child[R]) return node->child[R]->findMin();
                 while (node->parent && node->which() == R) node = node->parent;
-                return Iterator(node->parent);
+                return node->parent;
             }
             auto prev() -> Iterator {
-                auto node = static_cast<NodeType*>(content);
                 if (node->child[L]) return node->child[L]->findMax();
                 while (node->parent && node->which() == L) node = node->parent;
-                return Iterator(node->parent);
+                return node->parent;
             }
 
-            Iterator& operator++() {
-                content = next().content;
+            auto& operator++() {
+                node = next().node;
                 return *this;
             }
-            Iterator& operator--() {
-                content = prev().content;
+            auto& operator--() {
+                node = prev().node;
                 return *this;
             }
-            bool operator==(const Iterator& other) const { return content == other.content; }
-            bool operator!=(const Iterator& other) const { return content != other.content; }
-            operator bool() const { return content != nullptr; }
+            bool operator==(const Iterator& other) const { return node == other.node; }
+            bool operator!=(const Iterator& other) const { return node != other.node; }
+            operator bool() const { return node != nullptr; }
+
+        private:
+            NodeType* node;
         };
         return Iterator(node);
     }
@@ -135,27 +134,68 @@ private:
 /// @struct Detach
 /// @brief detach a leaf node or semi-leaf node from the tree
 template <typename Tree> struct Detach {
-    template <typename Node> auto detach(std::unique_ptr<Node>& node) -> std::unique_ptr<Node> {
+    auto detach(auto& node) {
         auto& self = *(static_cast<Tree*>(this));
         assert(!(node->child[L] && node->child[R]));
+        auto parent = node->parent;
         if (!node->child[L] && !node->child[R]) {
-            auto parent = node->parent;
             node->parent = nullptr;
             auto detached = std::move(node);
             self.tracedTrack(detached);
-            Tree::maintain(parent);
+            self.maintain(parent);
             return detached;
         } else {
-            auto child = std::move(node->child[L] ? node->child[L] : node->child[R]);
-            child->parent = node->parent;
-            node->parent = nullptr;
+            auto child = self.unbind(node, node->child[L] ? L : R);
+            auto parent = node->parent;
             auto detached = std::move(node);
+            detached->parent = nullptr;
             self.tracedTrack(detached);
-            node = std::move(child);
-            self.snapshot();
-            Tree::maintain(node->parent);
+            self.moveNode(node, std::move(child), parent);
+            self.maintain(parent);
             return detached;
         }
+    }
+};
+
+template <typename Tree> struct Insert {
+    auto insert(auto&& key, auto&& value) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto [parent, node] = self.findBox(self.root, key);
+        if (node) return Status::FAILED;
+        self.constructNode(node, key, value, parent);
+        if constexpr (requires { self.maintainStructure(node.get()); }) {
+            self.maintainStructure(node.get());
+        } else {
+            self.maintain(node.get());  // fall back to normal maintain, only maintain info
+        }
+        return Status::SUCCESS;
+    }
+};
+
+template <typename Tree> struct Remove {
+    auto remove(auto&& key) {
+        auto& self = *(static_cast<Tree*>(this));
+        auto [parent, node] = self.findBox(self.root, key);
+        if (!node) return Status::FAILED;
+        auto maintain = [&](auto node) {
+            if constexpr (requires { self.maintainStructure(node); }) {
+                self.maintainStructure(node);
+            } else {
+                self.maintain(node);
+            }
+        };
+        if (!node->child[L] || !node->child[R]) {
+            self.tracedUntrack(self.detach(node));
+            maintain(parent);
+        } else {
+            auto detached = self.detach(self.maxBox(node->child[L]));
+            self.bind(detached, L, self.unbind(node, L));
+            self.bind(detached, R, self.unbind(node, R));
+            self.tracedUntrack(self.detach(node));
+            self.moveNode(node, std::move(detached), parent);
+            maintain(node.get());
+        }
+        return Status::SUCCESS;
     }
 };
 
@@ -225,22 +265,22 @@ template <typename Tree> struct Height {
 /// @brief provide tree traversal methods
 template <typename Tree> struct Traverse {
     void traverse(auto&& func) {
-        auto& root = static_cast<Tree*>(this)->root;
+        const auto& root = static_cast<Tree*>(this)->root;
         voidTraverse(root, func);
     }
     auto traverse(auto&& func, auto&& reduction) {
-        auto& root = static_cast<Tree*>(this)->root;
+        const auto& root = static_cast<Tree*>(this)->root;
         return typedTraverse(root, func, reduction);
     }
 
 private:
-    void voidTraverse(auto& node, auto&& func) {
+    void voidTraverse(auto&& node, auto&& func) {
         if (!node) return;
         voidTraverse(node->child[L], func);
         func(node);
         voidTraverse(node->child[R], func);
     }
-    auto typedTraverse(auto& node, auto&& func, auto&& reduction) {
+    auto typedTraverse(auto&& node, auto&& func, auto&& reduction) {
         if (!node) return;
         auto ret = typedTraverse(node->child[L], func);
         ret = reduction(ret, func(node));
@@ -398,13 +438,13 @@ template <typename Tree> struct Trace {
     }
 
     /// @func tracedTrack
-    /// @brief start tracking {nodes}, and snapshot the current state
+    /// @brief start tracking {nodes}, and take a snapshot when nodes is not all empty
     void tracedTrack(auto&&... nodes) {
         if (track(nodes...)) snapshot();
     }
 
     /// @func tracedUntrack
-    /// @brief stop tracking {nodes}, and snapshot the current state
+    /// @brief stop tracking {nodes}, and take a snapshot when nodes is not all empty
     void tracedUntrack(auto&&... nodes) {
         if (untrack(nodes...)) snapshot();
     }
@@ -476,21 +516,8 @@ template <typename Tree> struct TracedConstruct {
         self.tracedTrack(node);
     }
 
-    /// @func overwriteNode
-    /// @brief move node from {src} to {dest}, where the info in dest is valid, like
-    /// operator=(auto&&)
-    auto overwriteNode(auto& dest, auto src) {
-        auto& self = *(static_cast<Tree*>(this));
-        auto parent = dest ? dest->parent : nullptr;
-        self.untrack(src), self.untrack(dest);
-        dest = std::move(src);
-        dest->parent = parent;
-        self.tracedTrack(dest);
-    }
-
     /// @func moveNode
-    /// @brief move node from {src} to {dest}, where dest is invalid before, like
-    /// constructor(auto&&)
+    /// @brief move node from {src} to {dest}, like move constructor
     auto moveNode(auto& dest, auto src, auto* parent) {
         auto& self = *(static_cast<Tree*>(this));
         self.untrack(src);

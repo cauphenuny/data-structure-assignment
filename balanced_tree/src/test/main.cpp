@@ -1356,6 +1356,14 @@ TEST_CASE("Iterator") {
     int sum = 0;
     for (auto& [key, value] : tree) {
         sum += key;
+        CHECK(tree.find(key)->value == value);
     }
     CHECK(sum == (N * (N + 1)) / 2);
+    sum = 0;
+    auto it = tree.iteratorOf(N);
+    while (it != tree.end()) {
+        sum += it->key;
+        it = it.prev();
+    }
+    CHECK(sum == (N * (N + 1) / 2));
 }

@@ -118,6 +118,10 @@ struct TreeAdapter : Tree<K, V> {
     auto end() { return impl->end(); }
     auto iteratorOf(const K& k) { return impl->iteratorOf(k); }
 
+    auto traverse(auto&& func, auto&&... optional_reduction) {
+        return impl->traverse(func, optional_reduction...);
+    }
+
     // NOTE:
     // join: key-range not overlap, and this's keys must lesser than other's, O(log n)
     // merge: allow key overlapping, O(n log n)
