@@ -28,11 +28,10 @@ int main() {
     results = solve(modes, start_p);
     
     // out_board.print_board();
-    size_t num_paths = results.size();
-    size_t num_arrows = results[0].size();
-    for(int i = 0; i < (int)num_paths; i++) {
-        for(int j = 1; j < (int)num_arrows; j++)
-            std::cout << "(" << results[0][j].start.x << ","<< results[0][j].start.y << ")";
+
+    for(int i = 0; i < (int)results.size(); i++) {
+        for(int j = 1; j < (int)results[i].size(); j++)
+            std::cout << "(" << results[i][j].start.x << ","<< results[i][j].start.y << ")";
         std::cout << std::endl;
     }
 
