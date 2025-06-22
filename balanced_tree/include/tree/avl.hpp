@@ -40,15 +40,13 @@ struct AVLNode
 };
 
 template <typename K, typename V>
-struct AVLTreeImpl : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
-                     trait::Mixin<
-                         AVLTreeImpl<K, V>, trait::Search, trait::Clear, trait::Size, trait::Height,
-                         trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
-                         trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace,
-                         trait::TracedBind, trait::TracedConstruct, trait::Rotate, trait::Iterate>,
-                     trait::InsertRemove<AVLTreeImpl<K, V>, [](auto& self, auto* node) {
-                         self.maintainStructure(node);
-                     }> {
+struct AVLTreeImpl
+    : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
+          AVLTreeImpl<K, V>, trait::InsertRemove, trait::Search, trait::Clear, trait::Size,
+          trait::Height, trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
+          trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace, trait::TracedBind,
+          trait::TracedConstruct, trait::Rotate, trait::Iterate> {
     friend struct Test;
 
     std::unique_ptr<AVLNode<K, V>> root{nullptr};

@@ -157,14 +157,13 @@ template <typename Tree> struct Detach {
     }
 };
 
-template <typename Tree, auto callback = [](auto& self, auto* node) { self.maintain(node); }>
-struct InsertRemove {
+template <typename Tree> struct InsertRemove {
     auto insert(auto&& key, auto&& value) {
         auto& self = *(static_cast<Tree*>(this));
         auto [parent, node] = self.findBox(self.root, key);
         if (node) return Status::FAILED;
         self.constructNode(node, key, value, parent);
-        callback(self, node.get());
+        self.maintainStructure(node.get());
         return Status::SUCCESS;
     }
     auto remove(auto&& key) {
@@ -173,14 +172,14 @@ struct InsertRemove {
         if (!node) return Status::FAILED;
         if (!node->child[L] || !node->child[R]) {
             self.tracedUntrack(self.detach(node));
-            callback(self, parent);
+            self.maintainStructure(parent);
         } else {
             auto detached = self.detach(self.maxBox(node->child[L]));
             self.bind(detached, L, self.unbind(node, L));
             self.bind(detached, R, self.unbind(node, R));
             self.tracedUntrack(self.detach(node));
             self.moveNode(node, std::move(detached), parent);
-            callback(self, node.get());
+            self.maintainStructure(node.get());
         }
         return Status::SUCCESS;
     }

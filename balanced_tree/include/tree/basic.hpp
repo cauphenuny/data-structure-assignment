@@ -55,6 +55,9 @@ struct BasicTreeImpl
         if (this->root) this->root->parent = nullptr;
     }
 
+    // callback for trait::InsertRemove
+    void maintainStructure(BasicNode<K, V>* node) { this->maintain(node); }
+
     auto split(const K& key) -> std::unique_ptr<BasicTreeImpl> {
         auto divide = [&key, this](auto self, std::unique_ptr<BasicNode<K, V>> node)
             -> std::tuple<std::unique_ptr<BasicNode<K, V>>, std::unique_ptr<BasicNode<K, V>>> {
