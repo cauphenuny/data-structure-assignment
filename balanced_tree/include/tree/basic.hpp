@@ -43,9 +43,9 @@ template <typename K, typename V>
 struct BasicTreeImpl
     : trait::Mixin<BasicNode<K, V>, trait::TypeTraits, trait::Maintain>,
       trait::Mixin<
-          BasicTreeImpl<K, V>, trait::Insert, trait::Remove, trait::Search, trait::Clear,
-          trait::Size, trait::Print, trait::Traverse, trait::Merge, trait::Subscript,
-          trait::Conflict, trait::Box, trait::Detach, trait::View, trait::Trace, trait::TracedBind,
+          BasicTreeImpl<K, V>, trait::InsertRemove, trait::Search, trait::Clear, trait::Size,
+          trait::Print, trait::Traverse, trait::Merge, trait::Subscript, trait::Conflict,
+          trait::Box, trait::Detach, trait::View, trait::Trace, trait::TracedBind,
           trait::TracedConstruct, trait::Iterate> {
     friend struct Test;
 

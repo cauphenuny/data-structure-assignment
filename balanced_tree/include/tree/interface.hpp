@@ -42,12 +42,14 @@ struct TreeBase {
 
 template <typename K, typename V> struct Tree : TreeBase {
     virtual auto find(const K& key) -> Pair<const K, V>* = 0;
-    virtual auto findKth(size_t rank)
-        -> Pair<const K, V>* = 0;  // find the k-th element, 1-based index
+    /// findKth(rank): find the k-th element, 1-based index
+    virtual auto findKth(size_t rank) -> Pair<const K, V>* = 0;
     virtual auto min() -> Pair<const K, V>* = 0;
     virtual auto max() -> Pair<const K, V>* = 0;
     virtual auto insert(const K& key, const V& value) -> Status = 0;
     virtual auto remove(const K& key) -> Status = 0;
+    /// traverse(func): traverse the tree in key-increasing order
+    virtual void traverse(const std::function<void(const K&, V&)>& func) = 0;
     virtual auto operator[](const K& key) -> V& = 0;
     virtual auto operator[](const K& key) const -> const V& = 0;
 };
@@ -87,9 +89,9 @@ struct TreeAdapter : Tree<K, V> {
     auto operator[](const K& k) const -> const V& override { return impl->operator[](k); }
 
     // NOTE:
-    // no unified split/join/merge interface in Tree<K, V> for different algorithm, because these
+    // No unified split/join/merge interface in Tree<K, V> for different algorithm, because these
     // functions need algorithm info, you can't join a BasicTree to AVLTree.
-    // use `std::make_unique<AVLTree<K, V>>()` instead of `AVLTree<K, V>::create()` if you want to
+    // Use `std::make_unique<AVLTree<K, V>>()` instead of `AVLTree<K, V>::create()` if you want to
     // call split/join/merge because the latter will erase type info to Tree<K, V>.
 
     // NOTE: example:
@@ -97,7 +99,7 @@ struct TreeAdapter : Tree<K, V> {
     // auto tree = AVLTree<int, std::string>::create(); // erased to Tree<K, V>
     // tree->insert(...);
     // auto splited = tree->split(10); // failed!
-    // auto avl = make_unique<AVLTree<int, std::string>>(); // retained original type AVLTree
+    // auto avl = make_unique<AVLTree<int, std::string>>(); // retains original type AVLTree
     // avl->insert(...);
     // auto splited = avl->split(10); // success.
     // avl->join(std::move(splited)); // joins the splited tree back
@@ -106,6 +108,11 @@ struct TreeAdapter : Tree<K, V> {
     auto split(const K& k) -> std::unique_ptr<TreeAdapter> {
         return std::make_unique<TreeAdapter>(impl->split(k));
     }
+
+    // NOTE:
+    // `join`: key-range not overlap, and this's keys must lesser than other's, O(log n)
+    // `merge`: allow key overlapping, O(n log n)
+
     auto join(std::unique_ptr<TreeAdapter> other) -> Status {
         return impl->join(std::move(other->impl));
     }
@@ -114,17 +121,18 @@ struct TreeAdapter : Tree<K, V> {
     }
     auto conflict(TreeAdapter* other) -> bool { return impl->conflict(other->impl.get()); }
 
+    // NOTE:
+    // Using unified iterator type for different algorithms requires virtual function call,
+    // which is not efficient.
+    // If you must traverse a abstract tree, use `traverse(func)` instead.
+
     auto begin() { return impl->begin(); }
     auto end() { return impl->end(); }
     auto iteratorOf(const K& k) { return impl->iteratorOf(k); }
 
-    auto traverse(auto&& func, auto&&... optional_reduction) {
-        return impl->traverse(func, optional_reduction...);
+    void traverse(const std::function<void(const K&, V&)>& func) override {
+        return impl->traverse([&](auto&& node) { func(node->key, node->value); });
     }
-
-    // NOTE:
-    // join: key-range not overlap, and this's keys must lesser than other's, O(log n)
-    // merge: allow key overlapping, O(n log n)
 
     static auto create() -> std::unique_ptr<Tree<K, V>> {
         return std::make_unique<TreeAdapter>(std::make_unique<Impl<K, V>>());

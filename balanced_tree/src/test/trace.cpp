@@ -59,7 +59,7 @@ TEST_CASE("Trace") {
         if (echo) std::cout << "\n\n--------------------------------\n";
         trace = tree->trace([&] {
             auto keys = std::vector<int>();
-            tree->traverse([&](auto&& node) { keys.push_back(node->key); });
+            tree->traverse([&](int key, int _) { keys.push_back(key); });
             std::shuffle(keys.begin(), keys.end(), std::mt19937{std::random_device{}()});
             if (echo) debug(keys);
             for (auto k : keys) {
