@@ -3,10 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <stack>
-#include <stdexcept>
 #include <utility>
 
-#define NUM_OF_PATH 2
+#define NUM_OF_PATH 2 // 搜索路径数
 
 const std::array<int, 8> dx = {1, 2, 2, 1, -1, -2, -2, -1};
 const std::array<int, 8> dy = {2, 1, -1, -2, -2, -1, 1, 2};
@@ -32,7 +31,7 @@ std::vector<Path> solve_brute_force(Point start) {
     for (int i = 0; i < BOARD_SIZE; ++i)
         for (int j = 0; j < BOARD_SIZE; ++j) board(i, j) = 0;
 
-    std::stack<Node> stk;
+    SimpleStack<Node> stk;;
     Path history; // 当前路径
     std::vector<Path> result;
 
@@ -56,7 +55,7 @@ std::vector<Path> solve_brute_force(Point start) {
             */
         }
 
-        Node& current = stk.top();
+        Node& current = stk.peek();
         bool moved = false;
 
         for (; current.move_index < 8; ++current.move_index) {
@@ -83,7 +82,7 @@ std::vector<Path> solve_brute_force(Point start) {
             stk.pop();
             --step;
 
-            Point start = stk.empty() ? end : stk.top().pos;
+            Point start = stk.empty() ? end : stk.peek().pos;
             board(end.x, end.y) = 0;
             history.push_back({end, start, 0}); // 反向记录回退路径
         }
@@ -176,7 +175,7 @@ std::vector<Path> solve_heuristic_inhancer(Point start) {
         for (int j = 0; j < BOARD_SIZE; ++j)
             board(i, j) = 0;
 
-    std::stack<Node> stk;
+    SimpleStack<Node> stk;
     Path history;
     std::vector<Path> result;
 
@@ -188,24 +187,28 @@ std::vector<Path> solve_heuristic_inhancer(Point start) {
 
     while (!stk.empty()) {
         if (step == BOARD_SIZE * BOARD_SIZE) {
+            if (!stk.empty()) {
+                Arrow final = {stk.peek().pos, stk.peek().pos, 1}; // 保存最后一格
+                history.push_back({final});
+            }
             result.push_back(history);
             countHistory++;
             if(countHistory == NUM_OF_PATH)
                 break;
             else {
                 // 后退一步继续搜其他路径
-                Point end = stk.top().pos;
+                Point end = stk.peek().pos;
                 stk.pop();
                 --step;
                 board(end.x, end.y) = 0;
 
-                Point start = stk.empty() ? end : stk.top().pos;
+                Point start = stk.empty() ? end : stk.peek().pos;
                 history.push_back({end, start, 0});
                 continue;
             }
         }
 
-        Node& current = stk.top();
+        Node& current = stk.peek();
         Point cur_pos = current.pos;
 
         // 首次处理该节点时，按启发式规则排序可能方向
@@ -255,7 +258,7 @@ std::vector<Path> solve_heuristic_inhancer(Point start) {
             --step;
             board(end.x, end.y) = 0;
 
-            Point prev = stk.empty() ? end : stk.top().pos;
+            Point prev = stk.empty() ? end : stk.peek().pos;
             history.push_back({end, prev, 0});
         }
     }
