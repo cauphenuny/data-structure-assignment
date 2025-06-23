@@ -4,7 +4,7 @@
 #pragma once
 #include "gui/events.hpp"
 #include "gui/tree_renderer.hpp"
-#include "gui/view_manager.hpp"
+#include "gui/views.hpp"
 #include "tree/interface.hpp"
 
 #include <SFML/Graphics.hpp>
@@ -19,14 +19,6 @@ enum class LogLevel : uint8_t {
     WARNING,
     ERROR,
     DEBUG,
-};
-
-// 拖动模式枚举
-enum class DragMode : uint8_t {
-    NONE,
-    VIEW_DRAG,
-    HSCROLL_DRAG,
-    VSCROLL_DRAG
 };
 
 class GUIBase : public EventTarget {
@@ -45,12 +37,6 @@ private:
 
     sf::Text titleText;
     
-    // UI元素
-    sf::RectangleShape horizontalScrollbar;
-    sf::RectangleShape horizontalScrollbarHandle;
-    sf::RectangleShape verticalScrollbar;
-    sf::RectangleShape verticalScrollbarHandle;
-    
     // 状态变量
     DragMode dragMode;
     sf::Vector2f lastMousePos;
@@ -62,7 +48,7 @@ private:
     sf::Vector2f windowSize;
     
     TreeRenderer treeRenderer;
-    ViewManager viewManager;
+    CanvasView canvasView;
     
     // 颜色配置
     sf::Color backgroundColor;
@@ -80,23 +66,10 @@ private:
     void initWindow();
     void initTreeData();
     void initUI();
-    
-    // 更新方法
-    void updateScrollbars();
 
-    // 事件处理方法
     void initEventListeners();
     
-    // 渲染方法
     void render();
-    
-    // // 让事件处理器类可以访问私有成员
-    // friend class EventHandlerBase;
-    // friend class WindowResizeHandler;
-    // friend class MouseWheelHandler;
-    // friend class MousePressHandler;
-    // friend class MouseReleaseHandler;
-    // friend class MouseMoveHandler;
 };
 
 void echo(std::string_view message, LogLevel level = LogLevel::INFO);
