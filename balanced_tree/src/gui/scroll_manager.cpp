@@ -25,42 +25,38 @@ ScrollManager::ScrollManager(View& view,
 // 更新滚动条
 void ScrollManager::update() {
     float effectiveZoom = view.getEffectiveZoom();
-
+    
     // 计算可视区域和内容区域
     float visibleWidth = windowSize.x / effectiveZoom;
     float visibleHeight = windowSize.y / effectiveZoom;
     
-    // 计算最大偏移量
-    float maxHOffset = std::max(0.0f, initialWidth - visibleWidth);
-    float maxVOffset = std::max(0.0f, initialHeight - visibleHeight);
-
-    // 更新滚动条位置和大小
-    float hScrollbarWidth = windowSize.x - scrollbarSize;
-    float hHandleWidth = std::max(30.0f, hScrollbarWidth * (visibleWidth / initialWidth));
-    float hHandlePosition = 0;
+    sf::Vector2f maxOffset = view.getMaxOffset();
     
-    if (maxHOffset > 0) {
-        hHandlePosition = (view.viewOffset.x / maxHOffset) * (hScrollbarWidth - hHandleWidth);
+    // 水平滚动条（相对于视图坐标系）
+    if (maxOffset.x > 0) {
+        float hScrollbarWidth = windowSize.x - scrollbarSize;
+        horizontalScrollbar.setSize({hScrollbarWidth, scrollbarSize});
+        horizontalScrollbar.setPosition({0, windowSize.y - scrollbarSize});
+        
+        float hHandleWidth = std::max(20.0f, hScrollbarWidth * (visibleWidth / initialWidth));
+        float hHandlePos = (view.viewOffset.x / maxOffset.x) * (hScrollbarWidth - hHandleWidth);
+        
+        horizontalScrollbarHandle.setSize({hHandleWidth, scrollbarSize});
+        horizontalScrollbarHandle.setPosition({hHandlePos, windowSize.y - scrollbarSize});
     }
     
-    horizontalScrollbar.setSize({hScrollbarWidth, scrollbarSize});
-    horizontalScrollbar.setPosition({0, windowSize.y - scrollbarSize});
-    horizontalScrollbarHandle.setSize({hHandleWidth, scrollbarSize});
-    horizontalScrollbarHandle.setPosition({hHandlePosition, windowSize.y - scrollbarSize});
-    
-    // 更新垂直滚动条位置和大小
-    float vScrollbarHeight = windowSize.y - scrollbarSize;
-    float vHandleHeight = std::max(30.0f, vScrollbarHeight * (visibleHeight / initialHeight));
-    float vHandlePosition = 0;
-    
-    if (maxVOffset > 0) {
-        vHandlePosition = (view.viewOffset.y / maxVOffset) * (vScrollbarHeight - vHandleHeight);
+    // 垂直滚动条（相对于视图坐标系）
+    if (maxOffset.y > 0) {
+        float vScrollbarHeight = windowSize.y - scrollbarSize;
+        verticalScrollbar.setSize({scrollbarSize, vScrollbarHeight});
+        verticalScrollbar.setPosition({windowSize.x - scrollbarSize, 0});
+        
+        float vHandleHeight = std::max(20.0f, vScrollbarHeight * (visibleHeight / initialHeight));
+        float vHandlePos = (view.viewOffset.y / maxOffset.y) * (vScrollbarHeight - vHandleHeight);
+        
+        verticalScrollbarHandle.setSize({scrollbarSize, vHandleHeight});
+        verticalScrollbarHandle.setPosition({windowSize.x - scrollbarSize, vHandlePos});
     }
-    
-    verticalScrollbar.setSize({scrollbarSize, vScrollbarHeight});
-    verticalScrollbar.setPosition({windowSize.x - scrollbarSize, 0});
-    verticalScrollbarHandle.setSize({scrollbarSize, vHandleHeight});
-    verticalScrollbarHandle.setPosition({windowSize.x - scrollbarSize, vHandlePosition});
 }
 
 

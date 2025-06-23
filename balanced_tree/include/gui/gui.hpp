@@ -5,6 +5,7 @@
 #include "gui/events.hpp"
 #include "gui/tree_renderer.hpp"
 #include "gui/views.hpp"
+#include "gui/split_view.hpp"
 #include "tree/interface.hpp"
 
 #include <SFML/Graphics.hpp>
@@ -48,7 +49,7 @@ private:
     sf::Vector2f windowSize;
     
     TreeRenderer treeRenderer;
-    CanvasView canvasView;
+    SplitView splitView;
     
     // 颜色配置
     sf::Color backgroundColor;

@@ -2,18 +2,19 @@
 #include <iostream>
 
 View::View(sf::RenderWindow& window,
-    sf::Vector2f initialSize, const sf::Vector2f& windowSize,
-    float minZoom, float maxZoom) 
+    sf::Vector2f initialSize, const sf::Vector2f& viewSize,
+    const sf::Vector2f& viewPosition, float minZoom, float maxZoom) 
     : initialSize(initialSize),
       window(window),
-      viewSize(windowSize),
+      viewSize(viewSize),
+      viewPosition(viewPosition),
       minZoom(minZoom),
       maxZoom(maxZoom),
       zoom(1.0f),
-      scrollManager(*this, this->initialSize.x, this->initialSize.y, windowSize) {
-    contentView.setCenter(initialSize / 2.f);
+      scrollManager(*this, this->initialSize.x, this->initialSize.y, viewSize) {
+    contentView.setCenter(viewPosition + initialSize / 2.f);
     contentView.setSize(initialSize);
-    uiView = window.getDefaultView();
+    uiView = contentView;
 }
 
 const sf::View& View::getContentView() const {
@@ -125,8 +126,18 @@ DragMode View::getMouseDragMode(sf::Vector2f mousePos) {
     return scrollManager.handleMousePress(mousePos);
 }
 
+sf::Vector2f View::getViewPosition() const {
+    return viewPosition;
+}
 
-void View::update() {
+void View::setViewPosition(const sf::Vector2f& position) {
+    const_cast<sf::Vector2f&>(viewPosition) = position;
+    updateScrollbars();
+}
+
+
+
+void View::updateViews() {
     updateUIView();
     updateContentView();
 }
@@ -139,22 +150,22 @@ void View::updateUIView() {
 void View::updateContentView() {
     getEffectiveZoom();
     contentView.setSize(viewSize / effectiveZoom);
-    contentView.setCenter(initialSize / 2.f + viewOffset);
+    contentView.setCenter(viewSize / 2.f + viewOffset);
 }
 
 void View::updateScrollbars() {
     scrollManager.update();
 }
 
-void View::render() {
-    scrollManager.render(window);
+void View::render(sf::RenderTarget& target) {
+    scrollManager.render(target);
 }
 
 
 CanvasView::CanvasView(sf::RenderWindow& window,
     sf::Vector2f initialSize, const sf::Vector2f& windowSize,
-    float minZoom, float maxZoom)
-    : View(window, initialSize, windowSize, minZoom, maxZoom) {
+    const sf::Vector2f& viewPosition, float minZoom, float maxZoom)
+    : View(window, initialSize, windowSize, viewPosition, minZoom, maxZoom) {
 }
 
 void CanvasView::setZoom(float factor, sf::Vector2i focusPoint) {
@@ -175,6 +186,9 @@ void CanvasView::setZoom(float factor, sf::Vector2i focusPoint) {
     // 重新计算鼠标在内容视图中的位置
     sf::Vector2f newMousePos = window.mapPixelToCoords(
         focusPoint, contentView);
+        
+    std::cout << "before: " << mousePos.x << ", " << mousePos.y << "\n";
+    std::cout << " after: " << newMousePos.x << ", " << newMousePos.y << "\n";
     
     // 调整视图偏移，使鼠标位置保持相对稳定
     viewOffset += (mousePos - newMousePos) * effectiveZoom;
