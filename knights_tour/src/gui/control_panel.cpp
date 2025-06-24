@@ -1,4 +1,8 @@
 #include "gui/control_panel.hpp"
+
+#include "debug.hpp"
+
+#include <format>
 #include <iostream>
 
 Button::Button(const sf::Font& font, const std::string& buttonText, 
@@ -11,15 +15,12 @@ Button::Button(const sf::Font& font, const std::string& buttonText,
     shape.setOutlineColor(sf::Color(100, 100, 100));
     
     text.setFont(font);
-    text.setString(buttonText);
+    std::string centeredText = std::format("{:^19}", buttonText);  // Center the text 
+    text.setString(centeredText);
     text.setCharacterSize(16);
     text.setFillColor(sf::Color::Black);
-    
-    // 居中文本
-    sf::FloatRect textBounds = text.getLocalBounds();
-    text.setOrigin({textBounds.position.x + textBounds.size.x/2.0f,
-                    textBounds.position.y + textBounds.size.y/2.0f});
-    text.setPosition({position.x + size.x/2.0f, position.y + size.y/2.0f});
+
+    text.setPosition({position.x, position.y + text.getCharacterSize() / 2.0f});
 }
 
 void Button::render(sf::RenderWindow& window) {
