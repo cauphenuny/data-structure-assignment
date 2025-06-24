@@ -54,7 +54,7 @@ target_include_directories(balanced_tree PRIVATE
 )
 target_link_libraries(balanced_tree PRIVATE SFML::Graphics)
 
-file(GLOB KNIGHTS_TOUR_SOURCES "knights_tour/src/*.cpp")
+file(GLOB KNIGHTS_TOUR_SOURCES "knights_tour/src/*.cpp" "knights_tour/src/gui/*.cpp")
 add_executable(knights_tour ${KNIGHTS_TOUR_SOURCES})
 target_include_directories(knights_tour PRIVATE 
     "${CMAKE_CURRENT_SOURCE_DIR}/knights_tour/include"
