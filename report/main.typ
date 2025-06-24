@@ -23,6 +23,8 @@
 
 #let theme = "university"
 
+#show raw.where(block: true): text.with(size: 0.8em)
+
 #show: doc => {
   if theme == "university" {
     import themes.university: *
@@ -36,6 +38,7 @@
     ))
     set heading(numbering: numbly("{1}.", default: "1.1"))
     title-slide()
+    show: text.with(size: 0.75em)
     doc
   } else if theme == "dewdrop" {
     import themes.dewdrop: *
@@ -56,16 +59,6 @@
     outline-slide()
     doc
   } else {
-    import themes.university: *
-    show: university-theme.with(aspect-ratio: "16-9", config-info(
-      title: meta.title,
-      subtitle: meta.subtitle,
-      author: meta.author,
-      date: meta.date,
-      institution: meta.institution,
-      logo: none,
-    ))
-    title-slide()
     doc
   }
 }
