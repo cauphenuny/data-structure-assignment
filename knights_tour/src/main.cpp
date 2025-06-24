@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
         modes = Algorithm::HEURISTIC;
         break;
     case 2:
-        modes = Algorithm::HEURISTIC_INHANCER;
+        modes = Algorithm::HEURISTIC_ENHANCER;
         break;
     default:
         throw "unvalid modes";
