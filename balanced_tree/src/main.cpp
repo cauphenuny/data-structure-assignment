@@ -2,17 +2,19 @@
 /// @brief main function for testing the tree implementations (temporarily)
 
 #include "benchmark.hpp"
+#include "cli/cli.hpp"
 #include "debug.hpp"
 #include "doctest/doctest.h"
+#include "gui/tree_gui.hpp"
 #include "tree/avl.hpp"
 #include "tree/basic.hpp"
 #include "tree/interface.hpp"
 #include "tree/treap.hpp"
-#include "gui/tree_gui.hpp"
 
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -65,11 +67,10 @@ void algorithmDemo() {
     cout << "(AVL)" << '\n', tree->printCLI();
 }
 
-int runTest(int argc, char* argv[], bool run_perf) {
+int runTest(int argc, char* argv[]) {
     doctest::Context context;
     context.setOption("no-breaks", true);
     context.applyCommandLine(argc, argv);
-    if (!run_perf) context.addFilter("test-case-exclude", "*PERF*");
     int res = context.run();
     if (context.shouldExit()) exit(res);
     return res;
@@ -78,17 +79,21 @@ int runTest(int argc, char* argv[], bool run_perf) {
 int runGUI(int argc, char* argv[]) {
     TreeGUI<int, string> gui;
     gui.run();
+    return 0;
 }
 
 int main(int argc, char* argv[]) {
     if (argc > 1 && strcmp(argv[1], "gui") == 0) return runGUI(argc, argv);
-    if (argc > 1 && strcmp(argv[1], "test") == 0) return runTest(argc, argv, true);
-    int ret = runTest(argc, argv, false);
-    cout << "====================" << '\n';
-    polymorphismDemo();
-    cout << "====================" << '\n';
-    algorithmDemo();
-    cout << "====================" << '\n';
-    benchmark();
-    return ret;
+    if (argc > 1 && strcmp(argv[1], "test") == 0) return runTest(argc, argv);
+    if (int ret = runTest(argc, argv)) return ret;
+    if (argc > 1 && strcmp(argv[1], "benchmark") == 0) {
+        cout << "====================" << '\n';
+        polymorphismDemo();
+        cout << "====================" << '\n';
+        algorithmDemo();
+        cout << "====================" << '\n';
+        benchmark();
+    }
+    runCLI();
+    return 0;
 }

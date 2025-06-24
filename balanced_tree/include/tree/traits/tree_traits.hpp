@@ -348,7 +348,7 @@ template <typename Tree> struct Print {
     void printCLI() const {
         auto& self = *(static_cast<const Tree*>(this));
         if (!self.root) {
-            std::cout << "Tree is empty." << '\n';
+            std::cout << "<empty>" << '\n';
             return;
         }
         auto print_node = [&](auto self, auto node, int depth) {

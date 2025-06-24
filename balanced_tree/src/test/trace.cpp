@@ -71,7 +71,7 @@ TEST_CASE("Trace") {
         // tree->remove(0);
         // debug(tree->getRecord());
     };
-    test(std::make_unique<AVLTree<int, int>>(), true);
+    test(std::make_unique<AVLTree<int, int>>(), false);
     test(std::make_unique<BasicTree<int, int>>(), false);
     test(std::make_unique<Treap<int, int>>(), false);
     test(std::make_unique<SplayTree<int, int>>(), false);
