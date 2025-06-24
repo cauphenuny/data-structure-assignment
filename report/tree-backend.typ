@@ -290,3 +290,4 @@ std::map(ms)                25.09        11.58        30.74
 CRTP Improvement(%)         33.15        12.32        16.35
 ```
 
+#figure(image("assets/benchmark-insert.png", width: 80%), caption: [benchmark: insert])

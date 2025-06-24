@@ -350,7 +350,7 @@ trace mode:
         std::cin >> cmd;
         std::string line;
         if (!std::getline(std::cin, line)) {
-            std::cout << "q" << '\n';
+            std::cout << "exit." << '\n';
             break;
         }
         for (auto& [ch, func] : commands) {
