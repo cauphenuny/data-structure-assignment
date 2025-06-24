@@ -8,6 +8,7 @@
 #include "tree/basic.hpp"
 #include "tree/interface.hpp"
 #include "tree/treap.hpp"
+#include "gui/tree_gui.hpp"
 
 #include <algorithm>
 #include <cstdlib>
@@ -74,7 +75,13 @@ int runTest(int argc, char* argv[], bool run_perf) {
     return res;
 }
 
+int runGUI(int argc, char* argv[]) {
+    TreeGUI<int, string> gui;
+    gui.run();
+}
+
 int main(int argc, char* argv[]) {
+    if (argc > 1 && strcmp(argv[1], "gui") == 0) return runGUI(argc, argv);
     if (argc > 1 && strcmp(argv[1], "test") == 0) return runTest(argc, argv, true);
     int ret = runTest(argc, argv, false);
     cout << "====================" << '\n';
