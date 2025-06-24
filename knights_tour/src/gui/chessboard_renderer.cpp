@@ -13,6 +13,7 @@ ChessboardRenderer::ChessboardRenderer(sf::Font& font)
       currentSolution(0),
       currentStep(0),
       animProgress(0.0f),
+      knightTexture("../assets/knight.png"),
       knight(knightTexture),
       lastRenderedStep(-1),
       lastRenderedSolution(-1) {

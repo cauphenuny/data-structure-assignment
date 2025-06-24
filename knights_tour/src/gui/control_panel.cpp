@@ -138,7 +138,7 @@ void ControlPanel::createControls() {
             
             renderer.setSpeed(speed);
             renderer.setStartPosition(startX, startY);
-            renderer.runAlgorithm(Algorithm::HEURISTIC_INHANCER);
+            renderer.runAlgorithm(Algorithm::HEURISTIC_ENHANCER);
         } catch (const std::exception& e) {
             std::cerr << "Error: " << e.what() << std::endl;
         }
