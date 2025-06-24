@@ -1,7 +1,15 @@
 #include "algorithm.h"
+#include "gui/gui.hpp"
 #include <iostream>
+#include <cstring>
 
-int main() {
+int main(int argc, char* argv[]) {
+    if (argc > 1 && strcmp(argv[1], "gui") == 0) {
+        KnightsTourGUI gui;
+        gui.run();
+        return 0;
+    }
+
     Point start_p;
     int choose_modes;
     Algorithm modes;
