@@ -14,7 +14,6 @@
 #include <algorithm>
 #include <cstdlib>
 #include <memory>
-#include <sstream>
 #include <string>
 #include <vector>
 using namespace std;
@@ -83,6 +82,7 @@ int runGUI(int argc, char* argv[]) {
 }
 
 int main(int argc, char* argv[]) {
+    srand(time(0));
     if (argc > 1 && strcmp(argv[1], "gui") == 0) return runGUI(argc, argv);
     if (argc > 1 && strcmp(argv[1], "test") == 0) return runTest(argc, argv);
     if (int ret = runTest(argc, argv)) return ret;

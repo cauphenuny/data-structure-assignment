@@ -86,6 +86,7 @@ void GUIBase::initEventListeners() {
         dragMode = DragMode::NONE;
     });
 
+    /*
     on<sf::Event::MouseMoved>([this](const Event& event) {
         const auto& mouseEvent = event->getIf<sf::Event::MouseMoved>();
 
@@ -99,6 +100,7 @@ void GUIBase::initEventListeners() {
             static_cast<float>(mousePos.x),
             static_cast<float>(mousePos.y)};
     });
+    */
 
     splitView.setLeftViewRenderer([this](sf::RenderWindow& window, const sf::View& view) {
         treeRenderer.render(window);

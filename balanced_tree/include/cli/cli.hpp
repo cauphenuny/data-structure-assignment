@@ -25,18 +25,30 @@ void printForestCLI(const ForestView& forest) {
     }
 }
 
-void printTraceCLI(std::string_view title, const std::vector<ForestView>& trace) {
+void printTraceCLI(
+    std::string_view title, std::string_view usage, const std::vector<ForestView>& trace) {
     std::cout << title << ":\n";
+    int auto_play = 0;
     for (size_t i = 0; i < trace.size(); ++i) {
         std::cout << "#" << i + 1 << ":\n";
         printForestCLI(trace[i]);
-        std::cout << "------------\n";
+        if (i < trace.size() - 1 && !auto_play) {
+            std::cout << "------------\n(trace) ";
+            int ch;
+            do {
+                ch = getchar();
+                if (ch == 'h') std::cout << usage;
+            } while (ch != 'n' && ch != 'c' && ch != '\n');
+            if (ch == 'c') auto_play = 1;
+        }
     }
 }
 
 int runCLI() {
     using K = int;
+    const std::string K_NAME = "int";
     using V = int;
+    const std::string V_NAME = "int";
     enum Algorithm : int8_t { BASIC, AVL, TREAP, SPLAY };
     struct TreeInfo {
         Algorithm algo;
@@ -78,15 +90,19 @@ int runCLI() {
     [s]plit <dest-id: a-z|A-Z> <src-id: a-z|A-Z> <key: {0}>
     [m]erge <dest-id: a-z|A-Z> <src-id: a-z|A-Z>
 
-    r[a]ndom-insert <tree-id: a-z|A-Z> <count: int>
-    s[e]quential-insert <tree-id: a-z|A-Z> <start: int> <end: int>
+    [R]andom-insert <tree-id: a-z|A-Z> <count: int>
+    [S]equential-insert <tree-id: a-z|A-Z> <start: int> <end: int>
+
+trace mode:
+    [n] or [\n]: next
+    [c]: auto continue
 )",
-        typeid(K).name(), typeid(V).name());
+        K_NAME, V_NAME);
     std::cout << usage;
     enum Ret : int8_t { INVALID, COMSUMED, EXIT };
     auto print_trace = [&](int index) {
         auto trace = viewers[index].tree->trace();
-        printTraceCLI(std::format("------------\nTrace of tree {}", (char)index), trace);
+        printTraceCLI(std::format("------------\nTrace of tree {}", (char)index), usage, trace);
     };
     std::vector<std::pair<char, std::function<Ret(std::istringstream&)>>> commands = {
         {'q', [](std::istringstream&) -> Ret { return Ret::EXIT; }},
@@ -158,7 +174,7 @@ int runCLI() {
              if (!isalpha(index)) return Ret::INVALID;
              if (viewers[index].tree) {
                  viewers[index].tree->insert(key, value);
-                 std::cout << std::format("Inserted {}: {} into tree {}\n", key, value, index);
+                 std::cout << std::format("Inserted {{{}: {}}} into tree {}\n", key, value, index);
                  print_trace(index);
              } else {
                  std::cout << std::format("Tree {} not initialized.\n", index);
@@ -189,7 +205,7 @@ int runCLI() {
                  auto pair = viewers[index].tree->find(key);
                  if (pair) {
                      std::cout << std::format(
-                         "Found {}: {} in tree {}\n", pair->key, pair->value, index);
+                         "Found {{{}: {}}} in tree {}\n", pair->key, pair->value, index);
                  } else {
                      std::cout << std::format("Key {} not found in tree {}\n", key, index);
                  }
@@ -279,9 +295,10 @@ int runCLI() {
              } else {
                  std::cout << std::format("Tree {} not initialized.\n", index);
              }
+             refresh();
              return Ret::COMSUMED;
          }},
-        {'a',
+        {'R',
          [&](std::istringstream& iss) -> Ret {
              char index = 0;
              int count = 0;
@@ -304,7 +321,7 @@ int runCLI() {
              }
              return Ret::COMSUMED;
          }},
-        {'e',
+        {'S',
          [&](std::istringstream& iss) -> Ret {
              char index = 0;
              int start = 0, end = 0;
@@ -312,9 +329,10 @@ int runCLI() {
              if (!isalpha(index)) return Ret::INVALID;
              if (start >= end) return Ret::INVALID;
              if (viewers[index].tree) {
+                 int range = std::abs(std::max(start, end) * 10);
                  auto& tree = viewers[index].tree;
                  for (int i = start; i < end; ++i) {
-                     tree->insert(i, i * 10);  // Sequential values
+                     tree->insert(i, rand() % range);  // Sequential values
                  }
                  std::cout << std::format(
                      "Inserted sequential elements from {} to {} into tree {}\n", start, end,
@@ -332,7 +350,7 @@ int runCLI() {
         std::cin >> cmd;
         std::string line;
         if (!std::getline(std::cin, line)) {
-            std::cout << "exit." << '\n';
+            std::cout << "q" << '\n';
             break;
         }
         for (auto& [ch, func] : commands) {
