@@ -13,8 +13,7 @@ ChessboardRenderer::ChessboardRenderer(sf::Font& font)
       currentSolution(0),
       currentStep(0),
       animProgress(0.0f),
-      knightTexture("../assets/knight.png"),
-      knight(knightTexture),
+      knight(knightTexture), // not constructed!
       lastRenderedStep(-1),
       lastRenderedSolution(-1) {
     
@@ -71,6 +70,7 @@ ChessboardRenderer::ChessboardRenderer(sf::Font& font)
         std::cout << "Created fallback texture (green circle)" << std::endl;
     } else
         knightTexture.loadFromImage(knightImage);
+    knight = sf::Sprite(knightTexture);
 
     std::cout << "Size: " << knightTexture.getSize().x << ", " << knightTexture.getSize().y << "\n";
     
