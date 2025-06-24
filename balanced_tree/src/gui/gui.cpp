@@ -47,6 +47,8 @@ void GUIBase::initWindow() {
     titleText.setFillColor(textColor);
 }
 
+void GUIBase::initUI() {}
+
 void GUIBase::initEventListeners() {
     on<sf::Event::Closed>([this](const Event& event) {
         window.close();
@@ -105,6 +107,10 @@ void GUIBase::initEventListeners() {
     splitView.setRightViewRenderer([this](sf::RenderWindow& window, const sf::View& view) {});
 }
 
+void GUIBase::update(float deltaTime) {
+    treeRenderer.update(deltaTime);
+}
+
 void GUIBase::render() {
     window.clear(backgroundColor);
     
@@ -135,18 +141,22 @@ void GUIBase::run() {
 
     while (window.isOpen()) {
         // 检查事件
+        static sf::Clock deltaClock;
+        float deltaTime = deltaClock.restart().asSeconds();
+
         while (const std::optional event = window.pollEvent()) {        
             dispatchEvent<sf::Event::Closed,
                           sf::Event::Resized,
                           sf::Event::MouseWheelScrolled,
                           sf::Event::MouseButtonPressed,
                           sf::Event::MouseButtonReleased,
-                          sf::Event::MouseMoved>
+                          sf::Event::MouseMoved,
+                          sf::Event::KeyPressed,
+                          sf::Event::TextEntered>
                 (event);
         }
 
-        // 更新动画 (简单的颜色变化)
-        treeRenderer.update(0);
+        update(deltaTime);
         render();
     }
 }

@@ -30,7 +30,7 @@ public:
     // 主循环方法
     void run();
     
-private:
+protected:
     // 窗口和视图
     sf::RenderWindow window;
 
@@ -65,12 +65,13 @@ private:
     
     // 初始化方法
     void initWindow();
-    void initTreeData();
-    void initUI();
+    virtual void initTreeData();
+    virtual void initUI();
 
     void initEventListeners();
     
-    void render();
+    virtual void update(float deltaTime);
+    virtual void render();
 };
 
 void echo(std::string_view message, LogLevel level = LogLevel::INFO);

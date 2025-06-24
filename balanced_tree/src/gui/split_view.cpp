@@ -92,7 +92,7 @@ bool SplitView::isMouseOverDivider(sf::Vector2i mousePos) {
 DragMode SplitView::handleMousePress(sf::Vector2i mousePos) {
     // 检查是否点击在分隔线上
     if (isMouseOverDivider(mousePos)) {
-        isDraggingDivider = true;
+        // isDraggingDivider = true;
     } else {
         // 根据鼠标位置决定将事件转发给哪个视图
         sf::Vector2f mouseFloatPos(mousePos);

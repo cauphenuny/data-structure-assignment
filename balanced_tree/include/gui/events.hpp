@@ -16,6 +16,8 @@ enum class EventType : uint8_t{
     MOUSE_PRESS,
     MOUSE_RELEASE,
     MOUSE_MOVE,
+    KEY_PRESS,
+    TEXT_ENTER,
 };
 
 // 通过特化实现 SFML 事件类型到 EventType 的映射
@@ -50,6 +52,16 @@ struct EventTypeMap<sf::Event::MouseButtonReleased> {
 template<>
 struct EventTypeMap<sf::Event::MouseMoved> {
     static constexpr EventType value = EventType::MOUSE_MOVE;
+};
+
+template<>
+struct EventTypeMap<sf::Event::KeyPressed> {
+    static constexpr EventType value = EventType::KEY_PRESS;
+};
+
+template<>
+struct EventTypeMap<sf::Event::TextEntered> {
+    static constexpr EventType value = EventType::TEXT_ENTER;
 };
 
 template<typename TEventSubtype>
