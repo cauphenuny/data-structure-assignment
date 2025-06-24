@@ -13,7 +13,9 @@ ChessboardRenderer::ChessboardRenderer(sf::Font& font)
       currentSolution(0),
       currentStep(0),
       animProgress(0.0f),
-      knight(knightTexture) {
+      knight(knightTexture),
+      lastRenderedStep(-1),
+      lastRenderedSolution(-1) {
     
     // 初始化棋盘状态
     for (int i = 0; i < BOARD_SIZE; i++) {
@@ -23,13 +25,53 @@ ChessboardRenderer::ChessboardRenderer(sf::Font& font)
     }
     
     // 加载马的纹理
-    if (!knightTexture.loadFromFile("assets/knight.png") &&
-        !knightTexture.loadFromFile("../assets/knight.png") &&
-        !knightTexture.loadFromFile("../../assets/knight.png")) {
+    if (!knightImage.loadFromFile("assets/knight.png") &&
+        !knightImage.loadFromFile("../assets/knight.png") &&
+        !knightImage.loadFromFile("../../assets/knight.png")) {
         std::cerr << "Failed to load knight texture." << std::endl;
         // 创建一个备用纹理
-        knightTexture.resize({48, 48});
-    }
+        const unsigned int size = 48;
+        uint8_t* pixels = new uint8_t[size * size * 4];
+        
+        // 创建一个简单的马形状（用绿色圆圈代替）
+        for (unsigned int y = 0; y < size; y++) {
+            for (unsigned int x = 0; x < size; x++) {
+                unsigned int index = (y * size + x) * 4;
+                
+                // 计算到中心的距离
+                float dx = x - size/2.0f;
+                float dy = y - size/2.0f;
+                float distance = sqrt(dx*dx + dy*dy);
+                
+                if (distance < size/2.0f - 2) {
+                    // 内部 - 绿色
+                    pixels[index] = 0;       // R
+                    pixels[index + 1] = 255; // G
+                    pixels[index + 2] = 0;   // B
+                    pixels[index + 3] = 255; // A
+                } else if (distance < size/2.0f) {
+                    // 边缘 - 深绿色
+                    pixels[index] = 0;       // R
+                    pixels[index + 1] = 150; // G
+                    pixels[index + 2] = 0;   // B
+                    pixels[index + 3] = 255; // A
+                } else {
+                    // 外部 - 透明
+                    pixels[index] = 0;       // R
+                    pixels[index + 1] = 0;   // G
+                    pixels[index + 2] = 0;   // B
+                    pixels[index + 3] = 0;   // A
+                }
+            }
+        }
+        knightTexture.resize({size, size});
+        knightTexture.update(pixels);
+        delete[] pixels;
+        std::cout << "Created fallback texture (green circle)" << std::endl;
+    } else
+        knightTexture.loadFromImage(knightImage);
+
+    std::cout << "Size: " << knightTexture.getSize().x << ", " << knightTexture.getSize().y << "\n";
     
     knight.setTexture(knightTexture);
     knight.setScale({CELL_SIZE / knightTexture.getSize().x * 0.8f, 
@@ -68,6 +110,11 @@ void ChessboardRenderer::reset() {
     paused = false;
     completed = false;
     statusMessage = "";
+    
+    // 重置路径缓存
+    cachedPathVertices.clear();
+    lastRenderedStep = -1;
+    lastRenderedSolution = -1;
 }
 
 void ChessboardRenderer::runAlgorithm(Algorithm algo) {
@@ -285,31 +332,56 @@ void ChessboardRenderer::drawKnight(sf::RenderWindow& window) {
     }
     
     knight.setPosition({x, y});
+    // std::cout << "knight: " << x << ", " << y << std::endl;
     window.draw(knight);
+}
+
+void ChessboardRenderer::updateCachedPath() {
+    if (!running || solutions.empty()) {
+        cachedPathVertices.clear();
+        return;
+    }
+    
+    // 检查是否需要更新缓存
+    if (lastRenderedStep == currentStep && lastRenderedSolution == currentSolution) {
+        return; // 无需更新
+    }
+    
+    cachedPathVertices.clear();
+    const Path& currentPath = solutions[currentSolution];
+    
+    for (int i = 0; i < currentStep && i < currentPath.size(); i++) {
+        const Arrow& arrow = currentPath[i];
+        // std::cout << i << ": " << arrow.start.x << "," << arrow.start.y
+        //     << " -> " << arrow.end.x << "," << arrow.end.y << " | " << arrow.stepNext << "\n";
+        
+        if (arrow.stepNext) {
+            cachedPathVertices.push_back(sf::Vertex(
+                sf::Vector2f(
+                    BOARD_OFFSET_X + arrow.start.y * CELL_SIZE + CELL_SIZE/2.0f,
+                    BOARD_OFFSET_Y + arrow.start.x * CELL_SIZE + CELL_SIZE/2.0f), 
+                sf::Color(0, 100, 200, 180)
+            ));
+            cachedPathVertices.push_back(sf::Vertex(
+                sf::Vector2f(
+                    BOARD_OFFSET_X + arrow.end.y * CELL_SIZE + CELL_SIZE/2.0f,
+                    BOARD_OFFSET_Y + arrow.end.x * CELL_SIZE + CELL_SIZE/2.0f), 
+                sf::Color(0, 100, 200, 180)
+            ));
+        }
+    }
+    
+    lastRenderedStep = currentStep;
+    lastRenderedSolution = currentSolution;
 }
 
 void ChessboardRenderer::drawPath(sf::RenderWindow& window) {
     if (!running) return;
     
-    const Path& currentPath = solutions[currentSolution];
+    updateCachedPath();
     
-    // 绘制已经走过的路径
-    for (int i = 1; i <= currentStep && i < currentPath.size(); i++) {
-        const Arrow& arrow = currentPath[i-1];
-        if (arrow.stepNext) {
-            sf::Vertex line[] = {
-                sf::Vertex(sf::Vector2f(
-                    BOARD_OFFSET_X + arrow.start.y * CELL_SIZE + CELL_SIZE/2.0f,
-                    BOARD_OFFSET_Y + arrow.start.x * CELL_SIZE + CELL_SIZE/2.0f), 
-                    sf::Color(0, 100, 255, 128)),
-                sf::Vertex(sf::Vector2f(
-                    BOARD_OFFSET_X + arrow.end.y * CELL_SIZE + CELL_SIZE/2.0f,
-                    BOARD_OFFSET_Y + arrow.end.x * CELL_SIZE + CELL_SIZE/2.0f), 
-                    sf::Color(0, 100, 255, 128))
-            };
-            
-            window.draw(line, 2, sf::PrimitiveType::Lines);
-        }
+    if (!cachedPathVertices.empty()) {
+        window.draw(cachedPathVertices.data(), cachedPathVertices.size(), sf::PrimitiveType::Lines);
     }
 }
 

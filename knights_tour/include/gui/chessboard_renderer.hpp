@@ -51,6 +51,7 @@ private:
     const float BOARD_OFFSET_Y = 50.0f;
     
     sf::Font& font;
+    sf::Image knightImage;
     sf::Texture knightTexture;
     sf::Sprite knight;
     
@@ -79,4 +80,12 @@ private:
     
     // 状态消息
     std::string statusMessage;
+
+    // 缓存路径顶点
+    std::vector<sf::Vertex> cachedPathVertices;
+    int lastRenderedStep;
+    int lastRenderedSolution;
+    
+    // 更新缓存的路径
+    void updateCachedPath();
 };
