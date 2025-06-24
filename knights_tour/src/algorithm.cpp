@@ -38,7 +38,6 @@ std::vector<Path> solve_brute_force(Point start) {
     int step = 1;
     board(start.x, start.y) = step;
     stk.push({start, 0});
-    history.push_back({{}, {}, 1});
 
     while (!stk.empty()) {
         if (step == BOARD_SIZE * BOARD_SIZE) {
@@ -116,8 +115,6 @@ std::vector<Path> solve_heuristic(Point start) {
     int y = start.y;
     board(x, y) = step;
 
-    history.push_back({{}, {}, 1});
-
     while (step < BOARD_SIZE * BOARD_SIZE) {
         struct MoveOption {
             int nx, ny;
@@ -182,7 +179,6 @@ std::vector<Path> solve_heuristic_enhancer(Point start) {
     int step = 1;
     board(start.x, start.y) = step;
     stk.push({start, 0, {}});
-    history.push_back({{}, {}, 1});
     int countHistory = 0;
 
     while (!stk.empty()) {
