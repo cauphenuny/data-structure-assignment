@@ -1,3 +1,5 @@
+#import "@preview/touying:0.6.1": *
+#import themes.university: *
 == 算法
 
 #figure(image("assets/tree-hierarchy.png"))
@@ -110,32 +112,36 @@ template <typename Tree> struct Rotate {
 
   时间复杂度：$O(abs(h_"left" - h_"right"))$
 
+#pause
+
 - `join(left_tree, right_tree)`：
 
   删除 `left_tree.max()` 或 `right_tree.min()`，转换为带 seperator 的 `join`
 
-- `split(tree, key)`
+#pagebreak()
 
-  #grid(
-    columns: (1fr, 0.5fr),
-    [
+#grid(
+  columns: (1fr, 0.5fr),
+  [
+    - `split(tree, key)`
+
       如右图所示，在 `find(key)` 的路径上的位置将节点和它的左右子树分开
 
       然后自底向上合并，每一次合并用路径中的点（图中的$P_i$）作为 seperator 合并两子树
 
       $
-                    alpha P & <-- "join"(alpha, text(fill: #red, P))              \
-            beta P_8 beta_8 & <-- "join"(beta, text(fill: #red, P_8), beta_8)     \
+        alpha P & <-- "join"(alpha, text(fill: #red, P)) \
+        beta P_8 beta_8 & <-- "join"(beta, text(fill: #red, P_8), beta_8) \
         alpha_7 P_7 alpha P & <-- "join"(alpha_7, text(fill: #red, P_7), alpha P) \
-                        ... & <-- ...
+        ... & <-- ...
       $
 
       每一次合并的复杂度是高度差，高度差之和不超过总高度，所以复杂度为 $O(log n)$
-    ],
-    [
-      #figure(pad(left: 1em, image("assets/split.jpeg")), caption: [split演示. ref.TAOCP])
-    ],
-  )
+  ],
+  [
+    #figure(pad(left: 1em, image("assets/split.jpeg")), caption: [split演示. ref.TAOCP])
+  ],
+)
 
 == 实现细节
 
@@ -187,11 +193,15 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 
 使用 `std::unique_ptr` 管理节点所有权，防止内存泄露或者 `double free` 问题
 
+#pause
+
 === Trace 记录 (`trait::Trace`)
 
 - 在结构体中放一个 `std::vector<ForestView> record;` 记录每一步操作之后的状态
 
   所有对树结构的操作都通过调用 `bind(), unbind()` 方法，内部自动维护以及记录trace
+
+#pause
 
 - 记录 trace 的方法：
 
@@ -210,6 +220,7 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
     最开始的结构：
 
     - 非常容易想到
+    #figure(image("assets/traditional-node-hierarchy.png"))
   ],
   [
     #figure(image("assets/traditional-tree-hierarchy.png", height: 84%))
@@ -218,22 +229,19 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 
 #pagebreak()
 
-#grid(
-  columns: (1fr, 0.7fr),
-  [
-    但
-    - 以`maintain()`为例，每一次自底向上维护信息时，都需要调用 `node::maintain()`，然而这是一个虚函数，但没法内联，每一次调用都有额外开销
-    - Tree中只会存一个基类的 `Node` 指针，每一次使用子类 `Node` 特有信息时都需要 `static_cast` 或者 `dynamic_cast`
+但
+- 以`maintain()`为例，每一次自底向上维护信息时，都需要调用 `node::maintain()`，然而这是一个虚函数，但没法内联，每一次调用都有额外开销
 
-    - 拓展功能比较麻烦
-      - `Splay` 和 `AVL` 都可以旋转，要么实现两遍，要么创建一个 `RotatableTree`，增加继承层级
-      - 更好的想法应该是把 `Rotate` 抽出来作为一个只提供旋转功能的 trait
-      - #emph[既然如此，为什么不把所有的功能都抽出来？]
-  ],
-  [
-    #figure(image("assets/traditional-node-hierarchy.png"))
-  ],
-)
+#pause
+
+- Tree中只会存一个基类的 `Node` 指针，每一次使用子类 `Node` 特有信息时都需要 `static_cast` 或者 `dynamic_cast`
+
+#pause
+
+- 拓展功能比较麻烦
+  - `Splay` 和 `AVL` 都可以旋转，要么实现两遍，要么创建一个 `RotatableTree`，增加继承层级
+  - 更好的想法应该是把 `Rotate` 抽出来作为一个只提供旋转功能的 trait
+  - #emph[既然如此，为什么不把所有的功能都抽出来？]
 
 #pagebreak()
 
@@ -241,18 +249,19 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 
 #grid(
   columns: (1fr, 2fr),
-[
-  - 所有树平级，\
-    复用的功能只由 trait 提供
+  [
+    - 所有树平级，\
+      复用的功能只由 trait 提供
 
-  - 由于不同的树之间没有子类型关系，需要一个 `TreeAdapter` 来绑定到相同的接口上
+    - 由于不同的树之间没有子类型关系，需要一个 `TreeAdapter` 来绑定到相同的接口上
 
-], [#figure(image("assets/tree-hierarchy.png"))]
+  ],
+  [#figure(image("assets/tree-hierarchy.png"))],
 )
 
 #pagebreak()
 
-  查看是否内联：
+查看是否内联：
 
 - 重构前
 
@@ -280,3 +289,4 @@ std::map(ms)                25.09        11.58        30.74
 
 CRTP Improvement(%)         33.15        12.32        16.35
 ```
+
