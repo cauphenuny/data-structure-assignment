@@ -14,7 +14,7 @@ std::vector<Path> solve(Algorithm algo, Point start) {
     switch (algo) {
         case Algorithm::BRUTE_FORCE: return solve_brute_force(start);  // 调用暴力算法实现
         case Algorithm::HEURISTIC: return solve_heuristic(start);      // 调用启发式算法实现
-        case Algorithm::HEURISTIC_INHANCER: return solve_heuristic_inhancer(start); // 启发式排序的深度优先搜索
+        case Algorithm::HEURISTIC_ENHANCER: return solve_heuristic_enhancer(start); // 启发式排序的深度优先搜索
         default:
             throw std::invalid_argument("Unknown algorithm type");
     }
@@ -22,7 +22,7 @@ std::vector<Path> solve(Algorithm algo, Point start) {
 
 std::vector<Path> solve_brute_force(Point start) {
     struct Node {
-        Point pos;
+        Point pos;  // 当前坐标
         int move_index;  // 当前正在尝试的方向
     };
 
@@ -163,7 +163,7 @@ std::vector<Path> solve_heuristic(Point start) {
     return result;
 }
 
-std::vector<Path> solve_heuristic_inhancer(Point start) {
+std::vector<Path> solve_heuristic_enhancer(Point start) {
     struct Node {
         Point pos;
         int move_index;  // 当前正在尝试的方向索引
