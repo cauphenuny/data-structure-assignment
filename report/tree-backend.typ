@@ -235,6 +235,10 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
   ],
 )
 
+#pagebreak()
+
+*重构!*
+
 #grid(
   columns: (1fr, 2fr),
 [
@@ -242,6 +246,37 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
     复用的功能只由 trait 提供
 
   - 由于不同的树之间没有子类型关系，需要一个 `TreeAdapter` 来绑定到相同的接口上
+
 ], [#figure(image("assets/tree-hierarchy.png"))]
 )
 
+#pagebreak()
+
+  查看是否内联：
+
+- 重构前
+
+  ```cpp
+  $ nm | c++filt
+  000000010001e7c8 legacy::AVLTree<int, int>::AVLNode::maintain()
+  000000010001c4ec legacy::Tree<int, int>::Node::maintain()
+  ```
+
+  只有 `Tree::maintain()` 被内联了，Node 本身的 `maintain()` 没有被内联
+
+- 重构后：
+
+  ```cpp
+  $ nm | c++filt
+  0000000100020578 AVLNode<int, int>::stringify() const
+  000000010001fe4c AVLNode<int, int>::~AVLNode()
+  ```
+
+```
+Tree                       Insert         Find       Remove
+legacy::AVLTree(ms)         48.40        11.65        49.86
+AVLTree(ms)                 32.35        10.21        41.70
+std::map(ms)                25.09        11.58        30.74
+
+CRTP Improvement(%)         33.15        12.32        16.35
+```
