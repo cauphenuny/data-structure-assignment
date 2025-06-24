@@ -38,7 +38,7 @@ struct TreeBase {
     virtual auto trace(const std::function<void()>& func) -> std::vector<ForestView> = 0;
     virtual void traceStart() = 0;
     virtual void traceStop() = 0;
-    virtual void printCLI() const = 0;
+    virtual void printCLI(int basic_indent = 0) const = 0;
     virtual auto stringify() const -> std::string = 0;
     virtual auto name() const -> std::string = 0;
 };
@@ -73,7 +73,7 @@ struct TreeAdapter : Tree<K, V> {
     void clear() override { impl->clear(); }
     void print() const override { impl->print(); }
     auto view() const -> ForestView override { return impl->view(); }
-    void printCLI() const override { impl->printCLI(); }
+    void printCLI(int basic_indent = 0) const override { impl->printCLI(basic_indent); }
     auto stringify() const -> std::string override { return impl->stringify(); }
     auto name() const -> std::string override { return impl->name(); }
     auto insert(const K& k, const V& v) -> Status override { return impl->insert(k, v); }

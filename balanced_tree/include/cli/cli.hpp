@@ -12,7 +12,7 @@ void printNodeViewCLI(const NodeView* node, int depth) {
     if (!node) return;
     printNodeViewCLI(node->child[R].get(), depth + 1);
     auto [key, value] = node->content();
-    std::cout << std::format("{}{}: {}\n", std::string(depth * 4, ' '), key, value);
+    std::cout << std::format("{}{{{}: {}}}\n", std::string(depth * 4, ' '), key, value);
     printNodeViewCLI(node->child[L].get(), depth + 1);
 }
 
@@ -148,7 +148,7 @@ trace mode:
                      return;
                  }
                  std::cout << std::format("Tree {}: {}:\n", index, viewers[index].tree->name());
-                 viewers[index].tree->printCLI();
+                 viewers[index].tree->printCLI(1);
              };
              if (name.empty()) {
                  for (int i = 0; i < 256; i++) {

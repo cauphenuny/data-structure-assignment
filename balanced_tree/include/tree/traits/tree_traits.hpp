@@ -345,19 +345,20 @@ template <typename Tree> struct Subscript {
 };
 
 template <typename Tree> struct Print {
-    void printCLI() const {
+    void printCLI(int basic_indent) const {
         auto& self = *(static_cast<const Tree*>(this));
         if (!self.root) {
-            std::cout << "<empty>" << '\n';
+            std::cout << std::string(basic_indent * 4, ' ') << "<empty>" << '\n';
             return;
         }
         auto print_node = [&](auto self, auto node, int depth) {
             if (!node) return;
             self(self, node->child[R].get(), depth + 1);
-            std::cout << std::string(depth * 4, ' ') << node->key << ": " << node->value << "\n";
+            std::cout << std::string(depth * 4, ' ') << "{" << node->key << ": " << node->value
+                      << "}\n";
             self(self, node->child[L].get(), depth + 1);
         };
-        print_node(print_node, self.root.get(), 0);
+        print_node(print_node, self.root.get(), basic_indent);
     }
     void print() const {
         // auto& self = *(static_cast<const Tree*>(this));
