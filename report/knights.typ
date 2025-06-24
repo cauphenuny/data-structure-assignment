@@ -1,7 +1,5 @@
 = 马踏棋盘问题演示
 
-== World
+#include "knights-backend.typ"
 
-```python
-print("Hello World!")
-```
+#include "knights-gui.typ"

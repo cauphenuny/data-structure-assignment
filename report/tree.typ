@@ -1,5 +1,6 @@
 = 平衡树操作演示
 
-== Hello
+#include "tree-backend.typ"
 
-#lorem(20)
+#include "tree-gui.typ"
+
