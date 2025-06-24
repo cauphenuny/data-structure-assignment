@@ -24,6 +24,7 @@
 #let theme = "university"
 
 #show raw.where(block: true): text.with(size: 0.8em)
+#import themes.university: *
 
 #show: doc => {
   if theme == "university" {
@@ -63,6 +64,10 @@
   }
 }
 
+#include "knights.typ"
+
 #include "tree.typ"
 
-#include "knights.typ"
+#focus-slide[
+  Thanks!
+]
