@@ -4,7 +4,7 @@
 // #show: show-cn-fakebold
 #import cosmos.rainbow: *
 #show: show-theorion
-#set text(font: ("New Computer Modern", "Songti SC"), lang: "zh")
+#set text(font: ("New Computer Modern", "Songti SC", "SimSun"), lang: "zh")
 #show emph: text.with(font: ("New Computer Modern", "STKaiti"))
 
 #show ref: r => text(blue, r)
