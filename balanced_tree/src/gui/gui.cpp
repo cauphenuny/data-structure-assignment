@@ -122,13 +122,13 @@ void GUIBase::render() {
 }
 
 void GUIBase::initTreeData() {
-    treeRenderer.addNode((sf::Vector2f){400, 100}, 1);
-    treeRenderer.addNode((sf::Vector2f){200, 200}, 2);
-    treeRenderer.addNode((sf::Vector2f){600, 200}, 3);
-    treeRenderer.addNode((sf::Vector2f){100, 300}, 4);
-    treeRenderer.addNode((sf::Vector2f){300, 300}, 5);
-    treeRenderer.addNode((sf::Vector2f){500, 300}, 6);
-    treeRenderer.addNode((sf::Vector2f){700, 300}, 7);
+    treeRenderer.addNode(sf::Vector2f(400, 100), 1);
+    treeRenderer.addNode(sf::Vector2f(200, 200), 2);
+    treeRenderer.addNode(sf::Vector2f(600, 200), 3);
+    treeRenderer.addNode(sf::Vector2f(100, 300), 4);
+    treeRenderer.addNode(sf::Vector2f(300, 300), 5);
+    treeRenderer.addNode(sf::Vector2f(500, 300), 6);
+    treeRenderer.addNode(sf::Vector2f(700, 300), 7);
 
     treeRenderer.addEdge(0, 1);
     treeRenderer.addEdge(0, 2);
