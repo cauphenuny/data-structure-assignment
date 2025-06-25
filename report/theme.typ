@@ -19,7 +19,7 @@
   //import "@preview/cuti:0.2.1": show-cn-fakebold
   //show: show-cn-fakebold
 
-  set text(font: ("New Computer Modern", "Songti SC"), lang: lang)
+  set text(font: ("New Computer Modern", "Songti SC", "SimSun"), lang: lang)
   show emph: text.with(font: ("New Computer Modern", "STKaiti"))
   show: thmrules
 
