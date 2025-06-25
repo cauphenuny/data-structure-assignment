@@ -25,7 +25,7 @@
 
   set heading(numbering: numbering)
 
-  set image(width: 60%)
+  set image(width: 80%)
   set page(
     margin: (x: 4em, y: 6em),
     header: context {

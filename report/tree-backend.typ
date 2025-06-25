@@ -15,7 +15,7 @@
 
 ---
 
-#figure(image("assets/tree-hierarchy.png"))
+#figure(image("assets/tree-hierarchy.png"), caption: [Tree 类图])
 
 ---
 
