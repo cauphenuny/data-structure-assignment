@@ -32,14 +32,17 @@ void printTraceCLI(
     for (size_t i = 0; i < trace.size(); ++i) {
         std::cout << "#" << i + 1 << ":\n";
         printForestCLI(trace[i]);
-        if (i < trace.size() - 1 && !auto_play) {
-            std::cout << "------------\n(trace) ";
-            int ch;
-            do {
-                ch = getchar();
-                if (ch == 'h') std::cout << usage;
-            } while (ch != 'n' && ch != 'c' && ch != '\n');
-            if (ch == 'c') auto_play = 1;
+        if (i < trace.size() - 1) {
+            std::cout << "------------\n";
+            if (!auto_play) {
+                printf("(trace) ");
+                int ch;
+                do {
+                    ch = getchar();
+                    if (ch == 'h') std::cout << usage;
+                } while (ch != 'n' && ch != 'c');
+                if (ch == 'c') auto_play = 1;
+            }
         }
     }
 }
@@ -94,7 +97,7 @@ int runCLI() {
     [S]equential-insert <tree-id: a-z|A-Z> <start: int> <end: int>
 
 trace mode:
-    [n] or [\n]: next
+    [n]: next
     [c]: auto continue
 )",
         K_NAME, V_NAME);
