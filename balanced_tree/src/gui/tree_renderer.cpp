@@ -19,7 +19,7 @@ TreeRenderer::TreeRenderer(const sf::Font& font, float nodeRadius)
 }
 
 int TreeRenderer::addNode(sf::Vector2f position, int value) {
-    nodes.emplace_back(position - (sf::Vector2f){nodeRadius, nodeRadius}, value);
+    nodes.emplace_back(position - sf::Vector2f{nodeRadius, nodeRadius}, value);
     updateVisuals();
     return nodes.back().id;
 }
