@@ -5,7 +5,7 @@
   title: meta.title,
   course: meta.course,
   author: meta.author,
-  semister: meta.semester,
+  semester: meta.semester,
   doc,
 )
 

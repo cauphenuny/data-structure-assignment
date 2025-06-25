@@ -8,7 +8,7 @@
 #let conf(
   title: none,
   sub-title: none,
-  semister: none,
+  semester: none,
   course: none,
   author: none,
   numbering: numbly("{1:一}、", default: "1.1  "),
@@ -34,7 +34,7 @@
       stack(
         spacing: 0.2em,
         (
-          if (page_number == 1) { align(right, emph(semister + " " + course)) } else {
+          if (page_number == 1) { align(right, emph(semester + " " + course)) } else {
             align(right, [#emph(author) | #emph(course) | #emph(title)])
           }
         ),
@@ -79,7 +79,7 @@
     inset: 0.6em,
     stroke: 0.05em,
   )
-  show raw: set text(font: ("Menlo", "FiraCode Nerd Font"))
+  // show raw: set text(font: ("Menlo", "FiraCode Nerd Font"))
 
   align(center, text(1.7em)[*#title*])
   align(right, emph(author))
