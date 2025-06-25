@@ -115,4 +115,28 @@
                 continue;
             }
     }
+
+    // 首次处理该节点时，按启发式规则排序可能方向
+    if (current.sorted_dirs.empty()) {
+        struct MoveOption {
+            int dir;
+            int onward;
+        };
+        std::vector<MoveOption> options;
+        for (int i = 0; i < 8; ++i) {
+            int nx = cur_pos.x + dx[i];
+            int ny = cur_pos.y + dy[i];
+            if (nx >= 0 && nx < BOARD_SIZE && ny >= 0 && ny < BOARD_SIZE && board(nx, ny) == 0) {
+                int onward = count_onward_moves(board, nx, ny);
+                options.push_back({i, onward});
+            }
+        }
+
+        std::sort(options.begin(), options.end(), [](const MoveOption& a, const MoveOption& b) {
+            return a.onward < b.onward;
+        });
+
+        for (const auto& opt : options)
+            current.sorted_dirs.push_back(opt.dir);
+    }
 ```
