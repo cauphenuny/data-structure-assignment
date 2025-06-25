@@ -11,5 +11,6 @@
 
 完整代码：#meta.repo
 
-#include "knights.typ"
 #include "tree.typ"
+
+#include "knights.typ"

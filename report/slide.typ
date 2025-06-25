@@ -26,6 +26,6 @@
   ]
 }
 
-#include "knights.typ"
-
 #include "tree.typ"
+
+#include "knights.typ"
