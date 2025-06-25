@@ -5,13 +5,11 @@
 
 使用 template 实现对于 `Key, Value` 的泛型支持
 
-使用 C++ 的 CRTP Pattern 实现代码复用
+使用 CRTP pattern 实现代码复用
 
-实现了多种平衡算法：`BasicTree`, `AVLTree`, `Treap`, `SplayTree`
+最大程度上复用代码的同时实现了多种平衡算法：`BasicTree`, `AVLTree`, `Treap`, `SplayTree`
 
-高度抽象的类层级：
-
-三层结构，逐级擦除类型信息
+三层类结构，逐级擦除类型信息
 
 `TreeAdapter<K, V, Impl> : Tree<K, V> : TreeBase`
 
@@ -300,4 +298,58 @@ std::map(ms)                25.09        11.58        30.74
 CRTP Improvement(%)         33.15        12.32        16.35
 ```
 
-#figure(image("assets/benchmark-insert.png", width: 80%), caption: [benchmark: insert])
+#figure(image("assets/benchmark-insert.png", width: 70%), caption: [benchmark: insert])
+
+完整代码：#meta.repo
+
+== 单元测试
+
+整个项目还是挺大的，因此为每个功能写了测试
+
+使用 `doctest` 库进行单元测试
+
+```bash
+$ build/balanced_tree test
+[doctest] doctest version is "2.4.12"
+[doctest] run with "--help" for options
+===============================================================================
+[doctest] test cases:   26 |   26 passed | 0 failed | 0 skipped
+[doctest] assertions: 6854 | 6854 passed | 0 failed |
+[doctest] Status: SUCCESS!
+```
+
+测试举例
+
+```cpp
+SUBCASE("Split and merge") {
+    // Split at 50
+    auto other = tree->split(50);
+    CHECK(other != nullptr);
+    CHECK(tree->size() + other->size() == 7);
+
+    Test::check(tree);
+    Test::check(other);
+
+    // Verify split worked correctly
+    CHECK(tree->find(30) != nullptr);
+    CHECK(tree->find(20) != nullptr);
+    CHECK(tree->find(40) != nullptr);
+    CHECK(tree->find(50) == nullptr);
+    CHECK(tree->find(70) == nullptr);
+
+    CHECK(other->find(50) != nullptr);
+    CHECK(other->find(70) != nullptr);
+    CHECK(other->find(60) != nullptr);
+    CHECK(other->find(80) != nullptr);
+
+    // Merge back
+    tree->merge(std::move(other));
+    CHECK(tree->size() == 7);
+    CHECK(tree->find(50) != nullptr);
+    CHECK(tree->find(70) != nullptr);
+    CHECK(tree->find(60) != nullptr);
+    CHECK(tree->find(80) != nullptr);
+
+    Test::check(tree);
+}
+```
