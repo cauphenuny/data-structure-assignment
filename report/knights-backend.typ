@@ -27,7 +27,7 @@
         int size() const { ...          // 返回栈元素个数
 ```
 
-#pagebreak()
+---
 
 为了可视化搜索的过程，我们决定记录过程中每一步试探（包括回溯）。
 
@@ -51,7 +51,7 @@
 
 但即便如此，暴力搜索算法的大量路径试探仍会带来无法承受的内存开销。
 
-#pagebreak()
+---
 === 贪心算法
 贪心算法实现 `solve_heuristic`(`Point start`)：
 
@@ -72,7 +72,7 @@
         return count;
     }
 ```
-#pagebreak()
+---
 
 在`solve_heuristic`(`Point start`) 内部对每一步的 `MoveOption` 数组排序，并向最小的方向进发。
 
@@ -93,7 +93,7 @@
 ```
 但贪心算法只能得到一个可行解。我们希望算法可以找到多条可行解（具有找到全部可行解的潜力）。
 
-#pagebreak()
+---
 
 === 基于`Warnsdorf's Rule`的深度搜索算法
 算法实现 `solve_heuristic_enhancer`(`Point start`)：

@@ -1,10 +1,25 @@
-#import "@preview/touying:0.6.1": *
-#import themes.university: *
+#import "meta.typ": *
 == 算法
+
+语言：C++
+
+使用 template 实现对于 `Key, Value` 的泛型支持
+
+使用 C++ 的 CRTP Pattern 实现代码复用
+
+实现了多种平衡算法：`BasicTree`, `AVLTree`, `Treap`, `SplayTree`
+
+高度抽象的类层级：
+
+三层结构，逐级擦除类型信息
+
+`TreeAdapter<K, V, Impl> : Tree<K, V> : TreeBase`
+
+---
 
 #figure(image("assets/tree-hierarchy.png"))
 
-#pagebreak()
+---
 
 === 基础操作实现
 
@@ -27,7 +42,7 @@ struct AVLTreeImpl : Search<AVLTreeImpl>;
 struct TreapImpl : Search<TreapImpl>;
 ```
 
-#pagebreak()
+---
 
 例：实现可提供不同功能的 `maintain()` (`trait::node::Maintain`)
 
@@ -52,7 +67,7 @@ template <typename Node> struct Size {
 };
 ```
 
-#pagebreak()
+---
 
 ```cpp
 
@@ -67,7 +82,7 @@ struct BasicNode : Maintain<Size<BasicNode>>;
 struct AVLNode : Maintain<Size<AVLNode>, Height<AVLNode>>;
 ```
 
-#pagebreak()
+---
 
 === 旋转实现 (`trait::Rotate`)
 
@@ -96,7 +111,7 @@ template <typename Tree> struct Rotate {
 };
 ```
 
-#pagebreak()
+---
 
 === AVL树的 `split` 和` join` (`AVLTree::{join, split}`)
 
@@ -118,7 +133,7 @@ template <typename Tree> struct Rotate {
 
   删除 `left_tree.max()` 或 `right_tree.min()`，转换为带 seperator 的 `join`
 
-#pagebreak()
+---
 
 #grid(
   columns: (1fr, 0.5fr),
@@ -160,7 +175,7 @@ struct TreeBase {
     virtual auto name() const -> std::string = 0;
 };
 ```
-#pagebreak()
+---
 ```cpp
 template <typename K, typename V> struct Tree : TreeBase {
     virtual auto find(const K& key) -> Pair<const K, V>* = 0;
@@ -187,7 +202,7 @@ template <typename K, typename V>
 using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 ```
 
-#pagebreak()
+---
 
 === 内存管理
 
@@ -210,7 +225,7 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
   每作一次记录 `snapshot()` 就复制出 `entries` 对应每一颗树中的信息，保存至 `record`
 
 
-#pagebreak()
+---
 
 #grid(
   columns: (0.4fr, 0.6fr),
@@ -223,11 +238,11 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
     #figure(image("assets/traditional-node-hierarchy.png"))
   ],
   [
-    #figure(image("assets/traditional-tree-hierarchy.png", height: 84%))
+    #figure(image("assets/traditional-tree-hierarchy.png", width: 80%))
   ],
 )
 
-#pagebreak()
+---
 
 但
 - 以`maintain()`为例，每一次自底向上维护信息时，都需要调用 `node::maintain()`，然而这是一个虚函数，但没法内联，每一次调用都有额外开销
@@ -243,23 +258,18 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
   - 更好的想法应该是把 `Rotate` 抽出来作为一个只提供旋转功能的 trait
   - #emph[既然如此，为什么不把所有的功能都抽出来？]
 
-#pagebreak()
+---
 
 *重构!*
 
-#grid(
-  columns: (1fr, 2fr),
-  [
-    - 所有树平级，\
-      复用的功能只由 trait 提供
+- 所有树平级，\
+  复用的功能只由 trait 提供
 
-    - 由于不同的树之间没有子类型关系，需要一个 `TreeAdapter` 来绑定到相同的接口上
+- 由于不同的树之间没有子类型关系，需要一个 `TreeAdapter` 来绑定到相同的接口上
 
-  ],
-  [#figure(image("assets/tree-hierarchy.png"))],
-)
+#figure(image("assets/tree-hierarchy.png"))
 
-#pagebreak()
+---
 
 查看是否内联：
 
