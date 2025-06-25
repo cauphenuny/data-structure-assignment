@@ -22,14 +22,14 @@ commands:
     [S]equential-insert <tree-id: a-z|A-Z> <start: int> <end: int>
 
 trace mode:
-    [n] or [\n]: next
+    [n]: next
     [c]: auto continue
 >>>
 ```
 
-提供了一个功能强大的解释器环境
+我们实现了一个功能强大的解释器环境
 
-支持创建/删除/输出树，在树中插入节点，删除节点，查找节点，分割树，合并树。
+支持创建/删除/输出树，在树中插入/删除/查找节点，分割树，合并树。
 
 树名为单个字母 (a-z, A-Z)，可以使用任意算法 (basic: 普通BST, avl: AVLTree, treap: Treap, splay: Splay) 创建树
 

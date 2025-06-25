@@ -205,18 +205,12 @@ template <typename Tree> struct Box {
         return find(find, node ? node->parent : nullptr, node);
     }
     auto& minBox(auto& node) {
-        auto find = [](auto& self, auto& node) -> decltype(node) {
-            if (!node || !node->child[L]) return node;
-            return self(self, node->child[L]);
-        };
-        return find(find, node);
+        if (!node || !node->child[L]) return node;
+        return minBox(node->child[L]);
     }
     auto& maxBox(auto& node) {
-        auto find = [](auto& self, auto& node) -> decltype(node) {
-            if (!node || !node->child[R]) return node;
-            return self(self, node->child[R]);
-        };
-        return find(find, node);
+        if (!node || !node->child[R]) return node;
+        return maxBox(node->child[R]);
     }
     auto& box(auto node_ptr) {
         auto& self = *(static_cast<Tree*>(this));

@@ -201,6 +201,8 @@ template <typename K, typename V> struct Tree : TreeBase {
 
 - 通过 `TreeAdapter` 绑定具体实现到 `Tree` 接口上
 
+`TreeAdapter` 拥有一个 `Impl` 对象，通过转发 `Tree` 接口的方法到 Impl 对象上来实现具体的树算法
+
 ```cpp
 template <typename K, typename V, template <typename, typename> typename Impl>
 struct TreeAdapter : Tree<K, V> {
@@ -212,7 +214,7 @@ struct TreeAdapter : Tree<K, V> {
 };
 ```
 
-将算法通过模版参数传入 `TreeAdapter`，进而能统一使用 `Tree` 接口控制不同类型的树
+将算法通过模版参数 `Impl` 传入 `TreeAdapter`，进而能统一使用 `Tree` 接口控制不同类型的树
 
 ```cpp
 template <typename K, typename V>
