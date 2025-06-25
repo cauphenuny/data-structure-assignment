@@ -5,13 +5,17 @@
 
 使用 template 实现对于 `Key, Value` 的泛型支持
 
-使用 CRTP pattern 实现代码复用
+使用 CRTP & Mixin 实现代码复用
 
 最大程度上复用代码的同时实现了多种平衡算法：`BasicTree`, `AVLTree`, `Treap`, `SplayTree`
 
 三层类结构，逐级擦除类型信息
 
 `TreeAdapter<K, V, Impl> : Tree<K, V> : TreeBase`
+
+使用 `TreeBase` 时不需要关心内部的 `key, value` 是什么类型
+
+使用 `Tree<K, V>` 时不需要关心内部用的什么算法实现平衡树
 
 ---
 
@@ -158,6 +162,8 @@ template <typename Tree> struct Rotate {
 
 == 实现细节
 
+- 基类接口，提供类型无关的方法：
+
 ```cpp
 struct TreeBase {
     virtual ~TreeBase() = default;
@@ -174,6 +180,9 @@ struct TreeBase {
 };
 ```
 ---
+
+- 在 `TreeBase` 的基础上定义 `Tree` 接口，提供需要 `key,value` 类型信息的方法
+
 ```cpp
 template <typename K, typename V> struct Tree : TreeBase {
     virtual auto find(const K& key) -> Pair<const K, V>* = 0;
@@ -187,6 +196,11 @@ template <typename K, typename V> struct Tree : TreeBase {
     virtual auto operator[](const K& key) const -> const V& = 0;
 };
 ```
+
+---
+
+- 通过 `TreeAdapter` 绑定具体实现到 `Tree` 接口上
+
 ```cpp
 template <typename K, typename V, template <typename, typename> typename Impl>
 struct TreeAdapter : Tree<K, V> {
@@ -196,8 +210,68 @@ struct TreeAdapter : Tree<K, V> {
     ...
     std::unique_ptr<Impl<K, V>> impl;
 };
+```
+
+将算法通过模版参数传入 `TreeAdapter`，进而能统一使用 `Tree` 接口控制不同类型的树
+
+```cpp
+template <typename K, typename V>
+using BasicTree = TreeAdapter<K, V, BasicTreeImpl>;
 template <typename K, typename V>
 using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
+template <typename K, typename V>
+using SplayTree = TreeAdapter<K, V, SplayTreeImpl>;
+template <typename K, typename V>
+using Treap = TreeAdapter<K, V, TreapImpl>;
+```
+
+---
+
+- 每一种 `Tree` 都从 `trait::` 中选取使用的特性继承，比如：AVL/Splay使用旋转特性
+
+AVLNode 需要维护 Height, 而普通 Node 不需要，\
+所以分别继承 `Maintain<Size<AVLNode>, Height<AVLNode>>` 和 `Maintain<Size<Node>>`
+
+```cpp
+template <typename K, typename V>
+struct AVLNode
+    : Pair<const K, V>,
+      trait::node::TypeTraits<K, V>,
+      trait::node::Link<AVLNode<K, V>>,
+      trait::node::View<AVLNode<K, V>>,
+      trait::node::Maintain<trait::node::Size<AVLNode<K, V>>, trait::node::Height<AVLNode<K, V>>>,
+      trait::node::Search<AVLNode<K, V>> {
+
+    AVLNode(const K& k, const V& v, AVLNode* parent = nullptr)
+        : Pair<const K, V>(k, v), trait::node::Link<AVLNode<K, V>>(parent) {
+        this->maintain();
+    }
+};
+```
+
+---
+
+- 通过 Mixin 结合不同功能，写一个 `Mixin` 辅助模版类减少CRTP重复的派生类声明
+
+```cpp
+/// @struct Mixin
+/// @brief simply mixin multiple traits into a single type, Mixin<T, A, B> serves as A<T>, B<T>
+template <typename Type, template <typename> class... Traits> struct Mixin : Traits<Type>... {};
+```
+
+```cpp
+
+template <typename K, typename V>
+struct AVLTreeImpl
+    : trait::Mixin<AVLNode<K, V>, trait::TypeTraits, trait::Maintain>,
+      trait::Mixin<
+          AVLTreeImpl<K, V>, trait::InsertRemove, trait::Search, trait::Clear,
+          trait::Size, trait::Height, trait::Print, trait::Traverse, trait::Merge,
+          trait::Subscript, trait::Conflict, trait::Box, trait::Detach, trait::View,
+          trait::Trace, trait::TracedBind, trait::TracedConstruct, trait::Rotate,
+          trait::Iterate> {
+    // ...
+};
 ```
 
 ---
@@ -205,6 +279,14 @@ using AVLTree = TreeAdapter<K, V, AVLTreeImpl>;
 === 内存管理
 
 使用 `std::unique_ptr` 管理节点所有权，防止内存泄露或者 `double free` 问题
+
+```cpp
+template <typename Node> struct Link {
+    Node* parent{nullptr};
+    std::unique_ptr<Node> child[2]{nullptr, nullptr};
+    Link(Node* parent = nullptr) : parent(parent) {}
+};
+```
 
 #pause
 
@@ -298,7 +380,9 @@ std::map(ms)                25.09        11.58        30.74
 CRTP Improvement(%)         33.15        12.32        16.35
 ```
 
-#figure(image("assets/benchmark-insert.png", width: 70%), caption: [benchmark: insert])
+#figure(image("assets/benchmark-insert.png", width: 60%), caption: [benchmark: insert])
+
+可以看到重构后提升还是很显著的
 
 完整代码：#meta.repo
 
