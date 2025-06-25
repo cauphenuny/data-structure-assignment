@@ -325,7 +325,7 @@ template <typename Node> struct Link {
 ---
 
 但
-- 以`maintain()`为例，每一次自底向上维护信息时，都需要调用 `node::maintain()`，然而这是一个虚函数，但没法内联，每一次调用都有额外开销
+- 以`maintain()`为例，每一次自底向上维护信息时，都需要调用 `node::maintain()`，然而这是一个虚函数，没法内联，每一次调用都有额外开销
 
 #pause
 

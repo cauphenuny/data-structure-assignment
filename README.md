@@ -11,13 +11,13 @@ Build: `cmake -Bbuild && cmake --build build`
 
 ---
 
-[Balanced Tree Visualizer](/balanced_tree/README.md)
+## Balanced Tree Visualizer
 
 ![](report/assets/tree-hierarchy.png)
 
 ---
 
-[Knight's Tour Problem Visualizer](/knights_tour/README.md)
+## Knight's Tour Problem Visualizer
 
 ![](report/assets/knights-gui-demo.png)
 
