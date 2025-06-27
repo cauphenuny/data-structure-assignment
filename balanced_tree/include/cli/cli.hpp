@@ -69,15 +69,19 @@ int runCLI() {
     auto refresh = [&] {
         viewers.clear();
         for (auto& [ch, tree] : basics) {
+            if (!tree) continue;
             viewers[ch] = {Algorithm::BASIC, tree.get()};
         }
         for (auto& [ch, tree] : avls) {
+            if (!tree) continue;
             viewers[ch] = {Algorithm::AVL, tree.get()};
         }
         for (auto& [ch, tree] : treaps) {
+            if (!tree) continue;
             viewers[ch] = {Algorithm::TREAP, tree.get()};
         }
         for (auto& [ch, tree] : splays) {
+            if (!tree) continue;
             viewers[ch] = {Algorithm::SPLAY, tree.get()};
         }
     };
@@ -104,6 +108,24 @@ int runCLI() {
 trace mode:
     [n]: next
     [c]: auto continue
+
+examples:
+>>> c T treap
+>>> i T 1 1
+>>> i T 2 2
+>>> S T 1 10
+>>> p
+
+>>> A = avl.create()
+>>> A.SequentialInsert(1, 10)
+>>> B = A.split(5)
+>>> B.print
+>>> print
+>>> B.merge(A)
+>>> print
+>>> delete(B)
+----
+
 )",
         K_NAME, V_NAME);
     std::cout << usage;
@@ -368,6 +390,42 @@ trace mode:
         {Ret::COMSUMED, ""},
         {Ret::EXIT, "Exit.\n"}};
     const char PROMPT[] = ">>> ";
+    auto parse = [](auto self, const std::string& s) -> std::pair<std::string, std::string> {
+        auto lparen = s.find('(');
+        auto rparen = s.rfind(')');
+        auto dot = s.find('.');
+        auto equal = s.find('=');
+        if (equal != std::string::npos) {
+            auto obj = s.substr(0, equal);
+            auto [cmd, args] = self(self, s.substr(equal + 1));
+            return std::make_pair(cmd, obj + " " + args);
+        }
+        if (dot != std::string::npos) {
+            auto obj = s.substr(0, dot);
+            auto cmd = s.substr(dot + 1);
+            if (lparen != std::string::npos && rparen != std::string::npos) {
+                auto args = s.substr(lparen + 1, rparen - lparen - 1);
+                for (auto& ch : args) ch = ch == ',' ? ' ' : ch;
+                return std::make_pair(cmd, obj + " " + args);
+            } else {
+                return std::make_pair(cmd, obj);
+            }
+        }
+        if (lparen != std::string::npos && rparen != std::string::npos) {
+            auto cmd = s.substr(0, lparen);
+            auto args = s.substr(lparen + 1, rparen - lparen - 1);
+            for (auto& ch : args) ch = ch == ',' ? ' ' : ch;
+            return std::make_pair(cmd, args);
+        }
+        auto space = s.find(' ');
+        if (space != std::string::npos) {
+            auto cmd = s.substr(0, space);
+            auto args = s.substr(space + 1);
+            return std::make_pair(cmd, args);
+        } else {
+            return std::make_pair(s, "");
+        }
+    };
     while (true) {
         std::cout << PROMPT;
         std::string line;
@@ -375,11 +433,13 @@ trace mode:
             std::cout << msg[Ret::EXIT];
             break;
         }
-        std::istringstream iss(line);
-        std::string cmd;
-        if (!(iss >> cmd)) continue;
-        if (commands.contains(cmd[0])) {
-            auto ret = commands[cmd[0]](std::move(iss));
+        if (line.empty()) continue;
+        auto [cmd, args] = parse(parse, line);
+        char ch = '\0';
+        std::istringstream cmd_iss(cmd), iss(args);
+        cmd_iss >> ch;
+        if (commands.contains(ch)) {
+            auto ret = commands[ch](std::move(iss));
             std::cout << msg[ret];
             if (ret == Ret::EXIT) {
                 break;
