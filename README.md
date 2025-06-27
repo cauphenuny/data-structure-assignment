@@ -11,14 +11,14 @@ Build: `cmake -Bbuild && cmake --build build`
 
 ---
 
-## Balanced Tree
+## [Balanced Tree](/balanced_tree/)
 
-![](report/assets/tree-hierarchy.png)
+![tree-hierarchy](report/assets/tree-hierarchy.png)
 
 ---
 
-## Knight's Tour Problem
+## [Knight's Tour Problem](/knights_tour/)
 
-![](report/assets/knights-gui-demo.png)
+![knights-gui-demo](report/assets/knights-gui-demo.png)
 
-![](report/assets/knights-gui.png)
+![knights-gui-structure](report/assets/knights-gui.png)

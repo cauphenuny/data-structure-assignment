@@ -35,13 +35,17 @@ void printTraceCLI(
         if (i < trace.size() - 1) {
             std::cout << "------------\n";
             if (!auto_play) {
-                printf("(trace) ");
-                int ch;
+                char ch;
                 do {
-                    ch = getchar();
-                    if (ch == 'h') std::cout << usage;
-                } while (ch != 'n' && ch != 'c');
+                    printf("(trace) ");
+                    std::string buffer;
+                    std::getline(std::cin, buffer);
+                    ch = buffer.empty() ? 'n' : buffer[0];
+                } while (ch != 'n' && ch != 'c' && ch != 'h');
                 if (ch == 'c') auto_play = 1;
+                if (ch == 'h') {
+                    std::cout << usage;
+                }
             }
         }
     }
@@ -83,18 +87,19 @@ int runCLI() {
     [h]elp
 
     [c]reate <tree-id: a-z|A-Z> <algo: basic|avl|treap|splay>
-    [d]elete <tree-id: a-z|A-Z>
-    [p]rint <tree-id: a-z|A-Z>*
+    [d]elete <tree-id>
+    [p]rint <tree-id>*
+    [l]ist
 
-    [i]nsert <tree-id: a-z|A-Z> <key: {0}> <value: {1}>
-    [r]emove <tree-id: a-z|A-Z> <key: {0}>
-    [f]ind <tree-id: a-z|A-Z> <key: {0}>
+    [i]nsert <tree-id> <key: {0}> <value: {1}>
+    [r]emove <tree-id> <key: {0}>
+    [f]ind <tree-id> <key: {0}>
 
-    [s]plit <dest-id: a-z|A-Z> <src-id: a-z|A-Z> <key: {0}>
-    [m]erge <dest-id: a-z|A-Z> <src-id: a-z|A-Z>
+    [s]plit <dest-id> <src-id> <key: {0}>
+    [m]erge <dest-id> <src-id>
 
-    [R]andom-insert <tree-id: a-z|A-Z> <count: int>
-    [S]equential-insert <tree-id: a-z|A-Z> <start: int> <end: int>
+    [R]andom-insert <tree-id> <count: int>
+    [S]equential-insert <tree-id> <start: {0}> <end: {0}>
 
 trace mode:
     [n]: next
@@ -107,15 +112,28 @@ trace mode:
         auto trace = viewers[index].tree->trace();
         printTraceCLI(std::format("------------\nTrace of tree {}", (char)index), usage, trace);
     };
-    std::vector<std::pair<char, std::function<Ret(std::istringstream&)>>> commands = {
-        {'q', [](std::istringstream&) -> Ret { return Ret::EXIT; }},
+    std::map<char, std::function<Ret(std::istringstream)>> commands = {
+        {'q', [](std::istringstream) -> Ret { return Ret::EXIT; }},
         {'h',
-         [&](std::istringstream&) -> Ret {
+         [&](std::istringstream) -> Ret {
              std::cout << usage;
              return Ret::COMSUMED;
          }},
+        {'l',
+         [&](std::istringstream) -> Ret {
+             if (viewers.empty()) {
+                 std::cout << "No trees initialized.\n";
+             } else {
+                 std::cout << "Initialized trees:\n";
+                 for (const auto& [index, info] : viewers) {
+                     if (info.tree)
+                         std::cout << std::format("Tree {}: {}\n", index, info.tree->name());
+                 }
+             }
+             return Ret::COMSUMED;
+         }},
         {'c',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              std::string algo;
              iss >> index >> algo;
@@ -142,7 +160,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'p',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              std::string name;
              iss >> name;
              auto print = [&](char index) {
@@ -169,7 +187,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'i',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              K key;
              V value;
@@ -185,7 +203,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'r',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              K key;
              iss >> index >> key;
@@ -199,7 +217,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'f',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              K key;
              iss >> index >> key;
@@ -219,7 +237,7 @@ trace mode:
          }},
         {
             's',
-            [&](std::istringstream& iss) -> Ret {
+            [&](std::istringstream iss) -> Ret {
                 char dest = 0, src = 0;
                 K key;
                 iss >> dest >> src >> key;
@@ -257,7 +275,7 @@ trace mode:
             },
         },
         {'m',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char dest = 0, src = 0;
              iss >> dest >> src;
              if (!isalpha(dest) || !isalpha(src)) return Ret::INVALID;
@@ -280,7 +298,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'d',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              iss >> index;
              if (!isalpha(index)) return Ret::INVALID;
@@ -290,11 +308,9 @@ trace mode:
                      case Algorithm::BASIC: basics.erase(index); break;
                      case Algorithm::AVL: avls.erase(index); break;
                      case Algorithm::TREAP: treaps.erase(index); break;
-                     case Algorithm::SPLAY:
-                         splays.erase(index);
-                         break;
-                         std::cout << std::format("Deleted tree {}\n", index);
+                     case Algorithm::SPLAY: splays.erase(index); break;
                  }
+                 std::cout << std::format("Deleted tree {}\n", index);
              } else {
                  std::cout << std::format("Tree {} not initialized.\n", index);
              }
@@ -302,7 +318,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'R',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              int count = 0;
              iss >> index >> count;
@@ -325,7 +341,7 @@ trace mode:
              return Ret::COMSUMED;
          }},
         {'S',
-         [&](std::istringstream& iss) -> Ret {
+         [&](std::istringstream iss) -> Ret {
              char index = 0;
              int start = 0, end = 0;
              iss >> index >> start >> end;
@@ -334,7 +350,7 @@ trace mode:
              if (viewers[index].tree) {
                  int range = std::abs(std::max(start, end) * 10);
                  auto& tree = viewers[index].tree;
-                 for (int i = start; i < end; ++i) {
+                 for (K i = start; i < end; ++i) {
                      tree->insert(i, rand() % range);  // Sequential values
                  }
                  std::cout << std::format(
@@ -347,25 +363,29 @@ trace mode:
              return Ret::COMSUMED;
          }},
     };
+    std::map<Ret, const char*> msg = {
+        {Ret::INVALID, "Invalid command, type 'h' for help.\n"},
+        {Ret::COMSUMED, ""},
+        {Ret::EXIT, "Exit.\n"}};
+    const char PROMPT[] = ">>> ";
     while (true) {
-        std::cout << ">>> ";
-        char cmd;
-        std::cin >> cmd;
+        std::cout << PROMPT;
         std::string line;
         if (!std::getline(std::cin, line)) {
-            std::cout << "exit." << '\n';
+            std::cout << msg[Ret::EXIT];
             break;
         }
-        for (auto& [ch, func] : commands) {
-            if (ch == cmd) {
-                std::istringstream iss(line);
-                auto ret = func(iss);
-                switch (ret) {
-                    case Ret::INVALID: std::cout << "invalid command." << '\n'; break;
-                    case Ret::COMSUMED: break;  // command consumed
-                    case Ret::EXIT: std::cout << "exit." << '\n'; return 0;
-                }
+        std::istringstream iss(line);
+        std::string cmd;
+        if (!(iss >> cmd)) continue;
+        if (commands.contains(cmd[0])) {
+            auto ret = commands[cmd[0]](std::move(iss));
+            std::cout << msg[ret];
+            if (ret == Ret::EXIT) {
+                break;
             }
+        } else {
+            std::cout << msg[Ret::INVALID];
         }
     }
     return 0;

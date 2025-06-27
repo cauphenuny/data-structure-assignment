@@ -13,13 +13,13 @@
 
 `TreeAdapter<K, V, Impl> : Tree<K, V> : TreeBase`
 
-使用 `TreeBase` 时不需要关心内部的 `key, value` 是什么类型
-
 使用 `Tree<K, V>` 时不需要关心内部用的什么算法实现平衡树
+
+使用 `TreeBase` 时不需要关心内部的 `key, value` 是什么类型
 
 ---
 
-#figure(image("assets/tree-hierarchy.png"), caption: [Tree 类图])
+#figure(image("assets/tree-hierarchy.png"), caption: [Tree 类图，实线继承，虚线组合])
 
 ---
 
@@ -39,6 +39,12 @@ template <typename Tree> struct Search {
         return root ? root->find(key) : nullptr;
     }
 };
+```
+
+Define once, use everywhere.
+
+```cpp
+/// @pseudocode
 struct BasicTreeImpl : Search<BasicTreeImpl>;
 struct AVLTreeImpl : Search<AVLTreeImpl>;
 struct TreapImpl : Search<TreapImpl>;
@@ -71,12 +77,19 @@ template <typename Node> struct Size {
 
 ---
 
-```cpp
+合并不同的属性，创建一个自动维护所有属性的 `maintain()` 方法
 
+```cpp
 // helper trait to maintain multiple properties
 template <typename... Ts> struct Maintain : Ts... {
     void maintain() { (Ts::maintain(), ...); }
 };
+```
+
+根据需要维护的属性，继承不同的 `Maintain` 特性
+
+```cpp
+/// @pseudocode
 
 // imports a maintain() that maintains size
 struct BasicNode : Maintain<Size<BasicNode>>;
@@ -87,6 +100,12 @@ struct AVLNode : Maintain<Size<AVLNode>, Height<AVLNode>>;
 ---
 
 === 旋转实现 (`trait::Rotate`)
+
+`bind, unbind` 控制子树的挂载和拆卸，`moveNode` 移动节点
+
+这两个辅助函数都会记录下当前森林的状态到 `trace` 中
+
+具体旋转的方法不再赘述
 
 ```cpp
 template <typename Tree> struct Rotate {
@@ -203,13 +222,28 @@ template <typename K, typename V> struct Tree : TreeBase {
 
 `TreeAdapter` 拥有一个 `Impl` 对象，通过转发 `Tree` 接口的方法到 Impl 对象上来实现具体的树算法
 
+- 对于 Algorithm-dependent 的方法，`TreeAdapter` 只需要转发调用到 `impl` 上，不需要重载
+
 ```cpp
 template <typename K, typename V, template <typename, typename> typename Impl>
 struct TreeAdapter : Tree<K, V> {
-    friend struct Test;
+    // @override
     auto size() const -> size_t override { return impl->size(); }
     auto view() const -> ForestView override { return impl->view(); }
     ...
+
+    // @no-override
+    auto split(const K& k) -> std::unique_ptr<TreeAdapter> {
+        return std::make_unique<TreeAdapter>(impl->split(k));
+    }
+    auto join(std::unique_ptr<TreeAdapter> other) -> Status {
+        return impl->join(std::move(other->impl));
+    }
+    auto merge(std::unique_ptr<TreeAdapter> other) -> Status {
+        return impl->merge(std::move(other->impl));
+    }
+    ...
+
     std::unique_ptr<Impl<K, V>> impl;
 };
 ```
@@ -227,12 +261,45 @@ template <typename K, typename V>
 using Treap = TreeAdapter<K, V, TreapImpl>;
 ```
 
+使用举例：
+
+```cpp
+std::vector<std::unique_ptr<Tree<int, int>>> trees;
+trees.push_back(std::make_unique<BasicTree<int, int>>());
+trees.push_back(std::make_unique<AVLTree<int, int>>());
+trees.push_back(std::make_unique<SplayTree<int, int>>());
+trees.push_back(std::make_unique<Treap<int, int>>());
+// operations...
+for (auto& tree : trees) {
+    auto trace = tree->trace(); // 输出每一步后的状态
+    printTrace(trace);
+}
+```
+
 ---
 
-- 每一种 `Tree` 都从 `trait::` 中选取使用的特性继承，比如：AVL/Splay使用旋转特性
+- Impl 的实现：每一种 `Tree` 都从 `trait::` 中选取使用的特性继承，比如：AVL/Splay使用旋转特性
 
 AVLNode 需要维护 Height, 而普通 Node 不需要，\
 所以分别继承 `Maintain<Size<AVLNode>, Height<AVLNode>>` 和 `Maintain<Size<Node>>`
+
+```cpp
+template <typename K, typename V>
+struct BasicNode : Pair<const K, V>,
+                   trait::node::TypeTraits<K, V>,
+                   trait::node::Link<BasicNode<K, V>>,
+                   trait::node::View<BasicNode<K, V>>,
+                   trait::node::Maintain<trait::node::Size<BasicNode<K, V>>>,
+                   trait::node::Search<BasicNode<K, V>> {
+
+    BasicNode(const K& k, const V& v, BasicNode* parent = nullptr)
+        : Pair<const K, V>(k, v), trait::node::Link<BasicNode<K, V>>(parent) {
+        this->maintain();
+    }
+};
+```
+
+---
 
 ```cpp
 template <typename K, typename V>
@@ -251,9 +318,11 @@ struct AVLNode
 };
 ```
 
+几乎不用写任何附加代码就完成了两种节点的创建
+
 ---
 
-- 通过 Mixin 结合不同功能，写一个 `Mixin` 辅助模版类减少CRTP重复的派生类声明
+- 可以看到每一个基类模版的参数中都要写派生类比较麻烦，构造树时由于 `trait` 比较多，这个问题更加明显，写一个 `Mixin` 辅助模版类减少CRTP重复的派生类声明
 
 ```cpp
 /// @struct Mixin
@@ -289,6 +358,8 @@ template <typename Node> struct Link {
     Link(Node* parent = nullptr) : parent(parent) {}
 };
 ```
+
+移交所有权时使用 `std::move()`，可读性与安全性都很好
 
 #pause
 
@@ -439,3 +510,4 @@ SUBCASE("Split and merge") {
     Test::check(tree);
 }
 ```
+
